@@ -76,6 +76,16 @@ That is the entire retained traffic history a plugin can read. Note what is
 **not** in it: no MAC address, no hostname, no device. `FlowSourceAddrDetails`
 is the richest and is what per-client destinations and ports must come from.
 
+**And note the ceiling.** The GUI's own help text on `netflow.collect.enable`
+says the local cache holds only *the latest 100 MB of data*. So the depth of
+history Lens can ever show is not a Lens setting — it is a function of how busy
+the network is and how many aggregation dimensions are being written. On a busy
+network with every interface captured, "last Tuesday" may simply not exist. S3
+has to measure the actual span (`configctl netflow aggregate.metadata`) and say
+it out loud rather than let a chart imply more depth than there is, and the
+wizard's interface proposal has to weigh capture breadth against how far back
+the operator gets to look.
+
 ### 1.5 Identity — present tense only
 
 | Source | Endpoint | Gives |
