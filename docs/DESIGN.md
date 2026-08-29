@@ -1,0 +1,451 @@
+# Lens — Design: systems, gaps, decisions
+
+> Living document. Process: [PROCESS.md](PROCESS.md), target picture:
+> [VISION.md](VISION.md).
+> **The question behind everything: "does this need more than one place?" —
+> then it belongs in the identity service (S1) or the derivation layer (S4),
+> never duplicated into a Volt template or a widget.**
+
+## 0. Guiding idea
+
+OPNsense knows *what* traffic happened and, separately, *who* is on the network
+right now. It never joins the two over time. Lens is that join, plus the screens
+that become possible once it exists.
+
+| Layer | Contains | Who owns it |
+|---|---|---|
+| Sources | flow records, DNS queries, leases, ARP/NDP, live counters | **OPNsense core** — read only, never re-implemented |
+| Identity | device ↔ MAC ↔ addresses ↔ names ↔ tags, over time | **Lens (S1, S2)** — the part nothing else keeps |
+| Derivation | attribution, baselines, verdicts, plain-language sentences | **Lens (S4, S8)** — server side, in PHP/Python, once |
+| Surfaces | Reporting pages, client profile, widgets, wallboard | **Lens (S5–S7, S10)** — layout only, no interpretation |
+
+Interpretation happens below the surface layer. A template that decides what a
+number *means* is a bug, because the next surface will decide differently.
+
+## 1. Inventory — what already exists
+
+> Verified 2026-08-29 against `opnsense/core` on `master` and against the
+> `opnsense/plugins` checkout. Paths are core paths unless stated. This section
+> is what an agent reads instead of guessing; it has to stay true.
+
+### 1.1 The `Reporting` menu is a real, extendable root
+
+`src/opnsense/mvc/app/models/OPNsense/Core/Menu/Menu.xml:15` defines
+`<Reporting order="15" cssClass="fa fa-area-chart">` with `Traffic` and
+`DNS (Unbound)` under it. `OPNsense/Diagnostics/Menu/Menu.xml` merges `Health`,
+`Insight` and `NetFlow` into the same node from a different model directory.
+A plugin `Menu.xml` merges the same way — so `Reporting → Lens` is a supported
+placement, not a hack. No plugin in the `opnsense/plugins` collection currently
+does this (checked 2026-08-29); Lens would be the first.
+
+### 1.2 The dashboard is already modular
+
+Core ships 33 widgets under `src/opnsense/www/js/widgets/` with three base
+classes: `BaseWidget.js`, `BaseTableWidget.js`, `BaseGaugeWidget.js`. Thirteen
+plugins in the collection ship their own widget plus a `Metadata/*.xml` — among
+them `security/netbird/.../widgets/NetBird.js`, written by this operator.
+Drag-and-drop, per-user layouts and persistence are **core features since
+24.7**. Building a second dashboard would be rebuilding what exists (§4.3).
+
+### 1.3 Traffic — live
+
+| Endpoint | Gives |
+|---|---|
+| `/api/diagnostics/traffic/interface` | current bits/s per interface |
+| `/api/diagnostics/traffic/stream` | server-sent event stream, `poll_interval` seconds |
+| `/api/diagnostics/traffic/top/<interfaces>` | current top talkers by address, from pf state data |
+
+Live only. Nothing here is retained.
+
+### 1.4 Traffic — history (flowd / Insight)
+
+Retained history comes from flowd, aggregated by
+`src/opnsense/scripts/netflow/flowd_aggregate.py` into SQLite, and read through
+`/api/diagnostics/networkinsight/{timeserie,top,export,getMetadata,getInterfaces,getProtocols,getServices}`.
+
+**The available aggregation dimensions are fixed and small:**
+
+| Provider | `agg_fields` |
+|---|---|
+| `FlowInterfaceTotals` | `if`, `direction` |
+| `FlowSourceAddrTotals` | `if`, `src_addr`, `direction` |
+| `FlowSourceAddrDetails` | `if`, `direction`, `src_addr`, `dst_addr`, `service_port`, `protocol` |
+| `FlowDstPortTotals` | `if`, `protocol`, `dst_port` |
+
+That is the entire retained traffic history a plugin can read. Note what is
+**not** in it: no MAC address, no hostname, no device. `FlowSourceAddrDetails`
+is the richest and is what per-client destinations and ports must come from.
+
+### 1.5 Identity — present tense only
+
+| Source | Endpoint | Gives |
+|---|---|---|
+| ARP | `/api/diagnostics/interface/searchArp` | IPv4 ↔ MAC ↔ interface, vendor, hostname |
+| NDP | `/api/diagnostics/interface/searchNdp` | IPv6 ↔ MAC |
+| Kea leases | `OPNsense/Kea/Api/Leases{,4,6}Controller` | lease, hostname, MAC, expiry |
+| Dnsmasq leases | `OPNsense/Dnsmasq/Api/LeasesController` | same, other DHCP server |
+
+All of these describe *now*. Nothing keeps a history of which MAC held which
+address last Tuesday. **This is the gap the plugin exists to close.**
+
+### 1.6 DNS
+
+`OPNsense/Unbound/Api/OverviewController`: `searchQueries`, `rolling`,
+`totals`, `getPolicies`, `isEnabledAction`, `isBlockListEnabledAction`,
+`resetAction`. Queries carry the client address and which policy blocked them —
+which is exactly enough to attribute DNS behaviour to a device once S1 exists.
+Requires Unbound reporting to be switched on; `isEnabledAction` says whether it
+is.
+
+### 1.7 IDS — noted, out of scope for now
+
+`/api/ids/service/queryAlerts` and `getAlertInfo` exist and are searchable.
+Out of the first scope by the operator's decision (§4.6). Recorded here so the
+next person does not have to re-discover it.
+
+### 1.8 Plugin mechanics
+
+- `<category>/<name>/Makefile` including `../../Mk/plugins.mk`; `PLUGIN_NAME`,
+  `PLUGIN_VERSION`, `PLUGIN_REVISION`, `PLUGIN_DEPENDS`, `PLUGIN_COMMENT`.
+- Pure-UI plugins with no FreeBSD port behind them exist — the themes.
+- `src/etc/inc/plugins.inc.d/<name>.inc` supports a `_cron()` hook; used by
+  `dns/rfc2136`, `security/q-feeds-connector` and `www/nginx`. That is how the
+  collector gets scheduled.
+- `src/opnsense/service/conf/actions.d/actions_<name>.conf` for configd actions.
+- Everything under `src/` is installed into `/usr/local`. There is no exclude.
+- Current release train: `stable/26.7`.
+
+## 1b. Status overview (maintain at EVERY stage)
+
+| System | Status | Rest / note |
+|---|---|---|
+| S0 · Package skeleton & walking skeleton | ⏳ | nothing built yet |
+| S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
+| S2 · Own store & collector | ⏳ | must start collecting before anything can display |
+| S3 · Preflight & source setup | ⏳ | operator's box state unknown as of 2026-08-29 |
+| S4 · Traffic attribution | ⏳ | joins §1.4 onto S1 |
+| S5 · Client profile page | ⏳ | |
+| S6 · Reporting overview | ⏳ | |
+| S7 · Dashboard widgets | ⏳ | |
+| S8 · Baseline & verdicts | ⏳ | needs weeks of S2 data before it may speak |
+| S9 · Correlation timeline | ⏳ | IDS slot left open (§4.6) |
+| S10 · Wallboard / kiosk | ⏳ | |
+| S11 · Command palette | ⏳ | needs S1 as its index |
+| S12 · DNS view | ⏳ | needs Unbound reporting on (S3) |
+| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3 |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5 |
+| S15 · Test & gate chain | ⚾ rule | never "done" |
+
+## 2. Systems & gaps
+
+### S0 · Package skeleton
+**Purpose:** prove the whole chain — build, install, menu, ACL, page, gates —
+before any feature depends on it.
+**Today:** nothing. The repository holds documentation only.
+**Plan:** `net-mgmt/lens`, package `os-lens`, one page under `Reporting → Lens`
+that renders a single true sentence. Upstream build machinery (`Mk/`,
+`Scripts/`, `Templates/`, `Keywords/`) copied in at a recorded commit (§4.1).
+**Open:** whether `make lint` / `make style` can run without a core checkout, or
+whether the netbird `tests/gates/run.sh` approach has to be lifted across.
+
+### S1 · Identity service
+**Purpose:** give every device on the network one identity that survives an
+address change, and let the operator name it.
+**Today:** does not exist anywhere in OPNsense. §1.5 gives the present tense
+only.
+**Plan:** an observation table (MAC, address, interface, hostname, source,
+first seen, last seen) fed by the collector, collapsed into a device record.
+Key on MAC where one exists; fall back to a stable-address identity where it
+does not. Operator-owned fields — display name, icon, tags, notes — live beside
+the observed ones and are never overwritten by an observation.
+**Open — and this is the hard part:** MAC randomisation. Modern phones present a
+different MAC per SSID and rotate it; IPv6 privacy extensions rotate addresses
+hourly. One device will look like many. The plugin must not present a device
+list that grows by ten entries a week and quietly lies. Candidate mitigations to
+evaluate against real data, not in the abstract: treat locally-administered MACs
+(the `x2/x6/xA/xE` bit) as a distinct, clearly-labelled class; offer manual
+merge; cluster on DHCP fingerprint plus hostname. **No design is committed
+until observations from the operator's own network exist** — which is one more
+reason S2 ships before S1's UI.
+
+### S2 · Own store & collector
+**Purpose:** keep the things nothing else keeps, and keep them cheaply.
+**Plan:** one SQLite database under `/var/db/lens/`. Written only by a Python
+collector run from the `_cron()` hook and by configd actions — never by the web
+process directly. Schema versioned and migrated. Retention configurable, with
+a documented default and a purge action (S14).
+**Open:** collection interval (proposal: 60 s for identity observation, cheap;
+5 min for anything joining flow data). Disk ceiling before the plugin refuses
+to keep collecting.
+
+### S3 · Preflight & source setup
+**Purpose:** the operator installs the plugin and it works, instead of showing
+empty pages because NetFlow was never switched on.
+**Today:** the state of the operator's box is unknown (asked 2026-08-29,
+answer: "must look"). Assume nothing is enabled.
+**Plan:** a page that reports, per source (NetFlow capture, flowd aggregation,
+Unbound reporting, DHCP server in use, ARP/NDP), whether it is on, how far back
+its data goes, and what Lens can and cannot show without it. Each missing one
+gets a switch-it-on action that states the cost — disk, CPU, and, for DNS query
+logging, that it records every name every device looks up.
+**Open:** which interfaces NetFlow should be enabled on by default. Enabling it
+on every interface doubles the record volume for traffic that is counted twice.
+
+### S4 · Traffic attribution
+**Purpose:** turn `src_addr` into a device, everywhere.
+**Plan:** join `FlowSourceAddrTotals` / `FlowSourceAddrDetails` (§1.4) against
+S1's address history *at the time of the bucket* — not against the current ARP
+table, which would attribute last week's traffic to whoever holds the address
+today. Attribution confidence is a first-class value and is shown, because
+sometimes the honest answer is "an address that was not leased to anyone we
+know".
+**Open:** unattributable traffic must have a visible home rather than being
+silently dropped from totals.
+
+### S5 · Client profile page
+**Purpose:** everything known about one device, on one page.
+**Plan:** header with identity, tags and verdict; traffic over time; top
+destinations and services; DNS activity; lease and address history; online
+timeline. Deep-linkable, because every other surface links here.
+
+### S6 · Reporting overview
+**Purpose:** the landing page under `Reporting → Lens`.
+**Plan:** the "weather report" — a short paragraph in plain language, the top
+devices, what changed against baseline, and the timeline. Written by S8's
+templates (§4.7), so the page lays out sentences it does not compose.
+
+### S7 · Dashboard widgets
+**Purpose:** put Lens where the operator already looks.
+**Plan:** widgets for the core dashboard, on core's base classes, modelled on
+`security/tailscale` and the operator's own `NetBird.js`. Candidates: top
+devices now, a device that is unusual right now, DNS block rate. Each must
+survive the dashboard's own refresh cycle and must not poll expensively.
+
+### S8 · Baseline & verdicts
+**Purpose:** green / amber / red without the operator configuring thresholds.
+**Plan:** per device, per hour-of-week, a robust central tendency and spread
+(EWMA plus median absolute deviation) over S2 data. **It stays silent until it
+has enough history to be right** — a learning period that is stated on screen
+and counted down, not hidden. A wrong amber in week one costs the feature its
+credibility permanently.
+**Open:** the exact learning threshold. Proposal: three occurrences of the same
+hour-of-week bucket, i.e. roughly three weeks.
+
+### S9 · Correlation timeline
+**Purpose:** "what happened at 14:32" as one horizontal answer.
+**Plan:** one time axis, several stacked lanes — traffic peaks, DHCP events,
+DNS blocks, and a lane left empty and labelled for IDS alerts (§4.6). Click a
+point, get the device.
+
+### S10 · Wallboard / kiosk
+**Purpose:** a second screen in the room that is worth looking at.
+**Plan:** a route without menu chrome, large type, auto-cycling panels, a
+read-only ACL role. Explicitly the place where the flow diagram and, later, the
+map live.
+
+### S11 · Command palette
+**Purpose:** jump to any device, tag or page without menus.
+**Plan:** keyboard-triggered overlay over an index built from S1. Client-side
+only, no new endpoint beyond a search action.
+
+### S12 · DNS view
+**Purpose:** what devices ask for, and what got blocked.
+**Plan:** live query feed with category badges, per-device heatmap by hour and
+weekday, and — on clicking a blocked entry — which policy caught it, from
+`getPolicies` (§1.6).
+**Open:** the "allow for 5 minutes" button writes to Unbound and triggers a
+reconfigure. That crosses the read-only line (§4.9) and is deferred until the
+rest of the DNS view has proven itself.
+
+### S13 · Load budget ⚾
+**Purpose:** the plugin must never be the reason the firewall is slow.
+**Rule:** no query on a page load may scan an unbounded table; every list is
+paginated server-side; the collector's cost is measured on the operator's real
+hardware and recorded in the ROADMAP operations notes. Any stage that adds a
+query states what it costs.
+
+### S14 · Privacy & retention ⚾
+**Purpose:** this plugin builds a complete behavioural record of every person in
+the household or office. That is not a side effect, it is the product.
+**Rule:** every stored field is listed in one place with its retention; every
+data source is individually switchable; a purge action exists and works; the
+DNS query log is opt-in with the consequence spelled out on the switch, not in
+a manual. In a commercial setting this is GDPR-relevant data and the plugin must
+not make it accidental.
+
+### S15 · Test & gate chain ⚾
+**Rule:** recorded fixtures for every external API shape, so behaviour is
+provable without a router. PHPUnit for derivation, and the same style/lint gate
+discipline the netbird plugin arrived at.
+
+## 2b. Idea store (unprioritised)
+
+From the operator's brief, 2026-08-29. Kept verbatim in intent so nothing is
+lost. Feasibility notes are from the same day's review; they are judgements, not
+decisions.
+
+**Wanted, feasible, not yet scheduled**
+- Live Sankey WAN → VLAN → client. Feasible at a 5–10 s cadence from live top
+  talkers; *not* per-packet and must not pretend to be.
+- Geo world map of destination countries. Needs GeoIP, which means a MaxMind
+  key belonging to the operator and a periodic download. Hard external
+  dependency — worth it, but not early.
+- Time-travel slider across the dashboard. Works only for historised layers
+  (flow, DNS, identity). Live-only panels have no past and must grey out rather
+  than lie.
+- Reputation badges (Tor exit, cloud range, known bot). Only from periodically
+  downloaded lists and existing OPNsense aliases. A live lookup per alert would
+  leak the operator's traffic to a third party once per click.
+- Layout export / import as a file.
+- Weekly report as printable HTML.
+- Compare two devices side by side.
+- Automatic grouping by vendor or behaviour.
+- Onboarding wizard that switches on the widgets matching a stated interest.
+- Achievements ("30 days without an incident"), ambient sound on critical
+  events. Cheap, late, opt-in.
+
+**Wanted, but not as described**
+- "AI plain-language summaries" and natural-language search → deterministic
+  sentence templates instead (§4.7).
+- Kill-chain visualisation → incident clustering plus the category Suricata
+  actually reports; the rest would be invented structure over real data.
+- Template marketplace → export/import only (VISION, deliberately not).
+
+## 3. Prioritisation
+
+By effect, not by effort:
+
+1. **S0** — until a package installs and a page renders, every estimate is
+   fiction.
+2. **S3 before S2 before S1's UI** — the operator's box may be collecting
+   nothing today. Every week without a collector is a week of history the
+   plugin will not have when its interesting features arrive. Switching the
+   sources on and starting to collect is therefore worth more, right now, than
+   any screen.
+3. **S1 + S4 + S5** — the first thing that is genuinely impossible in core.
+4. **S6 + S7** — where the operator actually looks.
+5. **S12, S8, S9** — depth, once there is data with age.
+6. **S10, S11**, then the idea store.
+
+## 4. Decisions
+
+> Numbered and dated so plans can cite them. Never renumbered.
+
+### §4.1 — Own repository, not the plugins fork (2026-08-29, agent's call at the operator's request)
+**Question:** put Lens in `BxnnyG/opnsense-plugins` next to the netbird work, or
+in a repository of its own?
+**Decision:** own repository. The build machinery (`Mk/`, `Scripts/`,
+`Templates/`, `Keywords/`, `LICENSE`) is copied from `opnsense/plugins` at a
+recorded commit so `make package` behaves identically; refreshing it is a
+deliberate, logged operation.
+**Rationale:** the fork's purpose is work that is *going upstream* — three
+netbird pull requests are open against it. Lens is explicitly not going upstream
+(§4.2). Mixing the two makes both worse: rebases against upstream drag along a
+plugin that will never be merged, releases and tags collide with upstream's, and
+anyone landing on the fork cannot tell what it is. Branches would separate the
+code but not the identity: Lens needs its own README, its own issues, its own
+tags and its own package feed. The cost — tracking `Mk/` by hand — is small and
+rare.
+**Consequences:** the netbird fork stays clean. Lens gets a `net-mgmt/lens`
+directory in its own repository. Upstream build-machinery changes are a
+maintenance item in the BACKLOG.
+
+### §4.2 — Not an upstream pull request (2026-08-29, agent's recommendation, operator's call)
+**Question:** submit Lens to `opnsense/plugins`?
+**Decision:** no, not as a plugin.
+**Rationale:** it overlaps `Reporting` and the dashboard, both of which core
+owns and is opinionated about; plugins in that collection are almost without
+exception configuration UIs for a FreeBSD port, and the only pure-UI precedent
+is the themes; and it reads across four foreign subsystems, a coupling the
+plugin framework does not model — which is precisely the shape of thing core
+answers with "that belongs in core".
+**Consequences:** distribution is the operator's own package feed. Individual
+pieces may be offered to *core* later on their own merit — the identity join
+(S1) is the obvious candidate, being small, useful and free of UI opinion. That
+possibility is a reason to keep S1 clean of Lens-specific assumptions.
+
+### §4.3 — Supply the core dashboard, do not build another (2026-08-29)
+**Question:** the brief asks for modular drag-and-drop widgets with saved
+layouts. Build that?
+**Decision:** no. Core has had exactly that since 24.7 (§1.2). Lens ships
+widgets into it.
+**Rationale:** rebuilding it costs months and produces a second, worse
+dashboard the operator has to choose between.
+**Consequences:** S7 is widgets, not a framework. The wallboard (S10) is a
+separate, deliberately non-dashboard surface and is where the layout freedom
+actually goes.
+
+### §4.4 — Own store for identity, core APIs for everything else (2026-08-29)
+**Question:** collect our own flow data, or read core's?
+**Decision:** read core's flow, DNS and lease data through its APIs. Store only
+identity observations, operator-owned fields (names, tags, notes) and computed
+baselines.
+**Rationale:** duplicating flowd would double the write load on a small disk to
+produce the same numbers. What core genuinely does not keep is identity over
+time (§1.5) — so that, and only that, is ours.
+**Consequences:** Lens's usefulness is bounded by core's retention settings for
+flow and DNS data, and S3 has to surface that honestly.
+
+### §4.5 — Lens may enable its own data sources, and nothing else (2026-08-29)
+**Question:** the operator asked for "one-click install of netflow" rather than
+building on a badly configured box. Does a reporting plugin get to write
+configuration?
+**Decision:** yes, for exactly one class of change — switching on the sources it
+reads (NetFlow capture and aggregation, Unbound reporting) — always as an
+explicit action the operator triggers, never on install, never silently, always
+with the cost stated and always reversible.
+**Rationale:** the alternative is a plugin that shows empty pages and blames the
+operator. The risk is a reporting tool that reconfigures a firewall behind
+someone's back; naming the boundary narrowly is what keeps that from creeping.
+**Consequences:** S3 exists and is early. Every write path outside this class is
+a violation, not a feature request.
+
+### §4.6 — IDS out of the first scope (2026-08-29, operator)
+**Question:** four of the six idea groups in the brief were IDS-shaped. In?
+**Decision:** out for now. The correlation timeline (S9) reserves a lane for it
+so that adding it later is an addition, not a rewrite.
+**Rationale:** operator's scope call. Suricata may not even be running on the
+box.
+**Consequences:** no IDS reading, no alert feed, no reputation badges yet. §1.7
+records what was found so the work is not repeated.
+
+### §4.7 — Deterministic sentences, not a language model (2026-08-29, agent's recommendation, accepted by scope)
+**Question:** the brief asks for plain-language summaries and natural-language
+search.
+**Decision:** generate the sentences from templates over measured values and
+baselines. No model, local or remote.
+**Rationale:** a remote model means internal hostnames, addresses and browsing
+behaviour leaving a security appliance; nothing capable runs locally on this
+class of hardware. Templates over S8 give the same reading experience, are
+provable line by line, and can be tested with fixtures.
+**Consequences:** S8 owns the sentences. Every sentence must be traceable to the
+numbers that produced it, and that traceability is testable.
+
+### §4.8 — The load budget is a rule, not an optimisation (2026-08-29)
+**Question:** how much of the box may Lens use?
+**Decision:** it is a standing constraint (S13) checked at every stage, with the
+cost of each new query stated in its plan and measured on the operator's real
+hardware.
+**Rationale:** on a router, a reporting tool that costs throughput has negative
+value. This is the failure mode that kills such plugins, and it arrives
+gradually.
+**Consequences:** no unbounded scans on page load; server-side pagination
+everywhere; the collector's runtime is recorded in the ROADMAP operations notes.
+
+### §4.9 — Read-only by default (2026-08-29)
+**Question:** where is the line, given §4.5?
+**Decision:** Lens reads. It writes only source-enablement (§4.5) and its own
+store. It never writes firewall rules, routes, aliases, or DNS policy.
+**Consequences:** the "allow this domain for 5 minutes" button (S12) is a
+deliberate exception that has not been granted and is deferred.
+
+### §4.10 — Working name (2026-08-29, agent, cheap to change)
+**Decision:** `net-mgmt/lens`, package `os-lens`, menu entry `Reporting → Lens`.
+**Rationale:** short, describes the thing (a lens on the network), no collision
+found in the collection.
+**Consequences:** rename cost rises sharply after the first package is
+installed anywhere. If it is going to change, it changes before stage 1 ships.
+
+### §4.11 — Documentation in English (2026-08-29, operator)
+**Decision:** English, matching the sibling `security/netbird` docs and the
+wider ecosystem. Never mixed within a file.
