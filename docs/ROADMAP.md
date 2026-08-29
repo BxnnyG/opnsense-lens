@@ -15,9 +15,10 @@ this one inherits, and 23 stages of experience with it.
 | # | Stage | System | Status |
 |---|---|---|---|
 | — | Documentation scaffold | — | ✅ 2026-08-29 |
+| 0 | Hand-run tools: preflight, identity observation, summary (§4.14) | S3, S2 | ✅ 2026-08-29 · running on the operator's box from 2026-08-29 |
 | 1 | Walking skeleton: `os-lens` builds, installs, appears under `Reporting`, renders one true sentence ([plan](plans/stage-01-walking-skeleton.md)) | S0 | ⏳ |
-| 2 | Preflight — report what data the box actually has, and what each missing source costs | S3 | ⏳ |
-| 3 | Source setup — switch NetFlow capture, aggregation and Unbound reporting on, deliberately and reversibly (§4.5) | S3 | ⏳ |
+| 2 | Preflight in the plugin — what `tools/lens-preflight.sh` does, as a page under `Services → Lens` | S3 | ⏳ |
+| 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ |
 | 4 | Store & collector — start recording identity observations, before anything displays them | S2 | ⏳ |
 | 5 | Identity — devices instead of addresses, with the randomisation question answered against real observations | S1 | ⏳ |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
@@ -45,9 +46,11 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
-| 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ⏳ next |
-| 2 | Find out what the box has. This also answers the question the operator could not on 2026-08-29. | S3 | ⏳ |
-| 3 | Turn the missing sources on | S3 | ⏳ |
+| 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
+| 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ⏳ next — needs a night of data |
+| 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ⏳ |
+| 2 | Preflight as a page | S3 | ⏳ |
+| 3 | Setup wizard | S3 | ⏳ |
 | 4 | Collect | S2 | ⏳ |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
@@ -64,6 +67,12 @@ against observations from the operator's own network, which stage 4 produces.
 | Package name | `os-lens` | — |
 | Menu entry | `Reporting → Lens` (core `Core/Menu/Menu.xml:15` is the parent) | — |
 | Own store | `/var/db/lens/` — SQLite, written by the collector and configd only | not created yet (stage 4) |
+| Hand-run observation log | `/root/lens-observations.log` on the router, 200 MB ceiling | started 2026-08-29 (§4.14) |
+| Hand-run preflight report | `/root/lens-preflight-<stamp>.txt` on the router | — |
+| flowd aggregate databases | `/var/netflow` · raw flows `/var/log/flowd.log` | verified 2026-08-29 |
+| Unbound statistics store | `/var/unbound/data/unbound.duckdb` (DuckDB) | verified 2026-08-29 |
+| NetFlow config path | `//OPNsense/Netflow` in `config.xml` | verified 2026-08-29 |
+| Unbound reporting flag | `//OPNsense/unboundplus/general/stats` | verified 2026-08-29 |
 | Collector schedule | `_cron()` hook in `src/etc/inc/plugins.inc.d/lens.inc` | not created yet (stage 4) |
 | Core flow data | flowd + `flowd_aggregate`, read via `/api/diagnostics/networkinsight/*` | state on the box **unknown as of 2026-08-29** |
 | Core DNS data | Unbound reporting, read via `/api/unbound/overview/*` | state on the box **unknown as of 2026-08-29** |

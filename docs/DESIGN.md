@@ -122,7 +122,7 @@ next person does not have to re-discover it.
 | S0 · Package skeleton & walking skeleton | ⏳ | nothing built yet |
 | S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
 | S2 · Own store & collector | ⏳ | must start collecting before anything can display |
-| S3 · Preflight & source setup | ⏳ | operator's box state unknown as of 2026-08-29 |
+| S3 · Preflight & setup wizard | ⏳ | hand-run scripts exist in `tools/` (2026-08-29) as the spec |
 | S4 · Traffic attribution | ⏳ | joins §1.4 onto S1 |
 | S5 · Client profile page | ⏳ | |
 | S6 · Reporting overview | ⏳ | |
@@ -178,18 +178,35 @@ a documented default and a purge action (S14).
 5 min for anything joining flow data). Disk ceiling before the plugin refuses
 to keep collecting.
 
-### S3 · Preflight & source setup
-**Purpose:** the operator installs the plugin and it works, instead of showing
-empty pages because NetFlow was never switched on.
-**Today:** the state of the operator's box is unknown (asked 2026-08-29,
-answer: "must look"). Assume nothing is enabled.
-**Plan:** a page that reports, per source (NetFlow capture, flowd aggregation,
-Unbound reporting, DHCP server in use, ARP/NDP), whether it is on, how far back
-its data goes, and what Lens can and cannot show without it. Each missing one
-gets a switch-it-on action that states the cost — disk, CPU, and, for DNS query
-logging, that it records every name every device looks up.
-**Open:** which interfaces NetFlow should be enabled on by default. Enabling it
-on every interface doubles the record volume for traffic that is counted twice.
+### S3 · Preflight & setup wizard
+**Purpose:** *anyone* installs the plugin and it works — not just an operator
+who already configured NetFlow. This is a product requirement (§4.13), not an
+accommodation for one box.
+**Today:** exists as two hand-run scripts, `tools/lens-preflight.sh` and
+`tools/lens-observe.sh` (2026-08-29). They are the executable specification for
+this system: whatever they check, the wizard checks.
+**Plan:** two halves.
+*Preflight* reports, per source (NetFlow capture, flowd collection and
+aggregation, Unbound reporting, which DHCP server, ARP/NDP), whether it is on,
+how far back its data actually goes, and — in one sentence each — what Lens can
+and cannot show without it.
+*The wizard* walks a new installation through switching the missing ones on,
+one screen per source, each stating its cost before the switch: disk, CPU, and
+for DNS query logging the fact that it records every name every device looks
+up. It never enables anything on install and never enables anything the
+operator did not press (§4.5).
+**Verified mechanics (2026-08-29):** NetFlow lives at `//OPNsense/Netflow` in
+`config.xml` — `capture/interfaces`, `capture/egress_only`, `collect/enable`,
+`activeTimeout`, `inactiveTimeout`. Services are driven through
+`configctl netflow {status,collect.*,aggregate.*,cache.stats,flush}`; aggregate
+databases live in `/var/netflow`, raw flows in `/var/log/flowd.log`. Unbound
+reporting is `//OPNsense/unboundplus/general/stats`, its store is
+`/var/unbound/data/unbound.duckdb` (DuckDB, not SQLite), read through
+`configctl unbound qstats {rolling,clients,totals,details,query}`.
+**Open:** which interfaces to propose for NetFlow capture. Capturing every
+interface counts internal traffic twice and doubles the record volume; the
+wizard has to propose a sane default and explain it, not present a checkbox
+list and hope.
 
 ### S4 · Traffic attribution
 **Purpose:** turn `src_addr` into a device, everywhere.
@@ -449,3 +466,46 @@ installed anywhere. If it is going to change, it changes before stage 1 ships.
 ### §4.11 — Documentation in English (2026-08-29, operator)
 **Decision:** English, matching the sibling `security/netbird` docs and the
 wider ecosystem. Never mixed within a file.
+
+### §4.12 — Configuration under Services, views under Reporting (2026-08-29, operator)
+**Question:** Lens has both settings (which sources, retention, the wizard,
+connections to other subsystems) and views (overview, client profile, DNS). One
+menu entry or two?
+**Decision:** two. `Services → Lens` holds configuration, the setup wizard and
+preflight. `Reporting → Lens` holds the views.
+**Rationale:** it matches what an OPNsense user already expects from every other
+plugin — configuration under Services, output under Reporting — and it means the
+Reporting pages never have to carry a settings tab. It also lowers the risk in
+stage 1: if the `Reporting` root turns out not to accept a plugin entry (DESIGN
+§1.1 — nothing in the collection does this today), the configuration half still
+lands in a placement that is proven by fifty-nine other plugins.
+**Consequences:** one `Menu.xml` with two roots. Two ACL entries, because
+reading the views and changing the sources are different privileges — a
+wallboard user (S10) gets the views and nothing else.
+
+### §4.13 — The plugin makes an unconfigured box work (2026-08-29, operator)
+**Question:** may Lens assume NetFlow and Unbound reporting are already on?
+**Decision:** no. A fresh OPNsense with nothing enabled is the *design case*,
+not the exception. Preflight and the wizard (S3) are part of the product.
+**Rationale:** the operator's own instruction — it should be good straight
+away, not assembled on top of rubbish. Any plugin that opens on an empty chart
+and expects the user to go and configure a subsystem they have never heard of
+has failed before it started.
+**Consequences:** S3 moves ahead of every view in the roadmap. Every surface
+built later must degrade to "this needs X, here is what X costs, switch it on"
+rather than rendering an empty state — PROCESS edge case 1 is the standing
+check for it.
+
+### §4.14 — Hand-run scripts before plugin code (2026-08-29, agent's call)
+**Question:** the operator needs to start collecting *tonight*, and stage 1
+(walking skeleton) is days away.
+**Decision:** ship `tools/lens-preflight.sh`, `tools/lens-observe.sh` and
+`tools/lens-observe-summary.py` as read-only shell tools in this repository, run
+by hand, before any plugin code exists.
+**Rationale:** data has a lead time that code does not. Every night the
+collector is not running is a night of history stages 7 onwards will not have.
+And S1's hardest question — how badly MAC randomisation fragments identity —
+cannot be answered by reasoning, only by observing this network.
+**Consequences:** the scripts are the executable specification for S3 and S2;
+they and the plugin must not drift. Whatever they learn goes into §1 of this
+document.
