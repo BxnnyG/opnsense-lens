@@ -77,7 +77,11 @@ against observations from the operator's own network, which stage 4 produces.
 | Core flow data | flowd + `flowd_aggregate`, read via `/api/diagnostics/networkinsight/*` | state on the box **unknown as of 2026-08-29** |
 | Core DNS data | Unbound reporting, read via `/api/unbound/overview/*` | state on the box **unknown as of 2026-08-29** |
 | DHCP server in use | Kea or Dnsmasq — determines which leases API to read | **unknown as of 2026-08-29** |
-| Target release | OPNsense `stable/26.7` | — |
+| Target release | OPNsense `stable/26.7` | operator's box: **26.7.1_1 amd64**, confirmed 2026-08-30 |
+| Operator's segments | 8 VLANs on `vtnet1` (MGNT 10, IPMI 12, HOME 20, IOT 21, GUEST 22, SERVER 30, NAS 33, LAB 40) + `wt0` NetBird | confirmed 2026-08-30 |
+| WAN | `pppoe0` (PPPoE) · separate mgmt NIC `vtnet2` | `capture/egress_only` must be `pppoe0` |
+| IPv6 | present on HOME, MGNT and WAN — dual stack is the norm here, not the exception | confirmed 2026-08-30 |
+| Root shell on the box | **`csh`** — no `$(...)`, no `2>&1` | scripts must self-redirect |
 | Build & install | on the router: `make package` / `make upgrade` in the plugin directory | — |
 | Live-test without installing | on the router: `make mount` … `make umount` | — |
 | Measured collector cost | — | to be filled at stage 4 (§4.8) |

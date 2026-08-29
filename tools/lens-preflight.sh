@@ -5,7 +5,12 @@
 # Read-only. Changes nothing, starts nothing, stops nothing.
 # Run on the OPNsense box as root:
 #
-#     sh lens-preflight.sh | tee /root/lens-preflight-$(date +%Y%m%d-%H%M).txt
+#     sh /root/lens-preflight.sh
+#
+# It prints the report AND writes it to /root/lens-preflight.txt by itself.
+# Do not add a shell pipeline: OPNsense's root shell is csh, which does not
+# understand $(...) or 2>&1, and the command would fail before the script ran.
+# Override the output path with LENS_OUT if you want to keep several runs.
 #
 # This script is the hand-run version of what stage 2 (S3, Preflight) will do
 # inside the plugin. Keep the two in step: anything learned here belongs in
@@ -13,6 +18,19 @@
 
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 export PATH
+
+# Write our own report file, so the caller never has to type shell-specific
+# redirection. The root shell here is csh; assuming sh syntax is how the first
+# run of this script failed (2026-08-30).
+OUT=${LENS_OUT:-/root/lens-preflight.txt}
+if [ -z "$LENS_TEEING" ]; then
+    LENS_TEEING=1
+    export LENS_TEEING
+    sh "$0" "$@" 2>&1 | tee "$OUT"
+    echo
+    echo "Report written to $OUT"
+    exit 0
+fi
 
 sec() { echo; echo "================ $* ================"; }
 try() { echo "\$ $*"; "$@" 2>&1 | sed 's/^/  /'; }

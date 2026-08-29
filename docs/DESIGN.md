@@ -123,7 +123,14 @@ next person does not have to re-discover it.
   collector gets scheduled.
 - `src/opnsense/service/conf/actions.d/actions_<name>.conf` for configd actions.
 - Everything under `src/` is installed into `/usr/local`. There is no exclude.
-- Current release train: `stable/26.7`.
+- Current release train: `stable/26.7`. The operator's box runs **26.7.1_1
+  (amd64)**, confirmed 2026-08-30.
+- **The root shell is `csh`, not `sh`.** It does not understand `$(...)` or
+  `2>&1`. Any command handed to an operator must be shell-independent, and any
+  script must produce its own output file rather than rely on a pipeline. The
+  first run of `tools/lens-preflight.sh` failed on exactly this
+  (`Illegal variable name`, 2026-08-30). The same trap applies to anything the
+  plugin's documentation or its configd actions ever tell someone to type.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
@@ -213,10 +220,19 @@ databases live in `/var/netflow`, raw flows in `/var/log/flowd.log`. Unbound
 reporting is `//OPNsense/unboundplus/general/stats`, its store is
 `/var/unbound/data/unbound.duckdb` (DuckDB, not SQLite), read through
 `configctl unbound qstats {rolling,clients,totals,details,query}`.
-**Open:** which interfaces to propose for NetFlow capture. Capturing every
-interface counts internal traffic twice and doubles the record volume; the
-wizard has to propose a sane default and explain it, not present a checkbox
-list and hope.
+**Open — and sharper than it first looked:** which interfaces to propose for
+NetFlow capture. The operator's own box (confirmed 2026-08-30) has **nine
+routed segments** — MGNT, IPMI, HOME, IOT, GUEST, SERVER, NAS and LAB as VLANs
+on `vtnet1`, plus `wt0` (NetBird) — behind a PPPoE WAN (`pppoe0`) and a separate
+management NIC (`vtnet2`). That is not an edge case, it is the target user.
+Capturing all of them records every inter-VLAN flow on both its ingress and its
+egress interface, so a NAS-to-HOME transfer is counted twice and burns the
+100 MB cache (§1.4) at double rate — which directly shortens how far back every
+chart in this plugin can look. `capture/egress_only` exists precisely to stop
+WAN traffic being double-counted and must be set to the WAN.
+So the wizard cannot present a checkbox list and hope. It has to propose — with
+a reason on screen — and the proposal has to trade breadth of coverage against
+depth of history, out loud. This is the first real design question S3 owns.
 
 ### S4 · Traffic attribution
 **Purpose:** turn `src_addr` into a device, everywhere.
