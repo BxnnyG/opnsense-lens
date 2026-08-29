@@ -62,10 +62,14 @@ echo "  VERDICT local collection   : " . ($col === '1' ? "ON" : "OFF — no hist
 PHPEOF
 
 sec "3. NetFlow services"
+# configd addresses a dotted action name with spaces: [collect.status] is
+# reached as `netflow collect status`. Core does the same -- see
+# configdRun('interface list ifconfig') for [list.ifconfig]. Verified 2026-08-30
+# after the dotted form returned "Action not allowed or missing".
 try configctl netflow status
-try configctl netflow collect.status
-try configctl netflow aggregate.status
-try configctl netflow cache.stats
+try configctl netflow collect status
+try configctl netflow aggregate status
+try configctl netflow cache stats
 
 sec "4. NetFlow data on disk"
 echo "  raw flow log (/var/log/flowd.log):"
@@ -76,10 +80,28 @@ echo "  total size:"
 du -sh /var/netflow 2>&1 | sed 's/^/    /'
 
 sec "5. NetFlow aggregation metadata (how far back does it go?)"
-try configctl netflow aggregate.metadata json
-try configctl netflow aggregate.metadata text
+try configctl netflow aggregate metadata text
+echo
+echo "  Retention is fixed in core and differs per aggregate (verified 2026-08-30):"
+echo "    FlowInterfaceTotals     30s->1d   300s->7d   3600s->31d  86400s->365d"
+echo "    FlowSourceAddrTotals              300s->1h   3600s->1d   86400s->365d"
+echo "    FlowSourceAddrDetails             300s->1h   3600s->1d   86400s->365d"
+echo "    FlowDstPortTotals                 300s->1h   3600s->1d   86400s->365d"
+echo "  i.e. PER-CLIENT data older than 24 hours exists only as DAILY totals."
 
-sec "6. Unbound DNS reporting"
+sec "6. DNS and DHCP services actually running"
+# Config says 'enabled'; that is not the same as 'running'. Checking only the
+# config is how this script reported Unbound reporting as ON on a box that
+# resolves with dnsmasq (2026-08-30).
+for p in unbound dnsmasq named kea-dhcp4 kea-dhcp6 dhcpd; do
+    printf '  %-12s : ' "$p"
+    if pgrep -q "$p" 2>/dev/null; then echo "RUNNING"; else echo "not running"; fi
+done
+echo
+try configctl unbound status
+try configctl dnsmasq status
+
+sec "6b. Unbound DNS reporting (configuration)"
 php << 'PHPEOF'
 <?php
 $c = @simplexml_load_file('/conf/config.xml');
@@ -100,9 +122,12 @@ for s in kea-dhcp4 kea-dhcp6 dnsmasq dhcpd; do
     if pgrep -q "$s" 2>/dev/null; then echo "RUNNING"; else echo "not running"; fi
 done
 echo "  lease files found:"
-ls -lh /var/db/kea/*.csv /var/etc/dnsmasq.leases /var/lib/dnsmasq/dnsmasq.leases \
+# /var/db/dnsmasq.leases verified against core's get_dnsmasq_leases.py, 2026-08-30.
+ls -lh /var/db/dnsmasq.leases /var/db/kea/*.csv \
        /var/dhcpd/var/db/dhcpd.leases 2>/dev/null | sed 's/^/    /'
 echo "    (nothing listed above = none of the known paths exist)"
+echo
+try configctl dnsmasq list leases
 
 sec "8. Identity sources available right now"
 echo "  ARP entries : $(arp -an 2>/dev/null | wc -l | tr -d ' ')"

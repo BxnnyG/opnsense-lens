@@ -76,15 +76,42 @@ That is the entire retained traffic history a plugin can read. Note what is
 **not** in it: no MAC address, no hostname, no device. `FlowSourceAddrDetails`
 is the richest and is what per-client destinations and ports must come from.
 
-**And note the ceiling.** The GUI's own help text on `netflow.collect.enable`
-says the local cache holds only *the latest 100 MB of data*. So the depth of
-history Lens can ever show is not a Lens setting — it is a function of how busy
-the network is and how many aggregation dimensions are being written. On a busy
-network with every interface captured, "last Tuesday" may simply not exist. S3
-has to measure the actual span (`configctl netflow aggregate.metadata`) and say
-it out loud rather than let a chart imply more depth than there is, and the
-wizard's interface proposal has to weigh capture breadth against how far back
-the operator gets to look.
+**And now the single most important fact in this document.** Retention is
+fixed in core, per aggregate and per resolution — `history_per_resolution()` in
+each aggregate class. Verified against `stable/26.7` on 2026-08-30:
+
+| Provider | 30 s | 300 s | 3600 s | 86400 s |
+|---|---|---|---|---|
+| `FlowInterfaceTotals` | 1 day | 7 days | 31 days | 365 days |
+| `FlowSourceAddrTotals` | — | **1 hour** | **1 day** | 365 days |
+| `FlowSourceAddrDetails` | — | **1 hour** | **1 day** | 365 days |
+| `FlowDstPortTotals` | — | **1 hour** | **1 day** | 365 days |
+
+Read the second row again, because it is the constraint the whole plugin is
+built inside: **per-client traffic older than 24 hours exists only as a daily
+total.** Five-minute detail for a device survives one hour. Hourly detail
+survives one day. After that, one number per device per day, for a year.
+
+Interface-level history is generous; device-level history collapses almost
+immediately. That is exactly backwards from what this plugin is for.
+
+Three consequences, and none of them is optional:
+
+1. **"Show me the console's traffic last Tuesday, hour by hour" is impossible
+   from core data.** Only a daily bar exists. Any design that assumes otherwise
+   is designing against data that has already been deleted.
+2. **S8 (baselines) cannot be built on flowd.** A per-device, per-hour-of-week
+   baseline needs weeks of hourly buckets; flowd keeps them for a day. So S2's
+   collector does not merely observe identity — it must **harvest the hourly
+   per-client buckets before they expire**, at least once every 24 hours, and
+   keep its own rollup. Miss a day and that day is gone permanently.
+3. **The time-travel slider is honest only at interface granularity.** Beyond
+   24 hours it can offer days, not moments — and it must say so rather than
+   quietly resample.
+
+This was found on 2026-08-30 by reading the aggregate classes during the first
+preflight, before any code existed. Had it been found at stage 12 it would have
+cost a rewrite of the store and the baseline engine.
 
 ### 1.5 Identity — present tense only
 
@@ -93,19 +120,36 @@ the operator gets to look.
 | ARP | `/api/diagnostics/interface/searchArp` | IPv4 ↔ MAC ↔ interface, vendor, hostname |
 | NDP | `/api/diagnostics/interface/searchNdp` | IPv6 ↔ MAC |
 | Kea leases | `OPNsense/Kea/Api/Leases{,4,6}Controller` | lease, hostname, MAC, expiry |
-| Dnsmasq leases | `OPNsense/Dnsmasq/Api/LeasesController` | same, other DHCP server |
+| Dnsmasq leases | `OPNsense/Dnsmasq/Api/LeasesController` → `configctl dnsmasq list leases` → `/var/db/dnsmasq.leases` | same, other DHCP server |
+| MAC vendor database | `configctl interface list macdb` | OUI → vendor, which is where device icons come from |
+
+The operator's box runs **dnsmasq** for both DNS and DHCP (confirmed
+2026-08-30), so `/var/db/dnsmasq.leases` is the live path here. Kea and BIND are
+a possible future on the same box — which is why nothing may hard-code one
+server (§4.15).
 
 All of these describe *now*. Nothing keeps a history of which MAC held which
 address last Tuesday. **This is the gap the plugin exists to close.**
 
-### 1.6 DNS
+### 1.6 DNS — and the trap in it
 
 `OPNsense/Unbound/Api/OverviewController`: `searchQueries`, `rolling`,
 `totals`, `getPolicies`, `isEnabledAction`, `isBlockListEnabledAction`,
-`resetAction`. Queries carry the client address and which policy blocked them —
-which is exactly enough to attribute DNS behaviour to a device once S1 exists.
-Requires Unbound reporting to be switched on; `isEnabledAction` says whether it
-is.
+`resetAction`, backed by `configctl unbound qstats *` over
+`/var/unbound/data/unbound.duckdb`. Queries carry the client address and which
+policy blocked them — exactly enough to attribute DNS behaviour to a device once
+S1 exists.
+
+**But that is Unbound's, and only Unbound's.** The operator resolves with
+dnsmasq, and dnsmasq in OPNsense exposes leases and nothing else: there is no
+query statistics store, no equivalent API, no blocklist attribution. BIND is a
+third shape again. So the DNS view has no single source, and the box the plugin
+was designed for is the one that cannot feed it (§4.15).
+
+A further trap, found the same day: **`unbound.general.stats` said "enabled" on
+a box that does not resolve with Unbound.** Configuration is not evidence of a
+running service. Every source check must test the process, not the config —
+otherwise preflight cheerfully promises data that will never arrive.
 
 ### 1.7 IDS — noted, out of scope for now
 
@@ -122,6 +166,11 @@ next person does not have to re-discover it.
   `dns/rfc2136`, `security/q-feeds-connector` and `www/nginx`. That is how the
   collector gets scheduled.
 - `src/opnsense/service/conf/actions.d/actions_<name>.conf` for configd actions.
+  **A dotted action name is addressed with spaces, not dots:** `[collect.status]`
+  is invoked as `configctl netflow collect status`, and core does the same from
+  PHP — `configdRun('interface list ifconfig')` for `[list.ifconfig]`. Getting
+  this wrong returns `Action not allowed or missing`, which reads like a
+  permission problem and is not (verified 2026-08-30).
 - Everything under `src/` is installed into `/usr/local`. There is no exclude.
 - Current release train: `stable/26.7`. The operator's box runs **26.7.1_1
   (amd64)**, confirmed 2026-08-30.
@@ -186,14 +235,25 @@ until observations from the operator's own network exist** — which is one more
 reason S2 ships before S1's UI.
 
 ### S2 · Own store & collector
-**Purpose:** keep the things nothing else keeps, and keep them cheaply.
+**Purpose:** keep the things nothing else keeps, and keep them cheaply. Since
+2026-08-30 that is two duties, not one.
+**Duty 1 — observe identity.** MAC, address, interface, hostname, lease, over
+time. Nothing in OPNsense keeps this (§1.5).
+**Duty 2 — harvest flow buckets before core deletes them.** Per-client hourly
+buckets live for **24 hours** (§1.4). Any per-device history with more
+resolution than one-number-per-day, and every baseline in S8, depends on Lens
+copying those buckets out in time. This is not an optimisation: a missed day is
+gone from the universe. The harvest interval therefore has a hard ceiling
+imposed by core, not chosen by us.
 **Plan:** one SQLite database under `/var/db/lens/`. Written only by a Python
 collector run from the `_cron()` hook and by configd actions — never by the web
-process directly. Schema versioned and migrated. Retention configurable, with
-a documented default and a purge action (S14).
-**Open:** collection interval (proposal: 60 s for identity observation, cheap;
-5 min for anything joining flow data). Disk ceiling before the plugin refuses
-to keep collecting.
+process directly. Schema versioned and migrated. Retention configurable, with a
+documented default and a purge action (S14).
+**Open:** intervals. Identity observation is cheap (proposal: 60 s). The
+harvest must run at least every 12 hours to have any margin against a missed
+run, and should probably run hourly so a single failure costs an hour rather
+than a day. What it costs on the operator's 2-core box is measured, not
+assumed (§4.8).
 
 ### S3 · Preflight & setup wizard
 **Purpose:** *anyone* installs the plugin and it works — not just an operator
@@ -266,8 +326,12 @@ survive the dashboard's own refresh cycle and must not poll expensively.
 
 ### S8 · Baseline & verdicts
 **Purpose:** green / amber / red without the operator configuring thresholds.
+**Depends on S2's harvest, absolutely.** Core keeps per-client hourly data for
+one day (§1.4); an hour-of-week baseline needs weeks of it. If the harvest is
+not running, this system cannot exist — no amount of later work recovers the
+data.
 **Plan:** per device, per hour-of-week, a robust central tendency and spread
-(EWMA plus median absolute deviation) over S2 data. **It stays silent until it
+(EWMA plus median absolute deviation) over S2's own rollups. **It stays silent until it
 has enough history to be right** — a learning period that is stated on screen
 and counted down, not hidden. A wrong amber in week one costs the feature its
 credibility permanently.
@@ -293,9 +357,14 @@ only, no new endpoint beyond a search action.
 
 ### S12 · DNS view
 **Purpose:** what devices ask for, and what got blocked.
-**Plan:** live query feed with category badges, per-device heatmap by hour and
-weekday, and — on clicking a blocked entry — which policy caught it, from
-`getPolicies` (§1.6).
+**Blocked on a decision, not on effort (§4.15).** The full view needs Unbound;
+the operator's box runs dnsmasq, which offers no query data at all (§1.6). So
+this system's first question is not "what does the feed look like" but "what
+does Lens show a dnsmasq user" — and "nothing" is a legitimate answer, provided
+it is said on screen rather than discovered.
+**Plan (Unbound present):** live query feed with category badges, per-device
+heatmap by hour and weekday, and — on clicking a blocked entry — which policy
+caught it, from `getPolicies` (§1.6).
 **Open:** the "allow for 5 minutes" button writes to Unbound and triggers a
 reconfigure. That crosses the read-only line (§4.9) and is deferred until the
 rest of the DNS view has proven itself.
@@ -535,3 +604,39 @@ cannot be answered by reasoning, only by observing this network.
 **Consequences:** the scripts are the executable specification for S3 and S2;
 they and the plugin must not drift. Whatever they learn goes into §1 of this
 document.
+
+### §4.15 — The DNS source is pluggable, and may be absent (2026-08-30)
+**Question:** the DNS view (S12) was designed against Unbound's reporting API.
+The operator resolves with dnsmasq, and is considering BIND with Kea later. What
+does Lens do?
+**Decision:** DNS is one *optional source behind an interface*, not a
+foundation. Unbound is the first and only implementation. dnsmasq contributes
+leases and hostnames to identity (S1) and nothing to the DNS view. Where no
+usable DNS source is present, S12 does not appear at all — with one sentence
+saying why, and what would have to change.
+**Rationale:** OPNsense supports at least three resolvers and only one of them
+keeps query statistics. Hard-coding Unbound would mean the plugin's own operator
+cannot use the feature — and quietly rendering an empty page is precisely the
+failure VISION point 4 forbids. It also keeps the door open for BIND without a
+rewrite.
+**Consequences:** S12 moves behind S1, S4 and S5 in priority: it is the one
+scoped-in area that the operator's own box cannot exercise, so it cannot be
+click-tested here. Identity and traffic come first. If DNS becomes important
+before the resolver changes, the honest options are to run Unbound alongside or
+to build a dnsmasq query-log reader — the latter is a new system, not a variant,
+and would need its own entry.
+
+### §4.16 — Verify against the branch the box runs, not `master` (2026-08-30)
+**Question:** the first preflight emitted four `Action not allowed or missing`
+errors because the configd commands were written from `master` and, worse, with
+dotted action names that configd addresses with spaces (§1.8).
+**Decision:** every core fact recorded in §1 names the ref it was verified
+against, and release-branch facts are checked against `stable/26.7`.
+**Rationale:** PROCESS already said "verify, do not guess". It did not say
+*against what*, and the gap produced four wrong commands in the very first tool
+this project shipped. The dotted-name error was worse than wrong: it returned a
+permissions-sounding message for a syntax mistake, which is exactly the kind of
+thing that sends someone debugging ACLs for an hour.
+**Consequences:** §1 entries carry their verification date and, where it
+matters, the ref. The same rule applies to anything the plugin tells a user to
+type.

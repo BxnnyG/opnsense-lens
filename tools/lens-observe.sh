@@ -53,11 +53,21 @@ fi
     ndp -an 2>/dev/null
 
     echo "--- leases"
-    for f in /var/db/kea/kea-leases4.csv /var/db/kea/kea-leases6.csv \
-             /var/etc/dnsmasq.leases /var/lib/dnsmasq/dnsmasq.leases \
+    # /var/db/dnsmasq.leases is the real path, verified against core's
+    # get_dnsmasq_leases.py (2026-08-30). The first version of this script
+    # guessed three wrong ones and recorded no hostnames at all.
+    for f in /var/db/dnsmasq.leases \
+             /var/db/kea/kea-leases4.csv /var/db/kea/kea-leases6.csv \
              /var/dhcpd/var/db/dhcpd.leases; do
         [ -r "$f" ] && { echo "--- lease-file $f"; cat "$f"; }
     done
+
+    # The configd view is richer than the raw file: it resolves the vendor from
+    # the MAC database and carries the hostname dnsmasq learned.
+    if [ -x /usr/local/sbin/configctl ]; then
+        echo "--- configd-leases"
+        configctl dnsmasq list leases 2>/dev/null
+    fi
 
     echo "--- end"
 } >> "$LOG"

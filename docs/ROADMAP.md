@@ -74,9 +74,12 @@ against observations from the operator's own network, which stage 4 produces.
 | NetFlow config path | `//OPNsense/Netflow` in `config.xml` | verified 2026-08-29 |
 | Unbound reporting flag | `//OPNsense/unboundplus/general/stats` | verified 2026-08-29 |
 | Collector schedule | `_cron()` hook in `src/etc/inc/plugins.inc.d/lens.inc` | not created yet (stage 4) |
-| Core flow data | flowd + `flowd_aggregate`, read via `/api/diagnostics/networkinsight/*` | state on the box **unknown as of 2026-08-29** |
-| Core DNS data | Unbound reporting, read via `/api/unbound/overview/*` | state on the box **unknown as of 2026-08-29** |
-| DHCP server in use | Kea or Dnsmasq — determines which leases API to read | **unknown as of 2026-08-29** |
+| Core flow data | flowd + `flowd_aggregate` | **ON since 2026-08-23**, `collect.enable=1`, 66 MB in `/var/netflow` |
+| NetFlow capture interfaces | `lan,wan,opt1` = MGNT, WAN, WANMGNT · `egress_only=wan` | **the eight VLANs that matter are NOT captured** (2026-08-30) |
+| Per-client history depth | 5 min → 1 h · hourly → 1 day · daily → 1 year | fixed in core, see DESIGN §1.4 — drives S2's harvest duty |
+| Core DNS data | dnsmasq — **no query statistics exist** | Unbound config says enabled but is not the resolver (§4.15) |
+| DHCP server in use | **dnsmasq**, leases at `/var/db/dnsmasq.leases` | confirmed 2026-08-30; Kea/BIND a possible future |
+| Hardware | Xeon E3-1220 v5, 2 vCPU, 4 GB RAM, 23 GB disk (13 GB free) — a Proxmox guest | confirmed 2026-08-30 |
 | Target release | OPNsense `stable/26.7` | operator's box: **26.7.1_1 amd64**, confirmed 2026-08-30 |
 | Operator's segments | 8 VLANs on `vtnet1` (MGNT 10, IPMI 12, HOME 20, IOT 21, GUEST 22, SERVER 30, NAS 33, LAB 40) + `wt0` NetBird | confirmed 2026-08-30 |
 | WAN | `pppoe0` (PPPoE) · separate mgmt NIC `vtnet2` | `capture/egress_only` must be `pppoe0` |
