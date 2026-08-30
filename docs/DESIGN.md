@@ -208,7 +208,7 @@ next person does not have to re-discover it.
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
 | S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
-| S2 · Own store & collector | ⏳ | must start collecting before anything can display |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, observe every 5 min, harvest every 30 |
 | S3 · Preflight & setup wizard | ⏳ | hand-run scripts exist in `tools/` (2026-08-29) as the spec |
 | S4 · Traffic attribution | ⏳ | joins §1.4 onto S1 |
 | S5 · Client profile page | ⏳ | |
@@ -242,8 +242,9 @@ whether the netbird `tests/gates/run.sh` approach has to be lifted across.
 ### S1 · Identity service
 **Purpose:** give every device on the network one identity that survives an
 address change, and let the operator name it.
-**Today:** does not exist anywhere in OPNsense. §1.5 gives the present tense
-only.
+**Today:** the store and its collector exist (stage 4, 2026-08-30). Devices,
+address windows and hostnames are being recorded. What does not exist yet is any
+screen that shows them — that is stage 5.
 **Plan:** an observation table (MAC, address, interface, hostname, source,
 first seen, last seen) fed by the collector, collapsed into a device record.
 Key on MAC where one exists; fall back to a stable-address identity where it
@@ -289,11 +290,14 @@ imposed by core, not chosen by us.
 collector run from the `_cron()` hook and by configd actions — never by the web
 process directly. Schema versioned and migrated. Retention configurable, with a
 documented default and a purge action (S14).
-**Open:** intervals. Identity observation is cheap (proposal: 60 s). The
-harvest must run at least every 12 hours to have any margin against a missed
-run, and should probably run hourly so a single failure costs an hour rather
-than a day. What it costs on the operator's 2-core box is measured, not
-assumed (§4.8).
+**Decided (stage 4):** observe every 5 minutes, harvest every 30, prune nightly
+at 04:17. The harvest resumes from the last bucket *stored*, not from when it
+last ran, so a failed run or a box that was off costs nothing as long as it
+returns within core's 24 hour window. It never stores the hour still being
+written, because a partial hour recorded once and never revisited would freeze
+whatever had accumulated when the collector happened to run.
+**Open:** what a run costs on the operator's 2-core box. Measured, not assumed
+(§4.8) — the page shows it per duty.
 
 ### S3 · Preflight & setup wizard
 **Purpose:** *anyone* installs the plugin and it works — not just an operator

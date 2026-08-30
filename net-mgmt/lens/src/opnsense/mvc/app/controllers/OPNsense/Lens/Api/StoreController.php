@@ -26,24 +26,33 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The class under test is deliberately free of framework dependencies, so it is
- * required directly instead of booting the OPNsense autoloader.
- *
- * This directory sits outside src/ on purpose: everything under src/ goes into
- * the package and is installed into /usr/local, where opnsense-core already
- * owns mvc/tests/phpunit.xml and mvc/tests/bootstrap.php (PROCESS edge case 8).
- */
+namespace OPNsense\Lens\Api;
 
-if (!function_exists('gettext')) {
-    /* OPNsense supplies this; off the box the untranslated string is the answer */
-    function gettext($message)
+use OPNsense\Base\ApiControllerBase;
+use OPNsense\Core\Backend;
+use OPNsense\Lens\StoreReport;
+
+/**
+ * Class StoreController
+ *
+ * Input and output only (4.21). One configd call; StoreReport says what the
+ * answer means.
+ *
+ * @package OPNsense\Lens\Api
+ */
+class StoreController extends ApiControllerBase
+{
+    /**
+     * @return array what Lens has collected so far
+     */
+    public function statusAction()
     {
-        return $message;
+        $raw = (string)(new Backend())->configdRun('lens status');
+        $status = json_decode(trim($raw), true);
+
+        return StoreReport::describe(
+            json_last_error() === JSON_ERROR_NONE && is_array($status) ? $status : [],
+            time()
+        );
     }
 }
-
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceFacts.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/StoreReport.php';

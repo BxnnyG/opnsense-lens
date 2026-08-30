@@ -18,7 +18,7 @@ this one inherits, and 23 stages of experience with it.
 | 0 | Hand-run tools: preflight, identity observation, summary (§4.14) | S3, S2 | ✅ 2026-08-29 · running on the operator's box from 2026-08-29 |
 | 1 | Walking skeleton: `os-lens`, two menu roots, a source liveness check ([plan](plans/stage-01-walking-skeleton.md)) | S0 | ✅ 2026-08-30 · installed as `os-lens-0.1_1`, page renders, 2 s to load |
 | 2 | Preflight — three verdicts, capture coverage, retention, timing ([plan](plans/stage-02-preflight.md)) | S3 | ✅ 2026-08-30 · router-tested as `os-lens-0.1_3`; both menu roots confirmed |
-| 4 | **Store & collector** — start recording identity, and harvest the hourly per-client buckets before core deletes them | S2 | ⏳ next (§4.19) |
+| 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | 🔨 built 2026-08-30 · gates clean, 53 PHP + 28 Python tests · **awaiting router test** |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
 | 5 | Identity — devices instead of addresses, with the randomisation question answered against real observations | S1 | ⏳ |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
@@ -50,7 +50,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17), provisional, re-check 2026-09-06 |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |
 | 2 | Preflight as a page, with verdicts instead of pings | S3 | 🔨 built 2026-08-30 |
-| 4 | Collect, before more of the hourly detail is deleted | S2 | ⏳ next |
+| 4 | Collect, before more of the hourly detail is deleted | S2 | 🔨 built 2026-08-30 |
 | 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
@@ -66,14 +66,17 @@ against observations from the operator's own network, which stage 4 produces.
 | Build machinery | `Mk/`, `Scripts/`, `Templates/`, `Keywords/` from `opnsense/plugins` @ `8e472285` — recorded in `Mk/.upstream-commit` (§4.1) | copied 2026-08-30 |
 | Package name | `os-lens` | — |
 | Menu entry | `Reporting → Lens` (core `Core/Menu/Menu.xml:15` is the parent) | — |
-| Own store | `/var/db/lens/` — SQLite, written by the collector and configd only | not created yet (stage 4) |
-| Hand-run observation log | `/root/lens-observations.log` on the router, 200 MB ceiling | started 2026-08-29 (§4.14) |
+| Own store | `/var/db/lens/lens.sqlite`, mode 0600, schema v1 | created by the collector on first run |
+| Collector | `/usr/local/opnsense/scripts/lens/collect.py` — `observe`, `harvest`, `prune`, `status`, `purge` | reachable as `configctl lens <duty>` |
+| Retention defaults | 365 days · 500 MB disk ceiling · 900 s observation gap | in the store's `setting` table, no settings page yet |
+| Delete everything | `configctl lens purge` | works and is tested; no button until there is a settings page to confirm on |
+| Hand-run observation log | `/root/lens-observations.log` on the router, 200 MB ceiling | started 2026-08-29; **superseded by the collector**, stop it once stage 4 is installed |
 | Hand-run preflight report | `/root/lens-preflight-<stamp>.txt` on the router | — |
 | flowd aggregate databases | `/var/netflow` · raw flows `/var/log/flowd.log` | verified 2026-08-29 |
 | Unbound statistics store | `/var/unbound/data/unbound.duckdb` (DuckDB) | verified 2026-08-29 |
 | NetFlow config path | `//OPNsense/Netflow` in `config.xml` | verified 2026-08-29 |
 | Unbound reporting flag | `//OPNsense/unboundplus/general/stats` | verified 2026-08-29 |
-| Collector schedule | `_cron()` hook in `src/etc/inc/plugins.inc.d/lens.inc` | not created yet (stage 4) |
+| Collector schedule | observe `*/5` · harvest `*/30` · prune `04:17` | `lens_cron()` in `plugins.inc.d/lens.inc` |
 | Core flow data | flowd + `flowd_aggregate` | **ON since 2026-08-23**, `collect.enable=1`, 66 MB in `/var/netflow` |
 | NetFlow capture interfaces | all eleven · `egress_only=wan` | fixed 2026-08-30; flowd + flowd_aggregate both running |
 | Per-client volume depth | 5 min → 1 h · hourly → 1 day · daily → 1 year | fixed in core, DESIGN §1.4 — drives S2's harvest duty |
@@ -90,7 +93,7 @@ against observations from the operator's own network, which stage 4 produces.
 | Root shell on the box | **`csh`** — no `$(...)`, no `2>&1` | scripts must self-redirect |
 | Build & install | on the router: `make package` / `make upgrade` in the plugin directory | — |
 | Live-test without installing | on the router: `make mount` … `make umount` | — |
-| Measured collector cost | — | to be filled at stage 4 (§4.8) |
+| Measured collector cost | — | shown per duty on the Data Sources page; to be recorded from the router |
 | Measured page load cost | 0.1_1: **~2 s**, five calls · 0.1_2: **550–600 ms**, seven calls | the 1.4 s was `unbound qstats totals`, removed for a different reason |
 | Slowest calls | `unbound status` 149–187 ms · `interface list arp json` 1–123 ms (30 s configd cache) · `netflow aggregate metadata` 63–231 ms | measured on the box 2026-08-30 |
 | Retention defaults | — | to be set at stage 4 (S14) |

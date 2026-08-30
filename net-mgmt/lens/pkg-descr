@@ -21,6 +21,16 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
+0.2
+
+* Lens now keeps its own records, in /var/db/lens
+* records which device held which address, and when - nothing in OPNsense does
+* copies hourly per-device traffic out of NetFlow before OPNsense deletes it
+  24 hours after writing it; that history cannot be recovered any other way
+* retention, a disk ceiling and a working purge ship with the first row written
+* the Data Sources page reports what has been kept, and flags a duty that has
+  stopped running
+
 0.1_4
 
 * fixes a bug where the page could report "10 leases from dnsmasq" and "Unbound

@@ -26,24 +26,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The class under test is deliberately free of framework dependencies, so it is
- * required directly instead of booting the OPNsense autoloader.
+/**
+ * Two duties on two schedules, and a nightly prune.
  *
- * This directory sits outside src/ on purpose: everything under src/ goes into
- * the package and is installed into /usr/local, where opnsense-core already
- * owns mvc/tests/phpunit.xml and mvc/tests/bootstrap.php (PROCESS edge case 8).
+ * Observation is cheap and wants to be frequent: an address that changes hands
+ * between two runs leaves a gap in the window that covers it.
+ *
+ * The harvest exists because OPNsense keeps hourly per-device traffic for
+ * twenty-four hours and then deletes it (DESIGN 1.4). Every half hour is far
+ * more often than that requires -- which is the point: a run that fails, or a
+ * box that is off for a morning, costs nothing, because the next run resumes
+ * from the last bucket actually stored rather than from when it last ran.
+ *
+ * cron calls configctl from outside configd. The collector itself must never
+ * call configctl, which would re-enter the daemon that is running it.
  */
-
-if (!function_exists('gettext')) {
-    /* OPNsense supplies this; off the box the untranslated string is the answer */
-    function gettext($message)
-    {
-        return $message;
-    }
+function lens_cron()
+{
+    return [
+        ['autocron' => ['/usr/local/sbin/configctl -d lens observe', '*/5']],
+        ['autocron' => ['/usr/local/sbin/configctl -d lens harvest', '*/30']],
+        ['autocron' => ['/usr/local/sbin/configctl -d lens prune', '17', '4']],
+    ];
 }
-
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceFacts.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/StoreReport.php';

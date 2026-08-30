@@ -4,6 +4,7 @@
         <patterns>
             <pattern>ui/lens/preflight*</pattern>
             <pattern>api/lens/sources/*</pattern>
+            <pattern>api/lens/store/*</pattern>
         </patterns>
     </page-services-lens>
     <page-reporting-lens>
@@ -11,6 +12,7 @@
         <patterns>
             <pattern>ui/lens/overview*</pattern>
             <pattern>api/lens/sources/*</pattern>
+            <pattern>api/lens/store/*</pattern>
         </patterns>
     </page-reporting-lens>
 </acl>

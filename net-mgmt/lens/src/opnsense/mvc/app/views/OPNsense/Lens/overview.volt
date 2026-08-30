@@ -117,6 +117,25 @@
 
             $('#lensReport').show();
         });
+
+        /* what Lens itself has kept -- the only thing on this page that is ours */
+        ajaxGet('/api/lens/store/status', {}, (store, storeStatus) => {
+            if (storeStatus !== 'success' || !store) {
+                return;
+            }
+
+            $('#lensStoreHeadline').text(store.headline);
+
+            const $body = $('#lensStore > tbody').empty();
+            for (const row of (store.rows || [])) {
+                $body.append($('<tr/>')
+                    .append(cell(row.what))
+                    .append($('<td/>').addClass(row.wrong ? 'lens-degraded' : '').text(row.detail)));
+            }
+
+            $('#lensStoreBlock').show();
+        });
+
     });
 </script>
 
@@ -160,6 +179,18 @@
                 </tr>
             </tbody>
         </table>
+    </div>
+
+
+    <div id="lensStoreBlock" class="lens-block" style="display: none;">
+        <h3>{{ lang._('What Lens has kept') }}</h3>
+        <p id="lensStoreHeadline"></p>
+        <table id="lensStore" class="table table-condensed">
+            <tbody></tbody>
+        </table>
+        <p class="text-muted">
+            {{ lang._('Hourly traffic per device exists in OPNsense for 24 hours. Everything above that line was copied out before it was deleted, and cannot be recovered any other way.') }}
+        </p>
     </div>
 
     <div class="lens-block">

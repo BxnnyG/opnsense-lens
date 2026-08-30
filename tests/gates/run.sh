@@ -101,6 +101,38 @@ else
 	say "no direct shell-out call sites"
 fi
 
+# ------------------------------------------------------------- style-python
+# core: pycodestyle --max-line-length=120 over the shipped python
+head_ "style-python"
+pyfiles=$(find "${PLUGIN}/src" -name '*.py' -type f | sort)
+if [ -z "${pyfiles}" ]; then
+	say "the plugin ships no Python"
+else
+	pe=0
+	for f in ${pyfiles}; do
+		python3 -m py_compile "${f}" 2>&1 || { pe=$((pe + 1)); }
+	done
+	say "python syntax errors: ${pe}"
+	errors=$((errors + pe))
+
+	long=$(awk 'length > 120 {print FILENAME ":" FNR ": " length " chars"}' ${pyfiles} || true)
+	if [ -n "${long}" ]; then
+		say "${long}"
+		say "lines over 120 characters: $(printf '%s\n' "${long}" | wc -l | tr -d ' ')"
+		errors=$((errors + 1))
+	else
+		say "no lines over 120 characters"
+	fi
+
+	if command -v pycodestyle > /dev/null 2>&1; then
+		pycodestyle --max-line-length=120 ${pyfiles} || errors=$((errors + 1))
+		say "pycodestyle clean"
+	else
+		say "pycodestyle not installed here - only syntax and line length checked"
+	fi
+	find "${PLUGIN}/src" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+fi
+
 # ---------------------------------------------------------------- lint-desc
 head_ "lint-desc"
 if [ -f "${PLUGIN}/pkg-descr" ]; then
@@ -112,7 +144,6 @@ fi
 
 # ---------------------------------------------------------------- not run
 head_ "not run here, and why"
-say "style-python  - the plugin ships no Python (tools/ is not packaged)"
 say "lint-shell    - the plugin ships no shell scripts (tools/ is not packaged)"
 say "lint-plist    - needs bmake; this plugin ships no plist"
 say "lint-acl      - needs opnsense/core's Scripts/dashboard-acl.sh"
