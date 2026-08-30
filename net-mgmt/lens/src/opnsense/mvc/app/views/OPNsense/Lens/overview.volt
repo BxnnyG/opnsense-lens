@@ -25,7 +25,7 @@
  #}
 
 <p>
-    {{ lang._('Lens cannot name devices yet, so there is nothing here to look at. Until then, this is what it can see.') }}
+    {{ lang._('Every device Lens has seen, and which addresses it held. OPNsense knows this only in the present tense; Lens keeps it.') }}
     <a href="/ui/lens/preflight">{{ lang._('Data sources are configured under Services: Lens.') }}</a>
 </p>
 
@@ -38,6 +38,12 @@
     .lens-action { display: block; margin-top: 4px; }
     .lens-block { margin-top: 25px; }
     #lensTiming { margin-top: 20px; }
+    .lens-here { color: #5cb85c; font-weight: 600; }
+    .lens-mac { font-family: monospace; font-size: 90%; color: #999; }
+    .lens-addr { display: block; }
+    .lens-addr-gone { color: #999; }
+    .lens-if { color: #999; }
+    .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
 </style>
 
 <script>
@@ -68,6 +74,63 @@
         };
 
         const list = (names) => names && names.length ? names.join(', ') : '{{ lang._("none") }}';
+
+        /*
+         * Devices first: this is the answer the page exists to give. It is
+         * loaded on its own request so that a slow source probe cannot delay it,
+         * and so that one failing does not blank the other.
+         */
+        ajaxGet('/api/lens/devices/list', {}, (report, deviceStatus) => {
+            if (deviceStatus !== 'success' || !report || !report.devices) {
+                $('#lensDevicesError').show();
+                return;
+            }
+
+            $('#lensDevicesHeadline').text(report.headline || '');
+
+            if (report.note) {
+                $('#lensDevicesNote').text(report.note).show();
+            }
+
+            const $body = $('#lensDevices > tbody').empty();
+            for (const device of report.devices) {
+                const $name = $('<td/>')
+                    .append($('<div/>').text(device.name))
+                    .append($('<span/>').addClass('lens-mac').text(device.mac));
+
+                const $addresses = $('<td/>');
+                for (const address of device.addresses) {
+                    const $line = $('<span/>').addClass('lens-addr').text(address.address);
+                    $line.append($('<span/>').addClass('lens-if').text(' · ' + address.interface));
+                    if (!address.current) {
+                        $line.addClass('lens-addr-gone')
+                             .append($('<span/>').text(' (' + address.seen + ')'));
+                    }
+                    $addresses.append($line);
+                }
+                if (!device.addresses.length) {
+                    $addresses.text('{{ lang._("no address recorded") }}');
+                }
+
+                const $presence = $('<td/>').append(
+                    $('<span/>').addClass(device.here ? 'lens-here' : '').text(device.presence)
+                );
+
+                const $named = $('<td/>').addClass('lens-cause').text(device.named_by);
+                if (device.caveat) {
+                    $named.append($('<em/>').addClass('lens-caveat').text(device.caveat));
+                }
+
+                $body.append($('<tr/>')
+                    .append($name)
+                    .append($addresses)
+                    .append($presence)
+                    .append(cell(device.known_for))
+                    .append($named));
+            }
+
+            $('#lensDevicesBlock').show();
+        });
 
         ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
             $('#lensLoading').hide();
@@ -138,6 +201,31 @@
 
     });
 </script>
+
+<div id="lensDevicesError" class="alert alert-danger" style="display: none;">
+    {{ lang._('The device list did not come back. The store may not exist yet - the collector creates it on its first run.') }}
+</div>
+
+<div id="lensDevicesBlock" style="display: none;">
+    <h3>{{ lang._('Devices') }}</h3>
+    <p id="lensDevicesHeadline"></p>
+    <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
+    <table id="lensDevices" class="table table-condensed table-striped">
+        <thead>
+            <tr>
+                <th>{{ lang._('Device') }}</th>
+                <th>{{ lang._('Addresses held') }}</th>
+                <th>{{ lang._('Presence') }}</th>
+                <th>{{ lang._('Known for') }}</th>
+                <th>{{ lang._('How Lens names it') }}</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <p class="text-muted">
+        {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
+    </p>
+</div>
 
 <div id="lensLoading">
     <i class="fa fa-spinner fa-spin"></i>

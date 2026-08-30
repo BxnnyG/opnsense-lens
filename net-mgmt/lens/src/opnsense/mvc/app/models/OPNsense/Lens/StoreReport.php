@@ -186,8 +186,8 @@ class StoreReport
 
             $age = $now - (int)$run['at'];
             $detail = sprintf(
-                gettext('%d seconds ago, took %d ms - %s'),
-                max(0, $age),
+                gettext('%s, took %d ms - %s'),
+                Duration::ago($age),
                 (int)$run['took_ms'],
                 (string)$run['detail']
             );

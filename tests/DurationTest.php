@@ -26,26 +26,46 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The class under test is deliberately free of framework dependencies, so it is
- * required directly instead of booting the OPNsense autoloader.
- *
- * This directory sits outside src/ on purpose: everything under src/ goes into
- * the package and is installed into /usr/local, where opnsense-core already
- * owns mvc/tests/phpunit.xml and mvc/tests/bootstrap.php (PROCESS edge case 8).
- */
 
-if (!function_exists('gettext')) {
-    /* OPNsense supplies this; off the box the untranslated string is the answer */
-    function gettext($message)
+use OPNsense\Lens\Duration;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Ages in words.
+ *
+ * Written after the store page put "16477 seconds ago" on the operator's
+ * screen. Exact, and unreadable.
+ */
+class DurationTest extends TestCase
+{
+    public function testAFewSecondsIsJustNow()
     {
-        return $message;
+        $this->assertSame('just now', Duration::ago(4));
+        $this->assertSame('just now', Duration::ago(89));
+    }
+
+    public function testAClockThatWentBackwardsDoesNotProduceANegativeAge()
+    {
+        $this->assertSame('just now', Duration::ago(-30));
+        $this->assertSame('0 seconds', Duration::span(-30));
+    }
+
+    public function testTheUnitIsTheOneAHumanWouldHaveChosen()
+    {
+        $this->assertSame('5.0 minutes ago', Duration::ago(300));
+        $this->assertSame('4.6 hours ago', Duration::ago(16477));
+        $this->assertSame('3.0 days ago', Duration::ago(3 * 86400));
+        $this->assertSame('4.3 weeks ago', Duration::ago(30 * 86400));
+    }
+
+    public function testLargeValuesDropTheDecimalThatNobodyReads()
+    {
+        $this->assertSame('14 hours ago', Duration::ago(14 * 3600));
+    }
+
+    public function testSpanReadsAsALengthNotAsAPastMoment()
+    {
+        $this->assertSame('3.0 days', Duration::span(3 * 86400));
+        $this->assertStringNotContainsString('ago', Duration::span(3 * 86400));
     }
 }
-
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Duration.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceFacts.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/StoreReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceReport.php';

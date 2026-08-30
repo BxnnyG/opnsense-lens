@@ -8,6 +8,7 @@ Two duties, one command each:
     collect.py harvest    every 30 minutes -- hourly per-device traffic, before
                           OPNsense deletes it 24 hours after writing it
     collect.py status     what the store holds, as JSON
+    collect.py devices    every device and its address windows, as JSON
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -195,6 +196,12 @@ def harvest(store, now):
         chunks += 1
         start = end
 
+    if not chunks:
+        # Distinct from a chunk that came back empty: nothing was asked for,
+        # because no whole hour has closed since the last bucket stored. The
+        # two read identically as "0 buckets offered" and mean opposite things.
+        return 'already up to date; no complete hour since the last bucket'
+
     return '%d buckets offered, %d new, in %d chunks' % (offered, written, chunks)
 
 
@@ -226,11 +233,20 @@ def run(duty, worker):
 
 def main():
     parser = argparse.ArgumentParser(description='Lens collector')
-    parser.add_argument('duty', choices=['observe', 'harvest', 'status', 'prune', 'purge'])
+    parser.add_argument(
+        'duty',
+        choices=['observe', 'harvest', 'status', 'devices', 'prune', 'purge'],
+    )
     args = parser.parse_args()
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'devices':
+        # A read, so it writes no run_log row: opening the page is not an event
+        # in the collector's history and must not look like one.
+        print(json.dumps(Store(DB_PATH).devices()))
         return 0
 
     if args.duty == 'purge':

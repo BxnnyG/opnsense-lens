@@ -173,6 +173,45 @@ class Store:
             (mac, now, now, int(randomised), int(is_local), hostname, source),
         )
 
+    def devices(self):
+        """
+        Every device, with every (address, interface) window it has held.
+
+        Addresses are a list, never a single current value. A device holds a
+        *set* of addresses (DESIGN S1): the admin PC on the operator's network
+        is deliberately in two VLANs at once, and folding that into "current
+        address" would list it twice at half its size in every later view.
+        """
+        devices = {}
+        for row in self.db.execute(
+            """SELECT mac, first_seen, last_seen, randomised, is_local, hostname,
+                      hostname_source FROM device ORDER BY last_seen DESC, mac"""
+        ):
+            devices[row['mac']] = {
+                'mac': row['mac'],
+                'first_seen': row['first_seen'],
+                'last_seen': row['last_seen'],
+                'randomised': bool(row['randomised']),
+                'is_local': bool(row['is_local']),
+                'hostname': row['hostname'],
+                'hostname_source': row['hostname_source'],
+                'addresses': [],
+            }
+
+        for row in self.db.execute(
+            """SELECT mac, address, interface, first_seen, last_seen
+               FROM address_observation ORDER BY last_seen DESC, address"""
+        ):
+            if row['mac'] in devices:
+                devices[row['mac']]['addresses'].append({
+                    'address': row['address'],
+                    'interface': row['interface'],
+                    'first_seen': row['first_seen'],
+                    'last_seen': row['last_seen'],
+                })
+
+        return list(devices.values())
+
     # ----------------------------------------------------------- traffic
 
     def last_bucket(self, provider):

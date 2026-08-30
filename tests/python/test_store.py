@@ -4,6 +4,7 @@ The store: migrations, windows, buckets, retention and the purge promise.
 Run:  python3 -m unittest discover -s tests/python
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -67,6 +68,36 @@ class StoreTest(unittest.TestCase):
         self.assertEqual('BXY-Pixel-10', row['hostname'])
         self.assertEqual(1000, row['first_seen'])
         self.assertEqual(2000, row['last_seen'])
+
+    def test_devices_carry_every_address_they_hold_not_only_the_latest(self):
+        """the operator's admin PC is in two VLANs at once -- one device, two rows"""
+        self.store.see_device('42:c5:38:e1:54:c7', 1000, randomised=False, is_local=False,
+                              hostname='admin-pc', source='dnsmasq')
+        self.store.open_new_windows([
+            ('42:c5:38:e1:54:c7', '10.0.10.5', 'HOME'),
+            ('42:c5:38:e1:54:c7', '10.0.99.5', 'MGNT'),
+        ], 1000)
+
+        devices = self.store.devices()
+
+        self.assertEqual(1, len(devices))
+        self.assertEqual('admin-pc', devices[0]['hostname'])
+        self.assertEqual(
+            {('10.0.10.5', 'HOME'), ('10.0.99.5', 'MGNT')},
+            {(a['address'], a['interface']) for a in devices[0]['addresses']},
+        )
+
+    def test_a_device_with_no_observation_yet_is_still_listed(self):
+        self.store.see_device('aa:bb:cc:dd:ee:ff', 1000, randomised=True, is_local=False)
+
+        devices = self.store.devices()
+
+        self.assertEqual(1, len(devices))
+        self.assertEqual([], devices[0]['addresses'])
+        self.assertTrue(devices[0]['randomised'])
+
+    def test_devices_on_an_empty_store_is_a_list_not_an_error(self):
+        self.assertEqual([], self.store.devices())
 
     def test_buckets_are_stored_once_and_the_watermark_only_moves_forward(self):
         rows = [(1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3),
@@ -207,6 +238,17 @@ class CollectorSmokeTest(unittest.TestCase):
 
             status = self.run_duty('status', path)
             self.assertIn('"observe"', status.stdout)
+
+    def test_devices_is_json_the_web_side_can_decode_and_writes_no_run_row(self):
+        """opening the page is a read, not an event in the collector's history"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'lens.sqlite')
+
+            result = self.run_duty('devices', path)
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual([], json.loads(result.stdout))
+            self.assertNotIn('"devices"', self.run_duty('status', path).stdout.split('"runs"')[1])
 
     def test_purge_on_an_empty_store_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as directory:

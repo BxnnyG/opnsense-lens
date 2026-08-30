@@ -18,9 +18,9 @@ this one inherits, and 23 stages of experience with it.
 | 0 | Hand-run tools: preflight, identity observation, summary (§4.14) | S3, S2 | ✅ 2026-08-29 · running on the operator's box from 2026-08-29 |
 | 1 | Walking skeleton: `os-lens`, two menu roots, a source liveness check ([plan](plans/stage-01-walking-skeleton.md)) | S0 | ✅ 2026-08-30 · installed as `os-lens-0.1_1`, page renders, 2 s to load |
 | 2 | Preflight — three verdicts, capture coverage, retention, timing ([plan](plans/stage-02-preflight.md)) | S3 | ✅ 2026-08-30 · router-tested as `os-lens-0.1_3`; both menu roots confirmed |
-| 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | 🔨 built 2026-08-30 · gates clean, 53 PHP + 28 Python tests · **awaiting router test** |
+| 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | ✅ 2026-08-30 · router-tested as `os-lens-0.2_3` on both boxes; 463 buckets in 1 chunk on router-01, the second box's hang gone |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
-| 5 | Identity — devices instead of addresses, with the randomisation question answered against real observations | S1 | ⏳ |
+| 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | 🔨 built 2026-08-30 · gates clean, 71 PHP + 46 Python tests · **awaiting router test** |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
 | 7 | Traffic attribution — flow history joined onto identity, at the time of the bucket | S4 | ⏳ |
 | 8 | Client profile page | S5 | ⏳ |
@@ -50,7 +50,9 @@ against observations from the operator's own network, which stage 4 produces.
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17), provisional, re-check 2026-09-06 |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |
 | 2 | Preflight as a page, with verdicts instead of pings | S3 | 🔨 built 2026-08-30 |
-| 4 | Collect, before more of the hourly detail is deleted | S2 | 🔨 built 2026-08-30 |
+| 4 | Collect, before more of the hourly detail is deleted | S2 | ✅ router-tested 2026-08-30 |
+| 5 | Devices instead of addresses — the first screen core cannot draw | S1 | 🔨 built 2026-08-30 |
+| — | **The five-minute observe job is not firing on either box** — see operations | S2 | ⚠️ open 2026-08-30 |
 | 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
@@ -100,3 +102,51 @@ against observations from the operator's own network, which stage 4 produces.
 | Measured page load cost | 0.1_1: **~2 s**, five calls · 0.1_2: **550–600 ms**, seven calls | the 1.4 s was `unbound qstats totals`, removed for a different reason |
 | Slowest calls | `unbound status` 149–187 ms · `interface list arp json` 1–123 ms (30 s configd cache) · `netflow aggregate metadata` 63–231 ms | measured on the box 2026-08-30 |
 | Retention defaults | — | to be set at stage 4 (S14) |
+
+### The observe job is not firing (open, 2026-08-30)
+
+**Evidence, not suspicion.** On router-01, `lens status` at 1788095496 reported
+`runs.observe.at = 1788079090` — 4.6 hours earlier — while
+`plugins.inc.d/lens.inc` schedules `configctl -d lens observe` at `*/5`. On the
+second box `runs.observe` is absent entirely: the duty has never run there, on a
+box where the package has been installed and configd restarted. No failed run
+was recorded on either, so the script is not being started at all rather than
+starting and failing.
+
+The hook itself matches the only working precedent in the plugin collection,
+`security/q-feeds-connector`'s `qfeeds.inc:32`, line for line. So the shape is
+right and the question is whether the crontab was regenerated when the package
+was installed. That is a fact on the box, not a thing to reason about:
+
+    grep -n lens /var/cron/tabs/root
+    grep -i lens /var/log/configd/latest.log | tail -20
+
+An entry present and no log lines means cron is not running the job. No entry
+means `rc.configure_plugins POST_INSTALL` does not regenerate the crontab, and
+the fix belongs in the install path, not in the hook.
+
+Until it is settled the two duties can be run by hand, and stage 5's device page
+states in words how long ago the last observation was, rather than presenting
+stale data as current (§4.22).
+
+### What the boxes reported on `os-lens-0.2_3` (2026-08-30)
+
+| | router-01 (26.7) | second box (26.1.9) |
+|---|---|---|
+| harvest | `463 buckets offered, 463 new, in 1 chunks`, 76 ms | up to date, nothing due |
+| traffic rows | 7754 over 1.0 days | 53475 over 0.9 days |
+| interfaces captured | 11 of 11 | 18 of 19 — GPON is not captured |
+| devices observed | 13, two randomised | 0 — observe has never run there |
+| resolver | dnsmasq; Unbound not used (§4.20) | Unbound, recording |
+| DHCP | dnsmasq, 9 leases | none running |
+
+The second box is the more interesting one: 53475 rows for 0.9 days against
+router-01's 7754 is not more traffic, it is nineteen interfaces' worth of remote
+peers (DESIGN §1.4, the double write). It is also why the harvest had to be
+chunked.
+
+**A harvest with nothing to do now says so.** `0 buckets offered, 0 new, in 0
+chunks` was reported on the second box and is correct — no whole hour had closed
+since the last stored bucket — but it is the same sentence a request that came
+back empty would print, which is the failure mode `0.2_3` was released to fix.
+It now reads `already up to date; no complete hour since the last bucket`.

@@ -89,7 +89,7 @@ class HarvestTest(unittest.TestCase):
         detail = collect.harvest(self.store, now)
 
         self.assertEqual(first, self.store.status()['traffic_rows'])
-        self.assertIn('0 new', detail)
+        self.assertIn('up to date', detail)
 
     def test_the_zero_filled_padding_is_not_stored(self):
         collect.harvest(self.store, 1788087600 + 1800)
@@ -105,9 +105,22 @@ class HarvestTest(unittest.TestCase):
                                  [(1788087600, 'em0', '10.0.0.1', 'in', 1, 1)])
         self.store.commit()
 
-        collect.harvest(self.store, 1788087600 + 1800)
+        detail = collect.harvest(self.store, 1788087600 + 1800)
 
         self.assertEqual([], self.asked)
+        # and it says so, rather than reporting the "0 buckets offered" that a
+        # request which came back empty would also report
+        self.assertIn('up to date', detail)
+        self.assertNotIn('offered', detail)
+
+    def test_a_chunk_that_comes_back_empty_still_says_it_asked(self):
+        """the opposite case: flowd was asked and had nothing to give"""
+        collect.fetch_chunk = lambda start, end: {}
+
+        detail = collect.harvest(self.store, 1788087600 + 1800)
+
+        self.assertIn('0 buckets offered', detail)
+        self.assertNotIn('up to date', detail)
 
 
 class MustReadCommandTest(unittest.TestCase):

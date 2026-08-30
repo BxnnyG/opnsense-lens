@@ -264,9 +264,10 @@ whether the netbird `tests/gates/run.sh` approach has to be lifted across.
 ### S1 · Identity service
 **Purpose:** give every device on the network one identity that survives an
 address change, and let the operator name it.
-**Today:** the store and its collector exist (stage 4, 2026-08-30). Devices,
-address windows and hostnames are being recorded. What does not exist yet is any
-screen that shows them — that is stage 5.
+**Today:** the store, its collector and the first screen exist (stages 4 and 5,
+2026-08-30). Reporting: Lens opens with the devices themselves — name, vendor,
+every address held and on which segment, presence, and how long each has been
+known. Naming is observed only; the operator's own labels are stage 6.
 **Plan:** an observation table (MAC, address, interface, hostname, source,
 first seen, last seen) fed by the collector, collapsed into a device record.
 Key on MAC where one exists; fall back to a stable-address identity where it
@@ -824,3 +825,43 @@ ends would not have been.
 **Consequences:** `tests/SourceFactsTest.php` starts where the box starts. Its
 first case is this exact contradiction. Anything a future controller is tempted
 to decide belongs in `SourceFacts` or `SourceReport` instead.
+
+### §4.22 — Presence is measured against the last observation, never against the clock (2026-08-30)
+**Question:** the device list has to say who is on the network *now*. The obvious
+implementation compares each address window's `last_seen` against the current
+time. What does that page show on a box where the collector stopped running four
+hours ago?
+**What the box showed:** exactly that case, before the page existed. On
+router-01 the store's own status read `Last observation: 16477 seconds ago`
+while the observe job is scheduled every five minutes. Had the device list
+compared against the wall clock, it would have rendered thirteen devices, none
+of them present, and an empty network — a confident, wrong answer.
+**Decision:** an address is current when *the most recent observation still saw
+it*. Windows are extended with the timestamp of the run that saw them, so this
+is an exact comparison, not a tolerance. When that run is older than
+`OBSERVATION_STALE_AFTER` (900 s), the page says so in a banner, drops the "here
+now" count from its headline, and reports what was true then.
+**Rationale:** "nothing is on the network" and "nobody looked" are different
+statements, and only one of them is ever true at a time. A surface that cannot
+tell them apart will eventually assert the wrong one to somebody making a
+decision. This is the same rule as §4.18 (config ≠ process ≠ serving) applied to
+time instead of to state.
+**Consequences:** every later view built on identity — the client profile, the
+top-talkers list, the wallboard — takes the observation timestamp as an input,
+not the clock. `DeviceReport::describe()` has no clock of its own.
+
+### §4.23 — The vendor is looked up at display time, not stored with the observation (2026-08-30)
+**Question:** device names fall back to hardware vendor when nothing announces a
+hostname. Should the collector resolve the OUI and store the vendor string next
+to the MAC, or should the web side resolve it every time it draws the list?
+**Decision:** at display time, from core's own `configctl interface list macdb`,
+keyed on the uppercased first six hex digits — the same lookup core's own DHCP
+lease pages use.
+**Rationale:** the OUI table is not an observation. It is a reference that gets
+better with every OPNsense update, and a device recorded in March should benefit
+from a table shipped in June. Storing the string freezes it, costs a column, and
+creates a second source of truth for something core already publishes. The cost
+is one extra configd call per page load, which the page already measures and
+displays.
+**Consequences:** `DeviceReport` takes the table as an argument and is testable
+without it; a MAC whose OUI is unknown is shown as a MAC, never as a guess.
