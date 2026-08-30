@@ -89,6 +89,15 @@ Nothing. There is no code.
   stores anything.** Not after. A store that grows without a stated ceiling on a
   router's disk is a future outage, and this data is personal (S14).
 
+- **#16 — A DNS source that is technically fresh but practically empty.** On
+  2026-08-30 the Unbound row flipped from "not the resolver" to `ready` because
+  something wrote to its database within the hour — most likely the firewall's
+  own lookups, on a box whose clients all resolve with dnsmasq. The freshness
+  rule (§4.18) is right and the flip was correct by its own terms, but a DNS view
+  fed only by the firewall talking to itself would be true and useless. Before
+  S12 is built, decide what "enough queries, from enough clients" means. Cheap
+  now, embarrassing later.
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages

@@ -11,7 +11,7 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 DEFAULT_SETTINGS = {
     # how long observations and harvested traffic are kept
@@ -60,6 +60,25 @@ MIGRATIONS = {
             PRIMARY KEY (duty, at)
         )""",
         "CREATE TABLE setting (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    ],
+    # v1 harvested without the interface, which is the only thing separating a
+    # device from the far end of its own connection (parse.buckets_from_timeseries).
+    # The old rows are unusable rather than merely incomplete, so they go, and
+    # the watermark is reset so the next harvest refetches the window netflow
+    # still holds. Nothing is lost that netflow has not already deleted.
+    2: [
+        "DROP TABLE traffic_hour",
+        """CREATE TABLE traffic_hour (
+            bucket INTEGER NOT NULL,
+            interface TEXT NOT NULL,
+            address TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            octets INTEGER NOT NULL,
+            packets INTEGER NOT NULL,
+            PRIMARY KEY (bucket, interface, address, direction)
+        )""",
+        "CREATE INDEX traffic_hour_by_address ON traffic_hour(address, bucket)",
+        "DELETE FROM harvest_state",
     ],
 }
 
@@ -167,7 +186,8 @@ class Store:
         before = self.db.total_changes
         self.db.executemany(
             """INSERT OR IGNORE INTO traffic_hour
-               (bucket, address, direction, octets, packets) VALUES (?, ?, ?, ?, ?)""",
+               (bucket, interface, address, direction, octets, packets)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             rows,
         )
         written = self.db.total_changes - before

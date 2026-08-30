@@ -100,6 +100,13 @@ Two rows carry the whole constraint:
 **Per-client volume** — `FlowSourceAddrTotals` — is five-minute for one hour,
 hourly for one day, then one number per device per day for a year.
 
+**And half of it is not per-client at all.** The aggregator writes every flow
+twice, replacing `src_addr` with the *destination* on the second write:
+`(if_in, <device>, in)` and `(if_out, <far end>, out)`. So the table mixes
+devices with remote peers, and `if` is the only field that tells them apart. Any
+query against this provider that drops the interface is asking a question it
+cannot answer — found the hard way on 2026-08-30, one harvest in.
+
 **Per-client detail** — who it talked to, on which port, over which protocol —
 is *only ever* a daily bucket, kept 62 days. There is no hour in which
 `10.10.20.115 → 142.250.x` exists as an hourly fact. Not last week's. Not this

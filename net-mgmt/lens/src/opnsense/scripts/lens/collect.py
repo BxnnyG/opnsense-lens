@@ -121,7 +121,7 @@ def harvest(store, now):
         '--resolution', str(RESOLUTION),
         '--start_time', str(int(start)),
         '--end_time', str(int(now)),
-        '--key_fields', 'src_addr,direction',
+        '--key_fields', 'if,src_addr,direction',
     ])
 
     try:

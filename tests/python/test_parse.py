@@ -118,10 +118,10 @@ class BucketsTest(unittest.TestCase):
 
     def payload(self):
         return {
-            '1787990400': {'10.10.20.115,in': {'octets': 120, 'packets': 3},
-                           '10.10.20.115,out': {'octets': 900, 'packets': 7}},
-            '1787994000': {'10.10.20.115,in': {'octets': 0, 'packets': 0}},
-            '1787997600': {'10.10.20.199,in': {'octets': 55, 'packets': 1}},
+            '1787990400': {'vtnet1_vlan20,10.10.20.115,in': {'octets': 120, 'packets': 3},
+                           'pppoe0,142.250.185.78,out': {'octets': 900, 'packets': 7}},
+            '1787994000': {'vtnet1_vlan20,10.10.20.115,in': {'octets': 0, 'packets': 0}},
+            '1787997600': {'vtnet1_vlan20,10.10.20.199,in': {'octets': 55, 'packets': 1}},
         }
 
     def test_zero_filler_slices_are_not_measurements(self):
@@ -144,10 +144,22 @@ class BucketsTest(unittest.TestCase):
 
         self.assertEqual([1787997600], [row[0] for row in rows])
 
-    def test_rows_carry_address_and_direction_apart(self):
+    def test_the_interface_separates_a_device_from_the_far_end(self):
+        """FlowSourceAddrTotals writes the destination into src_addr for the
+        outbound half, so without the interface a phone and a Google server look
+        the same"""
         rows = parse.buckets_from_timeseries(self.payload(), complete_before=1788001200)
 
-        self.assertIn((1787990400, '10.10.20.115', 'out', 900, 7), rows)
+        self.assertIn((1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3), rows)
+        self.assertIn((1787990400, 'pppoe0', '142.250.185.78', 'out', 900, 7), rows)
+
+    def test_a_reply_without_the_interface_field_is_still_read(self):
+        rows = parse.buckets_from_timeseries(
+            {'1787990400': {'10.10.20.115,in': {'octets': 5, 'packets': 1}}},
+            complete_before=1788001200,
+        )
+
+        self.assertEqual([(1787990400, '', '10.10.20.115', 'in', 5, 1)], rows)
 
     def test_nonsense_is_survived_rather_than_raised(self):
         self.assertEqual([], parse.buckets_from_timeseries({}, complete_before=1))
@@ -156,7 +168,7 @@ class BucketsTest(unittest.TestCase):
             {'not-a-timestamp': {'x,in': {'octets': 5}}}, complete_before=999999999999
         ))
         self.assertEqual([], parse.buckets_from_timeseries(
-            {'1787990400': {',in': {'octets': 5, 'packets': 1}}}, complete_before=999999999999
+            {'1787990400': {'em0,,in': {'octets': 5, 'packets': 1}}}, complete_before=999999999999
         ))
 
 

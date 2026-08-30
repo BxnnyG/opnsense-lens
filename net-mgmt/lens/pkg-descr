@@ -21,6 +21,15 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
+0.2_2
+
+* the hourly harvest now records which interface a flow crossed. Without it a
+  device and the far end of its own connection are indistinguishable, because
+  NetFlow writes the destination address into the source field for the outbound
+  half of every flow
+* schema 2 drops the traffic rows collected without it and refetches whatever
+  NetFlow still holds; devices, hostnames and address history are untouched
+
 0.2
 
 * Lens now keeps its own records, in /var/db/lens

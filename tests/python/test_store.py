@@ -16,7 +16,7 @@ SCRIPTS = os.path.join(
 )
 sys.path.insert(0, SCRIPTS)
 
-from lenslib.store import Store, SCHEMA_VERSION                 # noqa: E402
+from lenslib.store import Store, SCHEMA_VERSION, MIGRATIONS     # noqa: E402
 
 
 class StoreTest(unittest.TestCase):
@@ -69,22 +69,22 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(2000, row['last_seen'])
 
     def test_buckets_are_stored_once_and_the_watermark_only_moves_forward(self):
-        rows = [(1787990400, '10.10.20.115', 'in', 120, 3),
-                (1787994000, '10.10.20.115', 'in', 300, 5)]
+        rows = [(1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3),
+                (1787994000, 'vtnet1_vlan20', '10.10.20.115', 'in', 300, 5)]
 
         self.assertEqual(2, self.store.store_buckets('FlowSourceAddrTotals', rows))
         self.assertEqual(0, self.store.store_buckets('FlowSourceAddrTotals', rows))
         self.assertEqual(1787994000, self.store.last_bucket('FlowSourceAddrTotals'))
 
-        self.store.store_buckets('FlowSourceAddrTotals', [(1787900000, '10.0.0.1', 'in', 1, 1)])
+        self.store.store_buckets('FlowSourceAddrTotals', [(1787900000, 'em0', '10.0.0.1', 'in', 1, 1)])
         self.assertEqual(1787994000, self.store.last_bucket('FlowSourceAddrTotals'))
 
     def test_retention_removes_what_is_past_the_cutoff_and_nothing_else(self):
         now = 1788000000
         old = now - 400 * 86400
 
-        self.store.store_buckets('p', [(old, '10.0.0.1', 'in', 1, 1),
-                                       (now - 86400, '10.0.0.2', 'in', 1, 1)])
+        self.store.store_buckets('p', [(old, 'em0', '10.0.0.1', 'in', 1, 1),
+                                       (now - 86400, 'em0', '10.0.0.2', 'in', 1, 1)])
         self.store.open_new_windows([('aa:bb:cc:dd:ee:ff', '10.0.0.1', 'em0')], old)
         self.store.see_device('aa:bb:cc:dd:ee:ff', old, False, False)
         self.store.commit()
@@ -99,7 +99,7 @@ class StoreTest(unittest.TestCase):
 
     def test_purge_actually_empties_everything(self):
         """S14 promises this works; a promise that is not tested is a hope"""
-        self.store.store_buckets('p', [(1787990400, '10.0.0.1', 'in', 1, 1)])
+        self.store.store_buckets('p', [(1787990400, 'em0', '10.0.0.1', 'in', 1, 1)])
         self.store.see_device('aa:bb:cc:dd:ee:ff', 1000, False, False, 'x', 'dnsmasq')
         self.store.open_new_windows([('aa:bb:cc:dd:ee:ff', '10.0.0.1', 'em0')], 1000)
         self.store.log_run('observe', 1000, True, 5, 'ok')
@@ -117,6 +117,64 @@ class StoreTest(unittest.TestCase):
     def test_the_disk_ceiling_is_read_from_the_setting(self):
         self.store.db.execute("UPDATE setting SET value = '0' WHERE key = 'disk_ceiling_mb'")
         self.assertTrue(self.store.over_ceiling())
+
+
+class MigrationTest(unittest.TestCase):
+    """
+    The upgrade path off a store that is already on a router.
+
+    v1 harvested without the interface, which turned out to be the only thing
+    separating a device from the far end of its own connection. Those rows are
+    unusable rather than incomplete, so v2 drops them and resets the watermark;
+    the next harvest refetches whatever netflow still holds, which is everything
+    netflow has not already deleted.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.dir.name, 'lens.sqlite')
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def build_v1(self):
+        import sqlite3
+        db = sqlite3.connect(self.path)
+        db.execute("CREATE TABLE schema_version (version INTEGER NOT NULL)")
+        for statement in MIGRATIONS[1]:
+            db.execute(statement)
+        db.execute("INSERT INTO schema_version(version) VALUES (1)")
+        db.execute("INSERT INTO traffic_hour VALUES (1787990400, '10.0.0.1', 'in', 5, 1)")
+        db.execute("INSERT INTO harvest_state VALUES ('FlowSourceAddrTotals', 1787990400)")
+        db.execute("INSERT INTO device VALUES ('aa:bb:cc:dd:ee:ff', 1, 2, 0, 0, 'keep-me', 'dnsmasq')")
+        db.commit()
+        db.close()
+
+    def test_v1_is_carried_forward_and_its_unusable_traffic_is_dropped(self):
+        self.build_v1()
+
+        store = Store(self.path)
+        status = store.status()
+
+        self.assertEqual(SCHEMA_VERSION, status['schema_version'])
+        self.assertEqual(0, status['traffic_rows'])
+        self.assertIsNone(store.last_bucket('FlowSourceAddrTotals'))
+
+    def test_v1_devices_and_observations_are_not_touched(self):
+        """only the traffic table was wrong; nobody's device history was"""
+        self.build_v1()
+
+        self.assertEqual(1, Store(self.path).status()['devices'])
+
+    def test_the_new_table_takes_rows_with_an_interface(self):
+        self.build_v1()
+        store = Store(self.path)
+
+        written = store.store_buckets(
+            'FlowSourceAddrTotals', [(1787990400, 'vtnet1_vlan20', '10.0.0.1', 'in', 5, 1)]
+        )
+
+        self.assertEqual(1, written)
 
 
 class CollectorSmokeTest(unittest.TestCase):

@@ -178,3 +178,40 @@ migration that does not apply, an argument that does not parse.
 
 The gates learned Python in this stage; they had been saying "the plugin ships
 no Python" since stage 1, which stopped being true here.
+
+---
+
+## 9. What the router test found (2026-08-30)
+
+It works, and it found a modelling error the same evening.
+
+| Measure | Result |
+|---|---|
+| `observe` | 7 ms · 13 devices, 25 addresses, 25 windows |
+| `harvest` | 459 ms · 4932 buckets over 21 hours, all new |
+| Store | 0.4 MB after a day → roughly 130 MB a year |
+
+**4932 buckets in 21 hours, for 13 devices.** That is about 235 addresses an
+hour, which is far too many to be devices — and the reason is in core's
+aggregator. `FlowSourceAddrTotals` writes every flow twice, and on the second
+write it *replaces* `src_addr` with the destination:
+
+```
+if=if_in,  src_addr=<the device>,  direction=in
+if=if_out, src_addr=<the far end>, direction=out
+```
+
+So half the table is remote peers, and the only field that separates them from
+devices is `if` — which the first harvest did not request. Without it, a phone
+and a Google server are the same kind of row, and the attribution in stage 7
+would have been built on a table that cannot support it.
+
+Fixed by harvesting `if,src_addr,direction` and by schema 2, which drops the
+rows collected without the interface rather than leaving unusable data in place,
+and resets the watermark so the next harvest refetches what NetFlow still holds.
+Nothing is lost that NetFlow had not already deleted. Devices, hostnames and
+address history are untouched — only the traffic table was wrong.
+
+This is the second time in two days that reading the *numbers* rather than the
+status caught something no test would have: the tests asserted that buckets were
+stored correctly, and they were. They just were not the right buckets.

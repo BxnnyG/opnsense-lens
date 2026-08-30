@@ -151,9 +151,21 @@ def buckets_from_timeseries(payload, complete_before, after=None):
     """
     Pull storable rows out of what `netflow aggregate fetch` returns.
 
-    Core hands back {"<bucket>": {"<address>,<direction>": {octets, packets}}},
-    padded with zero-filled slices up to the present. Two of those must not be
-    stored, for different reasons:
+    Core hands back {"<bucket>": {"<if>,<address>,<direction>": {octets, ...}}},
+    padded with zero-filled slices up to the present.
+
+    The interface is not decoration. FlowSourceAddrTotals writes each flow
+    twice, and on the second write it replaces src_addr with the *destination*:
+
+        if=if_in,  src_addr=<the device>,   direction=in
+        if=if_out, src_addr=<the far end>,  direction=out
+
+    So half the rows are not devices at all, and the only thing that tells them
+    apart is which interface they arrived on. Harvesting without it, as the
+    first version of this did, produces a table where a phone and a Google
+    server look identical.
+
+    Two kinds of row must not be stored, for different reasons:
 
     - the filler slices, because a device that sent nothing did not send zero
       bytes, it produced no record at all; and
@@ -164,7 +176,7 @@ def buckets_from_timeseries(payload, complete_before, after=None):
     :param payload: decoded reply
     :param complete_before: only buckets that ended at or before this are stored
     :param after: skip buckets at or below this, already held
-    :return: list of (bucket, address, direction, octets, packets)
+    :return: list of (bucket, interface, address, direction, octets, packets)
     """
     rows = []
 
@@ -180,9 +192,15 @@ def buckets_from_timeseries(payload, complete_before, after=None):
             continue
 
         for key, values in (keys or {}).items():
-            parts = str(key).split(',')
-            address = parts[0].strip()
-            direction = parts[1].strip() if len(parts) > 1 else ''
+            parts = [part.strip() for part in str(key).split(',')]
+            if len(parts) >= 3:
+                interface, address, direction = parts[0], parts[1], parts[2]
+            elif len(parts) == 2:
+                # a reply without the interface: the missing field is at the front
+                interface, address, direction = '', parts[0], parts[1]
+            else:
+                interface, address, direction = '', parts[0], ''
+
 
             if not address:
                 continue
@@ -193,6 +211,6 @@ def buckets_from_timeseries(payload, complete_before, after=None):
             if octets <= 0 and packets <= 0:
                 continue
 
-            rows.append((bucket, address, direction, octets, packets))
+            rows.append((bucket, interface, address, direction, octets, packets))
 
     return sorted(rows)
