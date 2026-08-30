@@ -45,6 +45,11 @@ around it silently.
 
 ### Edge-case checklist (walk it every time)
 
+0. **Would this warning ever go green?** Before any amber or red state is
+   added, name what the operator would do about it. If the honest answer is
+   "nothing, that is just how my network is", the state is grey and factual, not
+   a warning (§4.20). A warning that cannot be resolved teaches the reader to
+   skip the row, and then the page.
 1. **No data, or the source is switched off.** A fresh install has an empty
    store, and NetFlow or Unbound reporting may never have been enabled. Every
    surface renders an explicit state — "collecting since 27 August", "NetFlow is

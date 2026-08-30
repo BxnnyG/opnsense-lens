@@ -21,6 +21,11 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
+0.1_3
+
+* a resolver that is simply not the one in use is reported as unavailable, not
+  as a fault -- amber is reserved for things worth fixing
+
 0.1_2
 
 * the data source page now judges rather than pings: ready, needs attention or

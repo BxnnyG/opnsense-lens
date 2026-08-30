@@ -28,15 +28,17 @@ number *means* is a bug, because the next surface will decide differently.
 > `opnsense/plugins` checkout. Paths are core paths unless stated. This section
 > is what an agent reads instead of guessing; it has to stay true.
 
-### 1.1 The `Reporting` menu is a real, extendable root
+### 1.1 The `Reporting` menu is a real, extendable root — confirmed by doing it
 
 `src/opnsense/mvc/app/models/OPNsense/Core/Menu/Menu.xml:15` defines
 `<Reporting order="15" cssClass="fa fa-area-chart">` with `Traffic` and
 `DNS (Unbound)` under it. `OPNsense/Diagnostics/Menu/Menu.xml` merges `Health`,
 `Insight` and `NetFlow` into the same node from a different model directory.
 A plugin `Menu.xml` merges the same way — so `Reporting → Lens` is a supported
-placement, not a hack. No plugin in the `opnsense/plugins` collection currently
-does this (checked 2026-08-29); Lens would be the first.
+placement, not a hack. No plugin in the `opnsense/plugins` collection does this
+(checked 2026-08-29); Lens is the first. **Verified on the router 2026-08-30**:
+both roots appear, `Services → Lens → Data Sources` and `Reporting → Lens`, with
+their own ACL privileges. This was risk 1 of stage 1 and it is now closed.
 
 ### 1.2 The dashboard is already modular
 
@@ -741,3 +743,37 @@ exists will show an empty page and blame the user.
 **Consequences:** every entry in S3's source table carries a "last produced
 data" timestamp. Anything that has not moved within its expected interval is
 amber with a sentence, never green.
+
+### §4.19 — The collector comes before the wizard (2026-08-30, agent's call)
+**Question:** the roadmap put the setup wizard (stage 3) before the store and
+collector (stage 4). After the preflight ran on the operator's box, is that still
+right?
+**Decision:** no. Swap them. The store and collector are next; the wizard follows.
+**Rationale:** two facts, one of them urgent.
+*The wizard has nothing to do here.* The preflight reports three of four sources
+ready and the fourth deliberately unused (§4.15). Every source this box can have
+is on. The wizard serves a user who does not exist yet.
+*The collector is losing data every day it does not exist.* Per-client hourly
+buckets expire after 24 hours (§1.4), and nothing is harvesting them. That is not
+a future cost that can be paid later by working faster — each day's hourly detail
+is deleted by core and cannot be recovered by any amount of subsequent effort.
+The daily totals survive, so the loss is silent and only becomes visible when S8
+asks for weeks of hourly data and finds none.
+**Consequences:** ROADMAP stages 3 and 4 swap. The wizard is not dropped — a
+fresh install on someone else's box still needs it, and §4.13 stands. The
+hand-run `tools/lens-observe.sh` keeps running until the collector replaces it.
+
+### §4.20 — Amber is reserved for what is worth fixing (2026-08-30, operator)
+**Question:** the preflight marked Unbound "needs attention" on a box whose
+operator said "I only enabled it once for bug testing, I do not use it". Correct?
+**Decision:** no. A source that is present but simply not adopted is grey and
+factual — "unavailable, and that is a choice, not a fault". Amber is for states
+the operator would want to act on. The two are told apart by evidence the box
+already has: if another resolver is running, this is a choice; if Unbound is the
+only one and records nothing, it is a fault.
+**Rationale:** a warning that can never go green is worse than no warning. The
+reader learns to skip that row, and then skips the row next to it. Preserving the
+meaning of amber is what keeps the rest of the page worth reading.
+**Consequences:** the same test applies to every future verdict — before an amber
+state is added, name what the operator would do about it. If the answer is
+"nothing, that is just how my network is", it is grey.

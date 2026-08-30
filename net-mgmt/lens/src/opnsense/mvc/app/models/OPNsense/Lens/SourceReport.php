@@ -314,24 +314,48 @@ class SourceReport
         }
 
         if ($age > self::DNS_STALE_AFTER) {
-            $cause = sprintf(
-                gettext('Unbound is running, but has not recorded a query for %d hours.'),
-                intdiv($age, 3600)
-            );
-            if (!empty($f['dnsmasq_running'])) {
-                $cause .= ' ' . gettext(
-                    'dnsmasq is running on this box and is what clients are actually resolving with, so Unbound ' .
-                    'sees nothing.'
-                );
+            /*
+             * Amber has to mean "you probably want to fix this". A box that
+             * resolves with something else is not broken -- it has simply not
+             * adopted this source, and 4.15 says that is a legitimate outcome.
+             * Told apart by whether another resolver is up: if one is, this is
+             * grey and factual; if none is, a stale resolver really is a fault.
+             * Operator, 2026-08-30: "I only enabled Unbound once for bug
+             * testing, I do not use it" -- and an amber row that can never go
+             * green is one a reader learns to skip past, taking the rest of the
+             * page with it.
+             */
+            $hours = intdiv($age, 3600);
+
+            if (!empty($f['other_resolver'])) {
+                return $out + [
+                    'verdict' => self::ABSENT,
+                    'headline' => gettext('Not the resolver on this box'),
+                    'cause' => sprintf(
+                        gettext(
+                            '%s is what clients resolve with here, so Unbound records nothing (last written ' .
+                            '%d hours ago). The DNS view is unavailable, and that is a choice, not a fault.'
+                        ),
+                        $f['other_resolver'],
+                        $hours
+                    ),
+                    'action' => gettext(
+                        'Nothing to do, unless you want the DNS view enough to point clients at Unbound.'
+                    ),
+                ];
             }
 
             return $out + [
                 'verdict' => self::DEGRADED,
-                'headline' => gettext('Running, but not the resolver'),
-                'cause' => $cause,
-                'action' => gettext(
-                    'Either point clients at Unbound, or accept that the DNS view stays unavailable on this box.'
+                'headline' => gettext('Running, but recording nothing'),
+                'cause' => sprintf(
+                    gettext(
+                        'Unbound is the only resolver here and has not recorded a query for %d hours, so ' .
+                        'something between the clients and it is not working.'
+                    ),
+                    $hours
                 ),
+                'action' => gettext('Check that clients are actually using this box for DNS.'),
             ];
         }
 

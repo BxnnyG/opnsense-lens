@@ -157,36 +157,42 @@ class SourceReportTest extends TestCase
 
     /* -------------------------------------------------------------- DNS */
 
-    public function testUnboundRunningButNotResolvingIsNotReady(): void
+    public function testAnotherResolverMakesThisAChoiceNotAFault(): void
     {
-        /* the defect this whole stage exists for: stage 1 printed this green */
+        /* stage 1 printed this green, which was the defect stage 2 exists for.
+           Amber would be wrong too: a box that resolves with dnsmasq is not
+           broken, and a row that can never go green teaches the reader to skip
+           the whole page (operator, 2026-08-30) */
         $source = $this->source([
             'dns' => [
                 'stats_configured' => true,
                 'running' => true,
-                'dnsmasq_running' => true,
+                'other_resolver' => 'dnsmasq',
                 'data_mtime' => self::NOW - 36000,
             ],
         ], 'dns');
 
-        $this->assertSame(SourceReport::DEGRADED, $source['verdict']);
-        $this->assertSame('Running, but not the resolver', $source['headline']);
-        $this->assertStringContainsString('10 hours', $source['cause']);
+        $this->assertSame(SourceReport::ABSENT, $source['verdict']);
+        $this->assertSame('Not the resolver on this box', $source['headline']);
         $this->assertStringContainsString('dnsmasq', $source['cause']);
+        $this->assertStringContainsString('10 hours', $source['cause']);
+        $this->assertStringContainsString('not a fault', $source['cause']);
     }
 
-    public function testStaleUnboundWithoutDnsmasqDoesNotBlameDnsmasq(): void
+    public function testTheOnlyResolverRecordingNothingIsAFault(): void
     {
+        /* the same staleness, with nothing else resolving, really is amber */
         $source = $this->source([
             'dns' => [
                 'stats_configured' => true,
                 'running' => true,
-                'dnsmasq_running' => false,
+                'other_resolver' => null,
                 'data_mtime' => self::NOW - 36000,
             ],
         ], 'dns');
 
         $this->assertSame(SourceReport::DEGRADED, $source['verdict']);
+        $this->assertSame('Running, but recording nothing', $source['headline']);
         $this->assertStringNotContainsString('dnsmasq', $source['cause']);
     }
 
@@ -196,7 +202,7 @@ class SourceReportTest extends TestCase
             'dns' => [
                 'stats_configured' => true,
                 'running' => true,
-                'dnsmasq_running' => false,
+                'other_resolver' => null,
                 'data_mtime' => self::NOW - 12,
             ],
         ], 'dns');
@@ -295,7 +301,7 @@ class SourceReportTest extends TestCase
              'dns' => ['stats_configured' => true, 'running' => true, 'data_mtime' => self::NOW]],
             ['netflow' => $this->netflow(['capture_interfaces' => ['lan']]),
              'dns' => ['stats_configured' => true, 'running' => true,
-                       'dnsmasq_running' => true, 'data_mtime' => self::NOW - 36000]],
+                       'other_resolver' => 'dnsmasq', 'data_mtime' => self::NOW - 36000]],
         ];
 
         foreach ($sets as $index => $facts) {
