@@ -215,3 +215,38 @@ address history are untouched — only the traffic table was wrong.
 This is the second time in two days that reading the *numbers* rather than the
 status caught something no test would have: the tests asserted that buckets were
 stored correctly, and they were. They just were not the right buckets.
+
+---
+
+## 10. What the second box found (2026-08-30)
+
+Installed on the operator's other firewall — OPNsense 26.1.9, nineteen
+interfaces including `lagg0` VLANs, two WireGuard tunnels and NetBird. The first
+`configctl lens harvest` never returned, had to be interrupted, and left
+`database is locked` behind it.
+
+Two defects, and the second is the worse one.
+
+**One request, one transaction.** `get_timeseries.py` fills every timeslice for
+every dimension key it found. On a box that size the 23 hour cold start builds
+one very large object, hands it over as JSON, and is inserted inside a single
+transaction — during which the store is locked and nothing else can read it.
+Interrupting `configctl` does not stop the script behind it, so the lock
+outlived the shell. Fixed by fetching and committing in four hour chunks:
+bounded memory, short locks, and a run that dies keeps everything up to its last
+chunk.
+
+**A timeout that reported success.** `read_command` caught
+`subprocess.TimeoutExpired` and returned an empty string, which became an empty
+payload, which became `0 buckets offered, 0 new` — indistinguishable from a
+quiet network. The plan for this stage said in as many words that a harvest
+storing nothing while flowd is fresh must be reported rather than swallowed, and
+the implementation did the opposite. Fixed: the harvest path now raises on a
+timeout, a non-zero exit, or an empty answer, and the run is logged as failed.
+
+Also: a reader arriving during a write now waits up to thirty seconds instead of
+answering "database is locked".
+
+The lesson is not "add a timeout". It is that **the failure mode a plan calls out
+by name is exactly the one to write a test for first** — this one shipped
+because the requirement was written down and then implemented from memory.

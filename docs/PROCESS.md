@@ -111,6 +111,10 @@ empty means the thinking has not happened — not that the chapter is unnecessar
   passed the entire suite.
 - **When a change touches two files, test the join.** Green unit tests on either
   side of a wiring mistake stay green.
+- **Every failure mode the plan names gets a test in the same stage.** Stage 4's
+  plan said a harvest that stores nothing while flowd is fresh must be reported,
+  not swallowed; it was then implemented from memory and did the opposite, and
+  shipped. Writing the requirement down is not implementing it.
 - Small commits. Commit subjects start with `lens: `.
 - Record a fixture for every external API shape the stage relies on. That is
   what makes the next change provable without a router.

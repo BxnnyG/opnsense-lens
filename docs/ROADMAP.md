@@ -93,7 +93,9 @@ against observations from the operator's own network, which stage 4 produces.
 | Root shell on the box | **`csh`** — no `$(...)`, no `2>&1` | scripts must self-redirect |
 | Build & install | on the router: `make package` / `make upgrade` in the plugin directory | — |
 | Live-test without installing | on the router: `make mount` … `make umount` | — |
-| Measured collector cost | `observe` **7 ms** · `harvest` **459 ms** (4932 buckets over 21 h) | router, 2026-08-30, `os-lens-devel-0.2_1` |
+| Measured collector cost | `observe` **7 ms** · `harvest` **459–653 ms** (7291 buckets over 21 h) | router-01, 2026-08-30 |
+| Second box | OPNsense **26.1.9**, 19 interfaces incl. `lagg0` VLANs, `wg0`, `wg6`, `wt0` | the first harvest there hung; chunking added in `0.2_3` |
+| Building on a box | `rsync` without `.git` makes `Scripts/version.sh` warn and leaves `product_hash` empty | harmless; copy `.git` too, or ignore it |
 | Measured store growth | **0.4 MB** after one day → roughly **130 MB a year** at the 365 day default | comfortably under the 500 MB ceiling, and now measured rather than guessed |
 | Measured page load cost | 0.1_1: **~2 s**, five calls · 0.1_2: **550–600 ms**, seven calls | the 1.4 s was `unbound qstats totals`, removed for a different reason |
 | Slowest calls | `unbound status` 149–187 ms · `interface list arp json` 1–123 ms (30 s configd cache) · `netflow aggregate metadata` 63–231 ms | measured on the box 2026-08-30 |

@@ -21,6 +21,16 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
+0.2_3
+
+* the harvest is fetched and committed in four hour chunks. On a firewall with
+  nineteen interfaces the single request it used to make was large enough to
+  lock the database while it was inserted
+* a harvest that times out or fails now says so, instead of reporting that it
+  found nothing
+* a reader that arrives during a write waits instead of reporting the database
+  as locked
+
 0.2_2
 
 * the hourly harvest now records which interface a flow crossed. Without it a

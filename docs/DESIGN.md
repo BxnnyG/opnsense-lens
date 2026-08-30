@@ -107,6 +107,21 @@ devices with remote peers, and `if` is the only field that tells them apart. Any
 query against this provider that drops the interface is asking a question it
 cannot answer — found the hard way on 2026-08-30, one harvest in.
 
+Measured on the operator's box over 21 hours, 7291 rows:
+
+| Interface | Rows | What it is |
+|---|---|---|
+| `pppoe0` | 6665 (91 %) | the far ends of connections, not devices |
+| `vtnet1_vlan10` · `vtnet1_vlan20` · `vtnet1_vlan21` | 474 | actual devices |
+| `lo0` | 70 | the firewall talking to itself |
+| `vtnet2` | 44 | the management NIC |
+| `'0'` | 38, and 805 MB | **flows flowd could not attribute to an interface** |
+
+Two of those were not expected and are recorded so nobody rediscovers them:
+`lo0` appears and is not a device network, and a literal `'0'` appears for flows
+with no known interface — 805 MB of them in one day, which is too much to
+silently drop and too unattributable to show as a device.
+
 **Per-client detail** — who it talked to, on which port, over which protocol —
 is *only ever* a daily bucket, kept 62 days. There is no hour in which
 `10.10.20.115 → 142.250.x` exists as an hourly fact. Not last week's. Not this

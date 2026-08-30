@@ -91,7 +91,10 @@ class Store:
             os.makedirs(directory, mode=0o700)
 
         fresh = not os.path.exists(path)
-        self.db = sqlite3.connect(path)
+        # a reader that arrives during a write waits its turn instead of
+        # reporting "database is locked", which is what the operator's second
+        # firewall answered while a first harvest was still inserting
+        self.db = sqlite3.connect(path, timeout=30)
         self.db.row_factory = sqlite3.Row
         if fresh:
             os.chmod(path, 0o600)
