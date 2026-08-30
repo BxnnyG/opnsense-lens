@@ -107,8 +107,16 @@ class SourcesController extends ApiControllerBase
             'unbound_mtime' => is_file(self::UNBOUND_DB) ? filemtime(self::UNBOUND_DB) : null,
         ];
 
-        foreach (['netflow_metadata', 'netflow_collector', 'netflow_aggregator', 'arp',
-                  'dnsmasq_status', 'unbound_status'] as $name) {
+        $always = [
+            'netflow_metadata',
+            'netflow_collector',
+            'netflow_aggregator',
+            'arp',
+            'dnsmasq_status',
+            'unbound_status',
+        ];
+
+        foreach ($always as $name) {
             $raw[$name] = $run($name);
         }
 
