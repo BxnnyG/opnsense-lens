@@ -54,10 +54,15 @@ A minimal but complete plugin, in this repository, at `net-mgmt/lens/`:
   is no port behind this plugin, which the themes establish as legitimate
   (DESIGN §1.8).
 - `pkg-descr` with the changelog this project's releases append to.
-- One MVC page under `Reporting → Lens`, its `Menu.xml`, its `ACL.xml`, and a
-  controller that renders **one true sentence**: the plugin version, and which
-  of the data sources in DESIGN §1 the box exposes at all. Not a preflight — a
-  liveness proof. Preflight is stage 2 and does the honest, detailed version.
+- Two MVC pages, per §4.12: `Services → Lens → Data Sources` and
+  `Reporting → Lens`, one `Menu.xml` with both roots, an `ACL.xml` with a
+  privilege per root, and a controller that renders **one true sentence**: the
+  plugin version, and which of the data sources in DESIGN §1 the box answers on
+  at all. Not a preflight — a liveness proof. Preflight is stage 2 and does the
+  honest, three-level version (§4.18).
+- **No `plugins.inc.d/lens.inc`.** It would have nothing in it. The `_cron()`
+  hook it exists for arrives with the collector in stage 4; shipping an empty
+  one now is dead code with a filename.
 - Repository scaffolding: `Mk/`, `Scripts/`, `Templates/`, `Keywords/`,
   `LICENSE` copied from `opnsense/plugins` at a commit hash **recorded in
   ROADMAP operations notes**, and `tests/gates/` lifted from netbird.
@@ -114,3 +119,47 @@ duplicate the interpretation the moment stage 2 arrives (DESIGN §0).
 Rollback is `pkg delete os-lens`. Nothing is written outside the package, no
 configuration is touched, and no other subsystem is reconfigured — §4.5's
 enablement powers arrive in stage 3, not here.
+
+---
+
+## 8. What happened (2026-08-30)
+
+Built as planned, with three deviations worth recording.
+
+**The menu got two roots, not one.** §4.12 landed after this plan was written.
+It also de-risked the stage: if `Reporting` turns out not to accept a plugin
+entry, `Services → Lens` still works, and fifty-nine plugins prove that
+placement.
+
+**No `.inc` file.** See §3. It would have been an empty file with a licence
+header.
+
+**The gate runner needed one change.** `tests/gates/run.sh` came from
+`security/netbird`, where the plugin *is* the repository subdirectory. Here the
+plugin sits at `net-mgmt/lens` and the tests at the top, so `PLUGIN` is derived
+separately from `REPO`.
+
+### Result
+
+| Check | Result |
+|---|---|
+| `tests/gates/run.sh` | style 0 errors / 0 warnings · php lint 0 · xml 0 · model 0 |
+| `phpunit` | 13 tests, 62 assertions, all passing |
+| `make package` on FreeBSD | **not run — no FreeBSD here.** Owed by the router test. |
+| Menu appears under both roots | **not verified — owed by the router test.** |
+| ACL actually gates the pages | **not verified — owed by the router test.** |
+
+The first three risks in §7 are still open, because all three can only be
+answered on the box. That is the honest status of this stage: it is *built*, not
+*done*. What the tests prove is that the interpretation layer behaves — including
+that no probe uses a dotted configd action name, which is the mistake that cost
+the first preflight four commands.
+
+### The load it costs (§4.8)
+
+Opening either page fires one API call, which runs five configd commands. All
+five are read-only; `interface list arp json` deliberately asks for the
+unresolved table, because reverse lookups are what make that call slow, and
+`unbound qstats totals 1` caps itself at one row. Nothing polls: the page asks
+once, on open. **Measurement on the operator's 2-core box is owed with the
+router test** and belongs in the ROADMAP operations notes.

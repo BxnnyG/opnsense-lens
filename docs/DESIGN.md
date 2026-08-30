@@ -204,7 +204,7 @@ next person does not have to re-discover it.
 
 | System | Status | Rest / note |
 |---|---|---|
-| S0 · Package skeleton & walking skeleton | ⏳ | nothing built yet |
+| S0 · Package skeleton & walking skeleton | 🔨 | built 2026-08-30; gates clean, 13 tests; not yet installed on a router |
 | S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
 | S2 · Own store & collector | ⏳ | must start collecting before anything can display |
 | S3 · Preflight & setup wizard | ⏳ | hand-run scripts exist in `tools/` (2026-08-29) as the spec |
@@ -226,7 +226,11 @@ next person does not have to re-discover it.
 ### S0 · Package skeleton
 **Purpose:** prove the whole chain — build, install, menu, ACL, page, gates —
 before any feature depends on it.
-**Today:** nothing. The repository holds documentation only.
+**Today:** built 2026-08-30. `net-mgmt/lens` produces `os-lens`, two menu roots
+(§4.12), two ACL privileges, one read-only API action and `SourceProbe`, which
+turns a configd reply into "answering" or "silent" and is covered by 13 tests.
+Not yet installed on a router, so the package, the menu placement and the ACL
+are unproven.
 **Plan:** `net-mgmt/lens`, package `os-lens`, one page under `Reporting → Lens`
 that renders a single true sentence. Upstream build machinery (`Mk/`,
 `Scripts/`, `Templates/`, `Keywords/`) copied in at a recorded commit (§4.1).

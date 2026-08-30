@@ -1,0 +1,1 @@
+[{"mac":"bc:24:11:3e:e7:28","ip":"10.10.10.1","intf":"vtnet1_vlan10","expires":-1,"permanent":true,"type":"vlan"},{"mac":"42:c5:38:e1:54:c7","ip":"10.10.10.141","intf":"vtnet1_vlan10","expires":1162,"permanent":false,"type":"vlan"},{"mac":"42:c5:38:e1:54:c7","ip":"10.10.20.136","intf":"vtnet1_vlan20","expires":841,"permanent":false,"type":"vlan"}]

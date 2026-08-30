@@ -57,7 +57,8 @@ It lives in its own repository and is not going upstream (§4.1, §4.2).
 | Purpose | Command |
 |---|---|
 | Open issues | `gh issue list --state open` |
-| Lint / style | `tests/gates/run.sh` (lifted from `security/netbird`, stage 1) |
+| Tests | `composer install`, then `vendor/bin/phpunit --configuration tests/phpunit.xml` |
+| Lint / style | `tests/gates/run.sh` — the upstream gates without `bmake` or a core checkout |
 | Build & install | on the router: `make package` / `make upgrade` in `net-mgmt/lens` |
 | Live-test without installing | on the router: `make mount` … `make umount` |
 | Check what ships | `make plist` — everything under `src/` installs into `/usr/local` |

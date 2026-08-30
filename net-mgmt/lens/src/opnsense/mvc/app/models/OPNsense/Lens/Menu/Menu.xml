@@ -1,0 +1,10 @@
+<menu>
+    <Services>
+        <Lens cssClass="fa fa-eye fa-fw">
+            <DataSources order="10" VisibleName="Data Sources" url="/ui/lens/preflight"/>
+        </Lens>
+    </Services>
+    <Reporting>
+        <Lens order="40" cssClass="fa fa-eye fa-fw" url="/ui/lens/overview"/>
+    </Reporting>
+</menu>

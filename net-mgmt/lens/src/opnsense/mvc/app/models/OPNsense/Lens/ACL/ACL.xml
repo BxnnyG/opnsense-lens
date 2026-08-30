@@ -1,0 +1,16 @@
+<acl>
+    <page-services-lens>
+        <name>Services: Lens</name>
+        <patterns>
+            <pattern>ui/lens/preflight*</pattern>
+            <pattern>api/lens/sources/*</pattern>
+        </patterns>
+    </page-services-lens>
+    <page-reporting-lens>
+        <name>Reporting: Lens</name>
+        <patterns>
+            <pattern>ui/lens/overview*</pattern>
+            <pattern>api/lens/sources/*</pattern>
+        </patterns>
+    </page-reporting-lens>
+</acl>

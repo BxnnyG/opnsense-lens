@@ -1,0 +1,1 @@
+{"records":[{"expire":1788160701,"hwaddr":"42:c5:38:e1:54:c7","iaid":"","address":"10.10.10.141","hostname":"bxy-cachyos-x8664","client_id":"01:42:c5:38:e1:54:c7","if":"vtnet1_vlan10"},{"expire":1788157800,"hwaddr":"cc:8c:bf:9b:d3:56","iaid":"","address":"10.10.20.199","hostname":"wlan0","client_id":"*","if":"vtnet1_vlan20"}]}

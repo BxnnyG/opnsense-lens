@@ -16,7 +16,7 @@ this one inherits, and 23 stages of experience with it.
 |---|---|---|---|
 | — | Documentation scaffold | — | ✅ 2026-08-29 |
 | 0 | Hand-run tools: preflight, identity observation, summary (§4.14) | S3, S2 | ✅ 2026-08-29 · running on the operator's box from 2026-08-29 |
-| 1 | Walking skeleton: `os-lens` builds, installs, appears under `Reporting`, renders one true sentence ([plan](plans/stage-01-walking-skeleton.md)) | S0 | ⏳ |
+| 1 | Walking skeleton: `os-lens`, two menu roots, a source liveness check ([plan](plans/stage-01-walking-skeleton.md)) | S0 | 🔨 built 2026-08-30 · gates clean, 13 tests · **awaiting router test** |
 | 2 | Preflight in the plugin — what `tools/lens-preflight.sh` does, as a page under `Services → Lens` | S3 | ⏳ |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ |
 | 4 | Store & collector — start recording identity observations, before anything displays them | S2 | ⏳ |
@@ -48,7 +48,7 @@ against observations from the operator's own network, which stage 4 produces.
 |---|---|---|---|
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17), provisional, re-check 2026-09-06 |
-| 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ⏳ |
+| 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | 🔨 built; `make package`, menu placement and ACL still unproven |
 | 2 | Preflight as a page | S3 | ⏳ |
 | 3 | Setup wizard | S3 | ⏳ |
 | 4 | Collect | S2 | ⏳ |
@@ -62,8 +62,8 @@ against observations from the operator's own network, which stage 4 produces.
 
 | Thing | Where | Status |
 |---|---|---|
-| Plugin source | this repository, `net-mgmt/lens/` | not created yet (stage 1) |
-| Build machinery | `Mk/`, `Scripts/`, `Templates/`, `Keywords/`, copied from `opnsense/plugins` at a recorded commit (§4.1) | not copied yet (stage 1) |
+| Plugin source | this repository, `net-mgmt/lens/` | created 2026-08-30 |
+| Build machinery | `Mk/`, `Scripts/`, `Templates/`, `Keywords/` from `opnsense/plugins` @ `8e472285` — recorded in `Mk/.upstream-commit` (§4.1) | copied 2026-08-30 |
 | Package name | `os-lens` | — |
 | Menu entry | `Reporting → Lens` (core `Core/Menu/Menu.xml:15` is the parent) | — |
 | Own store | `/var/db/lens/` — SQLite, written by the collector and configd only | not created yet (stage 4) |

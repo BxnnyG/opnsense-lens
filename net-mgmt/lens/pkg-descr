@@ -1,0 +1,27 @@
+Lens gives every device on the network an identity that survives an address
+change, and hangs everything OPNsense already knows off it.
+
+OPNsense records what traffic happened and, separately, who is on the network
+right now. It never joins the two over time: flow history is aggregated on the
+source address and nothing else, and device identity exists only in the present
+tense. So the answer to "what was that spike last Tuesday" is an IP address.
+
+Lens closes that gap. It reads OPNsense's own data through its APIs rather than
+collecting its own, and stores only what nothing else keeps: identity over time,
+the operator's own names and tags, and computed baselines.
+
+- Configuration and setup live under Services: Lens
+- The views live under Reporting: Lens
+- It does not replace Reporting: Insight, Health, NetFlow or Unbound DNS
+- It supplies widgets to the dashboard OPNsense already has
+
+Lens reads. The one exception, always triggered by the operator and never on
+install, is switching on the data sources it needs.
+
+Plugin Changelog
+================
+
+0.1
+
+* first release: package skeleton, menu placement and a data source liveness
+  check under Services: Lens and Reporting: Lens
