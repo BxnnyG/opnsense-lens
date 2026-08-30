@@ -105,6 +105,59 @@ class DeviceReportTest extends TestCase
         $this->assertTrue($device['here'], 'one current address is enough to be here');
     }
 
+    public function testTwoWindowsForTheSameAddressAreOneAddress()
+    {
+        /*
+         * Shipped in 0.3_1 and visible on the operator's router: the observe job
+         * had not run for 4.8 hours, so returning devices opened a second window
+         * for every address they already held, and the page listed each one
+         * twice -- once "here now", once "4.8 hours ago".
+         */
+        $device = $this->one(['addresses' => [
+            ['address' => '10.0.10.5', 'interface' => 'HOME',
+             'first_seen' => self::NOW - 86400, 'last_seen' => self::NOW - 17000],
+            ['address' => '10.0.10.5', 'interface' => 'HOME',
+             'first_seen' => self::OBSERVED, 'last_seen' => self::OBSERVED],
+        ]]);
+
+        $this->assertCount(1, $device['addresses']);
+        $this->assertSame(2, $device['addresses'][0]['windows']);
+        $this->assertTrue($device['addresses'][0]['current']);
+        $this->assertSame(self::NOW - 86400, $device['addresses'][0]['first_seen'],
+            'the fold keeps the earliest sighting, so "known for" stays true');
+    }
+
+    public function testTheSameAddressOnTwoInterfacesStaysTwoEntries()
+    {
+        $device = $this->one(['addresses' => [
+            ['address' => '192.168.178.1', 'interface' => 'igb0',
+             'first_seen' => self::OBSERVED, 'last_seen' => self::OBSERVED],
+            ['address' => '192.168.178.1', 'interface' => 'igb1',
+             'first_seen' => self::OBSERVED, 'last_seen' => self::OBSERVED],
+        ]]);
+
+        $this->assertCount(2, $device['addresses']);
+    }
+
+    public function testCurrentAddressesAreListedBeforeOnesTheDeviceNoLongerHolds()
+    {
+        $device = $this->one(['addresses' => [
+            ['address' => '10.0.10.99', 'interface' => 'HOME',
+             'first_seen' => 0, 'last_seen' => self::NOW - 40000],
+            ['address' => '10.0.10.5', 'interface' => 'HOME',
+             'first_seen' => 0, 'last_seen' => self::OBSERVED],
+        ]]);
+
+        $this->assertSame('10.0.10.5', $device['addresses'][0]['address']);
+        $this->assertFalse($device['addresses'][1]['current']);
+    }
+
+    public function testTheFirewallsOwnAddressesAreLabelledRatherThanListedAsAClient()
+    {
+        $this->assertSame('this firewall', $this->one(['is_local' => true])['role']);
+        $this->assertNull($this->one()['role']);
+    }
+
     // ----------------------------------------------------- naming, without inventing
 
     public function testAHostnameWinsAndSaysWhereItCameFrom()

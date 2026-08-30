@@ -865,3 +865,29 @@ is one extra configd call per page load, which the page already measures and
 displays.
 **Consequences:** `DeviceReport` takes the table as an argument and is testable
 without it; a MAC whose OUI is unknown is shown as a MAC, never as a guess.
+
+### §4.24 — A list of windows is not a list of addresses (2026-08-30)
+**Question:** `os-lens-0.3_1` reached the operator's router and every device
+listed each of its addresses twice — once "here now", once "4.8 hours ago". The
+firewall itself showed twenty-four rows for twelve addresses. What went wrong?
+**What happened:** nothing, in the store. The observe job had not run for 4.8
+hours (see ROADMAP, the cron finding), so on the next run every address exceeded
+the 900 s gap and `fold_observations` correctly opened a *second* window for it.
+That is the intended behaviour and stage 7 depends on it: attributing a traffic
+bucket to a device means knowing which window covers the bucket's own timestamp,
+not merely that the device once held the address. The defect was that
+`DeviceReport` rendered windows and called them addresses.
+**Decision:** the store keeps windows; the device list folds them by (address,
+interface) — earliest `first_seen`, latest `last_seen`, a count kept — and
+presence is decided on the folded row. Every later view that shows a device to a
+person folds; every view that attributes traffic to a moment does not.
+**Rationale:** this is §S1's "one machine reported as two" one level down, and
+the page carries a footer promising exactly that will not happen. A caption that
+contradicts the table above it is worse than no caption. The two shapes are both
+correct for their own purpose, and the mistake was letting one surface see the
+wrong one — the same class as §4.21.
+**Consequences:** `DeviceReport::addresses()` is the only place that folds, and
+it is tested against the router's own shape. Also visible in the same screenshot
+and fixed with it: the firewall's own interfaces were listed as if they were
+clients, and are now labelled from the permanent-ARP flag the collector already
+records.

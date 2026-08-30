@@ -79,3 +79,32 @@ known it. That is the sentence core cannot produce.
   banner names the command that fills it.
 - **Way back:** the whole stage is additive. Removing the block from the view
   restores the previous page exactly; the store gains no column.
+
+## 7. What the router test found (2026-08-30)
+
+`os-lens-0.3_1` on both boxes. The page renders, in 705 ms on router-01 and
+784 ms on the second box, and names devices core cannot: `bxy-cachyos-x8664`,
+`infra-core-prod-unifi-01`, `U7Lite`, `monitoring-04` from dnsmasq;
+`ASUSTek COMPUTER INC. 5D04E9`, `Tuya Smart Inc. 9C0DFC`, thirty-odd Proxmox
+guests and five Espressif boards from the vendor table alone. The second box,
+which runs no DHCP server at all, produced 45 devices with **no** hostname
+anywhere — exactly the case §4.23's vendor fallback exists for, and proof that
+the page is worth something on a box where nothing announces a name.
+
+**One defect, visible in the first screenshot.** Every address was listed twice.
+Cause and fix are §4.24: the store keeps a window per absence, correctly, and the
+report was rendering windows as addresses. The router had been without an observe
+run for 4.8 hours, so every device opened a second window on the next run and the
+bug had a perfect stage on which to appear. Fixed in `0.3_2`, with the router's
+own shape as the test fixture.
+
+**Two things the same screenshot settled without being asked.** The firewall's
+own twelve VLAN addresses were listed as if it were a client — now labelled from
+the `is_local` flag the collector was already recording and nothing was using.
+And `Known for` read `4.8 hours` for every device on router-01, which is not the
+age of the devices but the age of the store: correct, and a reminder that this
+column will only start meaning something after the collector has been running
+for weeks.
+
+**Still open, and now the loudest thing on the page:** the observe job is not
+firing. Both boxes needed a hand-run `configctl lens observe` to fill the list.

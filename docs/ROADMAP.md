@@ -20,7 +20,7 @@ this one inherits, and 23 stages of experience with it.
 | 2 | Preflight — three verdicts, capture coverage, retention, timing ([plan](plans/stage-02-preflight.md)) | S3 | ✅ 2026-08-30 · router-tested as `os-lens-0.1_3`; both menu roots confirmed |
 | 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | ✅ 2026-08-30 · router-tested as `os-lens-0.2_3` on both boxes; 463 buckets in 1 chunk on router-01, the second box's hang gone |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
-| 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | 🔨 built 2026-08-30 · gates clean, 71 PHP + 46 Python tests · **awaiting router test** |
+| 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
 | 7 | Traffic attribution — flow history joined onto identity, at the time of the bucket | S4 | ⏳ |
 | 8 | Client profile page | S5 | ⏳ |

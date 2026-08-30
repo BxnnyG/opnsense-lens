@@ -112,6 +112,8 @@ class DeviceReport
             'here' => $here,
             'randomised' => !empty($device['randomised']),
             'is_local' => !empty($device['is_local']),
+            /* a permanent ARP entry is an address configured on this box, not a client */
+            'role' => !empty($device['is_local']) ? gettext('this firewall') : null,
             'first_seen' => (int)($device['first_seen'] ?? 0),
             'last_seen' => (int)($device['last_seen'] ?? 0),
             'presence' => $here
@@ -127,23 +129,57 @@ class DeviceReport
      *
      * Windows are extended with the timestamp of the run that saw them, so
      * "extended by the last run" is an exact test, not a tolerance.
+     *
+     * **Windows are folded here, addresses are not.** The store keeps one window
+     * per absence -- a device that leaves and returns gets a second window for
+     * the same address, and stage 7 needs exactly that to attribute a traffic
+     * bucket to the device that held the address *at the time of the bucket*.
+     * A list of windows is not a list of addresses, though: shipped unfolded,
+     * every address on the operator's router appeared twice, once current and
+     * once "4.8 hours ago", which is the same lie as listing one machine as two.
      */
     private static function addresses(array $device, ?int $observedAt, int $now): array
     {
-        $out = [];
-        foreach ($device['addresses'] ?? [] as $address) {
-            if (empty($address['address'])) {
+        $folded = [];
+        foreach ($device['addresses'] ?? [] as $window) {
+            if (empty($window['address'])) {
                 continue;
             }
-            $out[] = [
-                'address' => (string)$address['address'],
-                'interface' => (string)($address['interface'] ?? ''),
-                'current' => $observedAt !== null && (int)($address['last_seen'] ?? 0) >= $observedAt,
-                'first_seen' => (int)($address['first_seen'] ?? 0),
-                'last_seen' => (int)($address['last_seen'] ?? 0),
-                'seen' => Duration::ago($now - (int)($address['last_seen'] ?? $now)),
-            ];
+
+            $address = (string)$window['address'];
+            $interface = (string)($window['interface'] ?? '');
+            $key = $address . '@' . $interface;
+            $firstSeen = (int)($window['first_seen'] ?? 0);
+            $lastSeen = (int)($window['last_seen'] ?? 0);
+
+            if (!isset($folded[$key])) {
+                $folded[$key] = [
+                    'address' => $address,
+                    'interface' => $interface,
+                    'first_seen' => $firstSeen,
+                    'last_seen' => $lastSeen,
+                    'windows' => 0,
+                ];
+            }
+
+            $folded[$key]['first_seen'] = min($folded[$key]['first_seen'], $firstSeen);
+            $folded[$key]['last_seen'] = max($folded[$key]['last_seen'], $lastSeen);
+            $folded[$key]['windows']++;
         }
+
+        $out = [];
+        foreach ($folded as $address) {
+            $address['current'] = $observedAt !== null && $address['last_seen'] >= $observedAt;
+            $address['seen'] = Duration::ago($now - $address['last_seen']);
+            $out[] = $address;
+        }
+
+        usort($out, function ($left, $right) {
+            if ($left['current'] !== $right['current']) {
+                return $left['current'] ? -1 : 1;
+            }
+            return strcmp($left['address'], $right['address']);
+        });
 
         return $out;
     }

@@ -44,6 +44,7 @@
     .lens-addr-gone { color: #999; }
     .lens-if { color: #999; }
     .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
+    .lens-role { display: block; font-size: 90%; color: #999; font-style: italic; }
 </style>
 
 <script>
@@ -97,6 +98,9 @@
                 const $name = $('<td/>')
                     .append($('<div/>').text(device.name))
                     .append($('<span/>').addClass('lens-mac').text(device.mac));
+                if (device.role) {
+                    $name.append($('<span/>').addClass('lens-role').text(device.role));
+                }
 
                 const $addresses = $('<td/>');
                 for (const address of device.addresses) {
