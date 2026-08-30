@@ -61,15 +61,23 @@ Nothing. There is no code.
 
 ## 2. P1 — Must-have
 
-- **#1 — Find out what the box actually collects.** Blocks every estimate in
-  this document. Cheap: one look at Reporting → NetFlow and Reporting → Unbound
-  DNS. Becomes stage 2 regardless, but the answer changes the roadmap's shape
-  today. *(ROADMAP stage 2)*
+- **#1 — ~~Find out what the box actually collects~~ ✅ done 2026-08-30.**
+  NetFlow was already on since 2026-08-23 but captured only MGNT, WAN and
+  WANMGNT; all eleven interfaces are now captured. dnsmasq resolves, Unbound
+  runs but serves nothing (§4.18). The findings are in DESIGN §1.
+- **#15 — Static hosts have no hostname, and it is not rare.** Three of the
+  thirteen devices observed (10.10.10.2, .5, .9) have no DHCP lease at all, so
+  identity has a MAC and a vendor and nothing a human would recognise. A further
+  three lease a hostname of `wlan0` or `*`. So **six of thirteen devices cannot
+  name themselves** — which makes the operator's own naming and tagging (stage 6)
+  not a nicety but the thing that makes the device list readable at all.
 - **#2 — Start collecting before building screens.** Every day without the
   collector is a day of history the interesting stages will not have.
   *(stage 4)*
-- **#3 — Decide identity against real observations, not in the abstract.** See
-  §0. *(stage 5, blocked on #2)*
+- **#3 — ~~Decide identity against real observations~~ ✅ decided 2026-08-30
+  (§4.17): keyed on MAC.** Ten hours of data: 13 MACs, 2 randomised, zero
+  address reuse, zero fragmentation. Provisional — **re-read the observation log
+  on 2026-09-06** before S1's UI is built. A quiet Saturday night is not a week.
 - **#4 — Confirm or correct the two marked assumptions in
   [VISION.md](VISION.md)** — that the non-technical household member never opens
   the interface, and that multi-site is out of scope. Both shape priorities;

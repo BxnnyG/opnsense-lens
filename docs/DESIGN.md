@@ -84,16 +84,28 @@ each aggregate class. Verified against `stable/26.7` on 2026-08-30:
 |---|---|---|---|---|
 | `FlowInterfaceTotals` | 1 day | 7 days | 31 days | 365 days |
 | `FlowSourceAddrTotals` | — | **1 hour** | **1 day** | 365 days |
-| `FlowSourceAddrDetails` | — | **1 hour** | **1 day** | 365 days |
+| `FlowSourceAddrDetails` | — | — | — | **62 days, daily only** |
 | `FlowDstPortTotals` | — | **1 hour** | **1 day** | 365 days |
 
-Read the second row again, because it is the constraint the whole plugin is
-built inside: **per-client traffic older than 24 hours exists only as a daily
-total.** Five-minute detail for a device survives one hour. Hourly detail
-survives one day. After that, one number per device per day, for a year.
+*(Corrected 2026-08-30 after `configctl netflow aggregate metadata` on the live
+box contradicted the first version of this table. `FlowSourceAddrDetails`
+declares `resolutions() == [86400]` — it has no sub-daily resolution at all, and
+expires at 62 days, not 365. The earlier table overstated it in both directions.
+Read the live metadata, not an assumption about symmetry.)*
+
+Two rows carry the whole constraint:
+
+**Per-client volume** — `FlowSourceAddrTotals` — is five-minute for one hour,
+hourly for one day, then one number per device per day for a year.
+
+**Per-client detail** — who it talked to, on which port, over which protocol —
+is *only ever* a daily bucket, kept 62 days. There is no hour in which
+`10.10.20.115 → 142.250.x` exists as an hourly fact. Not last week's. Not this
+afternoon's. Not the last five minutes'.
 
 Interface-level history is generous; device-level history collapses almost
-immediately. That is exactly backwards from what this plugin is for.
+immediately, and device-level *detail* is never fine-grained at all. That is
+exactly backwards from what this plugin is for.
 
 Three consequences, and none of them is optional:
 
@@ -108,6 +120,13 @@ Three consequences, and none of them is optional:
 3. **The time-travel slider is honest only at interface granularity.** Beyond
    24 hours it can offer days, not moments — and it must say so rather than
    quietly resample.
+4. **"What is this device talking to right now" is a different mechanism
+   entirely.** flowd cannot answer it at any resolution finer than a day. Live
+   destinations must come from pf state data — `/api/diagnostics/traffic/top`
+   and the firewall state endpoints (§1.3) — which is live-only and keeps
+   nothing. So the client profile page (S5) carries two destination panels
+   fed by two unrelated sources with two different time semantics, and the
+   page must never let them blur into one another.
 
 This was found on 2026-08-30 by reading the aggregate classes during the first
 preflight, before any code existed. Had it been found at stage 12 it would have
@@ -224,7 +243,13 @@ first seen, last seen) fed by the collector, collapsed into a device record.
 Key on MAC where one exists; fall back to a stable-address identity where it
 does not. Operator-owned fields — display name, icon, tags, notes — live beside
 the observed ones and are never overwritten by an observation.
-**Open — and this is the hard part:** MAC randomisation. Modern phones present a
+✅ **Decided (§4.17, 2026-08-30):** keyed on MAC. Ten hours of observation on
+the operator's network produced zero address collisions and zero fragmentation.
+Provisional — a quiet Saturday night hides what a week of rejoining devices
+shows — and re-checked 2026-09-06.
+
+**The original concern, kept because it is still the failure mode:** MAC
+randomisation. Modern phones present a
 different MAC per SSID and rotate it; IPv6 privacy extensions rotate addresses
 hourly. One device will look like many. The plugin must not present a device
 list that grows by ten entries a week and quietly lies. Candidate mitigations to
@@ -640,3 +665,55 @@ thing that sends someone debugging ACLs for an hour.
 **Consequences:** §1 entries carry their verification date and, where it
 matters, the ref. The same rule applies to anything the plugin tells a user to
 type.
+
+### §4.17 — Identity is keyed on MAC (2026-08-30, decided against observations)
+**Question:** BACKLOG #3 — key device identity on MAC, or on something more
+elaborate, given MAC randomisation? Deliberately deferred until real data
+existed rather than decided in the abstract.
+**The data.** 120 snapshots, 2026-08-29 21:29 → 2026-08-30 07:20, on the
+operator's nine-segment network:
+
+| Measure | Result |
+|---|---|
+| Distinct MACs | 13 |
+| Randomised (locally administered) | **2** |
+| Addresses held by more than one MAC | **0** |
+| MACs present in ≤5 % of snapshots | **0** |
+| MACs holding more than one IPv4 | 2 — the firewall itself (8 VLAN interfaces) and the operator's own laptop, on MGNT and HOME at once |
+
+**Decision:** key on MAC. Address history is recorded per MAC; attribution of a
+flow bucket uses the address's owner *at the time of the bucket*. No clustering,
+no fingerprint heuristics, no manual-merge UI in the first version.
+**Rationale:** the fragmentation nightmare did not appear. Two randomised MACs
+out of thirteen, both stable across ten hours, both carrying a usable DHCP
+hostname (`bxy-cachyos-x8664`, `BXY-Pixel-10`). Zero address reuse means the
+attribution trap that would have poisoned every chart is, on this network,
+currently empty. Building merge machinery against a problem that is not present
+would be inventing complexity.
+**What this decision is NOT.** Ten hours, overnight, on a Saturday. Phones were
+asleep, guests absent — the GUEST VLAN recorded literally zero packets.
+Randomisation shows itself when a device *rejoins* a network, which happens over
+days. Thirteen MACs is a household, not a proof.
+**Consequences:** S1 proceeds on MAC. The observation log keeps running for a
+week and is re-read on **2026-09-06**; if the randomised count climbs or address
+reuse appears, this decision is revisited before S1's UI is built, not after.
+The store must therefore keep the raw observation history, not just the derived
+device — a merge, if ever needed, has to be reconstructible.
+
+### §4.18 — A source is only real if its data is fresh (2026-08-30)
+**Question:** preflight asked "is Unbound reporting enabled" (config: yes), then
+"is unbound running" (process: yes) — and both answers were misleading. The box
+resolves with dnsmasq. Unbound is running and receiving nothing.
+**The evidence:** `/var/unbound/data/unbound.duckdb` had not been written for
+ten hours while the box was up and resolving. Configuration said enabled.
+`pgrep` said running. Only the file's age said the truth.
+**Decision:** every source check has three levels and all three must pass —
+configured, running, **and producing data recently**. Preflight and the wizard
+report the third, and a source whose data has gone stale is reported as broken,
+not as available.
+**Rationale:** this is the same lesson twice in one day. Config is not process;
+process is not service. A plugin that promises DNS insight because a daemon
+exists will show an empty page and blame the user.
+**Consequences:** every entry in S3's source table carries a "last produced
+data" timestamp. Anything that has not moved within its expected interval is
+amber with a sentence, never green.

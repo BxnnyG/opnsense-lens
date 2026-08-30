@@ -115,6 +115,19 @@ echo "  VERDICT query reporting  : " . ($st === '1' ? "ON" : "OFF — Reporting 
 PHPEOF
 echo "  statistics database:"
 ls -lh /var/unbound/data/unbound.duckdb 2>&1 | sed 's/^/    /'
+# Configured is not running, and running is not serving (§4.18). Only the age of
+# the data says whether this source is real: on 2026-08-30 this file had not
+# been written for ten hours on a box that resolves all day -- with dnsmasq.
+if [ -f /var/unbound/data/unbound.duckdb ]; then
+    age=$(( $(date +%s) - $(stat -f %m /var/unbound/data/unbound.duckdb) ))
+    echo "  last written     : ${age} seconds ago"
+    if [ "$age" -gt 3600 ]; then
+        echo "  VERDICT freshness: STALE — unbound is not answering queries here,"
+        echo "                     whatever the configuration and the process say."
+    else
+        echo "  VERDICT freshness: fresh — unbound is really serving queries"
+    fi
+fi
 
 sec "7. Which DHCP server is in use?"
 for s in kea-dhcp4 kea-dhcp6 dnsmasq dhcpd; do

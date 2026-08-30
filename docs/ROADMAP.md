@@ -47,7 +47,7 @@ against observations from the operator's own network, which stage 4 produces.
 | # | Intent | System | Status |
 |---|---|---|---|
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
-| 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ⏳ next — needs a night of data |
+| 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17), provisional, re-check 2026-09-06 |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ⏳ |
 | 2 | Preflight as a page | S3 | ⏳ |
 | 3 | Setup wizard | S3 | ⏳ |
@@ -75,8 +75,11 @@ against observations from the operator's own network, which stage 4 produces.
 | Unbound reporting flag | `//OPNsense/unboundplus/general/stats` | verified 2026-08-29 |
 | Collector schedule | `_cron()` hook in `src/etc/inc/plugins.inc.d/lens.inc` | not created yet (stage 4) |
 | Core flow data | flowd + `flowd_aggregate` | **ON since 2026-08-23**, `collect.enable=1`, 66 MB in `/var/netflow` |
-| NetFlow capture interfaces | `lan,wan,opt1` = MGNT, WAN, WANMGNT · `egress_only=wan` | **the eight VLANs that matter are NOT captured** (2026-08-30) |
-| Per-client history depth | 5 min → 1 h · hourly → 1 day · daily → 1 year | fixed in core, see DESIGN §1.4 — drives S2's harvest duty |
+| NetFlow capture interfaces | all eleven · `egress_only=wan` | fixed 2026-08-30; flowd + flowd_aggregate both running |
+| Per-client volume depth | 5 min → 1 h · hourly → 1 day · daily → 1 year | fixed in core, DESIGN §1.4 — drives S2's harvest duty |
+| Per-client detail depth | **daily only, 62 days** — no sub-daily resolution exists | corrected 2026-08-30 against live metadata |
+| Identity verdict | MAC-keyed (§4.17) · 13 MACs, 2 randomised, 0 address reuse in 10 h | provisional — **re-read the log 2026-09-06** |
+| Devices that cannot name themselves | 6 of 13 — 3 static hosts with no lease, 3 leasing `wlan0`/`*` | BACKLOG #15 |
 | Core DNS data | dnsmasq — **no query statistics exist** | Unbound config says enabled but is not the resolver (§4.15) |
 | DHCP server in use | **dnsmasq**, leases at `/var/db/dnsmasq.leases` | confirmed 2026-08-30; Kea/BIND a possible future |
 | Hardware | Xeon E3-1220 v5, 2 vCPU, 4 GB RAM, 23 GB disk (13 GB free) — a Proxmox guest | confirmed 2026-08-30 |

@@ -22,6 +22,9 @@ from collections import defaultdict
 SNAP = re.compile(r"^=== SNAPSHOT (\S+)")
 # FreeBSD `arp -an`:  ? (192.168.1.10) at 00:11:22:33:44:55 on em0 ...
 ARP = re.compile(r"\((?P<ip>[0-9.]+)\) at (?P<mac>[0-9a-fA-F:]{11,17}) on (?P<if>\S+)")
+# `permanent` marks the firewall's own interface addresses. Its single MAC shows
+# up on every VLAN, which looks exactly like extreme address churn and is not.
+PERMANENT = "permanent"
 # FreeBSD `ndp -an`:  fe80::1%em0   00:11:22:33:44:55   em0  ...
 NDP = re.compile(r"^(?P<ip>[0-9a-fA-F:]+)(?:%\S+)?\s+(?P<mac>[0-9a-fA-F:]{11,17})\s+(?P<if>\S+)")
 
@@ -47,6 +50,7 @@ def main(path):
     ip_macs = defaultdict(set)
     mac_seen = defaultdict(list)
     mac_if = defaultdict(set)
+    own_macs = set()
 
     with open(path, errors="replace") as fh:
         for line in fh:
@@ -68,6 +72,8 @@ def main(path):
             if not hit:
                 continue
             mac, ip = norm(hit.group("mac")), hit.group("ip")
+            if PERMANENT in line:
+                own_macs.add(mac)
             if mac.startswith("ff:ff") or ip.startswith("ff"):
                 continue
             mac_ips[mac].add(ip)
@@ -84,10 +90,19 @@ def main(path):
         return 1
 
     total = len(snapshots)
+    for m in own_macs:            # the firewall is not a client
+        mac_ips.pop(m, None)
+        mac_v4.pop(m, None)
+        mac_v6.pop(m, None)
+    for ip in list(ip_macs):
+        ip_macs[ip] -= own_macs
+        if not ip_macs[ip]:
+            del ip_macs[ip]
     rnd = {m for m in mac_ips if is_randomised(m)}
 
     print(f"Observation window : {snapshots[0]}  ->  {snapshots[-1]}")
     print(f"Snapshots          : {total}")
+    print(f"Own MACs excluded  : {len(own_macs)} (the firewall's own interfaces)")
     print()
     print(f"Distinct MACs      : {len(mac_ips)}")
     print(f"  randomised       : {len(rnd)}  <- each of these may be one device wearing many faces")
