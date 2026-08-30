@@ -11,7 +11,7 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 DEFAULT_SETTINGS = {
     # how long observations and harvested traffic are kept
@@ -79,6 +79,15 @@ MIGRATIONS = {
         )""",
         "CREATE INDEX traffic_hour_by_address ON traffic_hour(address, bucket)",
         "DELETE FROM harvest_state",
+    ],
+    # Attribution joins observations onto buckets by (address, interface).
+    # v1's index was (address, first_seen), which nothing reads that way and
+    # which leaves the join scanning every window for every bucket. The leading
+    # column is unchanged, so anything looking up by address alone still uses it.
+    3: [
+        "DROP INDEX address_observation_by_address",
+        "CREATE INDEX address_observation_by_address"
+        " ON address_observation(address, interface)",
     ],
 }
 
@@ -243,6 +252,41 @@ class Store:
         return written
 
     # ------------------------------------------------------- bookkeeping
+
+    def device_interfaces(self):
+        """:return: set of interfaces on which any device has ever been observed"""
+        return {
+            row['interface']
+            for row in self.db.execute("SELECT DISTINCT interface FROM address_observation")
+        }
+
+    def traffic_rows(self, since, bucket_seconds=3600):
+        """
+        Every traffic bucket since `since`, with who held its address at the time.
+
+        The window test is an overlap, not containment: an observation opened at
+        14:32 covers the 14:00 bucket, because the device was there for part of
+        the hour the bucket measures. `macs` is how many distinct devices the
+        overlap found -- more than one means the bucket cannot be attributed at
+        all, and lenslib.attribute says so rather than picking one.
+
+        Grouping is on traffic_hour's own primary key, so the join can never
+        multiply the octets it is counting.
+        """
+        return self.db.execute(
+            """SELECT t.bucket, t.interface, t.address, t.direction,
+                      t.octets, t.packets,
+                      count(DISTINCT o.mac) AS macs, min(o.mac) AS mac
+               FROM traffic_hour t
+               LEFT JOIN address_observation o
+                 ON o.address = t.address
+                AND o.interface = t.interface
+                AND o.first_seen < t.bucket + ?
+                AND o.last_seen >= t.bucket
+               WHERE t.bucket >= ?
+               GROUP BY t.bucket, t.interface, t.address, t.direction""",
+            (bucket_seconds, since),
+        )
 
     def log_run(self, duty, at, ok, took_ms, detail):
         self.db.execute(

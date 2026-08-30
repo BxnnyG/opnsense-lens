@@ -197,6 +197,30 @@ class MigrationTest(unittest.TestCase):
 
         self.assertEqual(1, Store(self.path).status()['devices'])
 
+    def test_v2_keeps_its_traffic_and_its_windows_across_the_v3_index_swap(self):
+        """the upgrade both of the operator's routers actually take"""
+        import sqlite3
+        db = sqlite3.connect(self.path)
+        db.execute("CREATE TABLE schema_version (version INTEGER NOT NULL)")
+        for version in (1, 2):
+            for statement in MIGRATIONS[version]:
+                db.execute(statement)
+            db.execute("INSERT INTO schema_version(version) VALUES (?)", (version,))
+        db.execute("INSERT INTO traffic_hour VALUES (1788080400, 'em0', '10.0.0.5', 'in', 7, 1)")
+        db.execute("INSERT INTO address_observation VALUES ('aa:bb:cc:dd:ee:ff', '10.0.0.5', 'em0', 1, 2)")
+        db.commit()
+        db.close()
+
+        store = Store(self.path)
+
+        self.assertEqual(SCHEMA_VERSION, store.status()['schema_version'])
+        self.assertEqual(1, store.status()['traffic_rows'])
+        self.assertEqual(1, store.status()['observations'])
+        self.assertEqual(
+            [('address', 'interface')],
+            [tuple(row[2] for row in store.db.execute("PRAGMA index_info(address_observation_by_address)"))],
+        )
+
     def test_the_new_table_takes_rows_with_an_interface(self):
         self.build_v1()
         store = Store(self.path)
@@ -249,6 +273,33 @@ class CollectorSmokeTest(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertEqual([], json.loads(result.stdout))
             self.assertNotIn('"devices"', self.run_duty('status', path).stdout.split('"runs"')[1])
+
+    def test_traffic_is_json_with_an_accounting_of_what_it_could_not_attribute(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'lens.sqlite')
+            store = Store(path)
+            store.store_buckets('p', [
+                (1788080400, 'em0', '10.0.0.5', 'in', 100, 1),
+                (1788080400, 'pppoe0', '1.1.1.1', 'out', 900, 1),
+            ])
+            store.db.execute(
+                """INSERT INTO address_observation
+                   (mac, address, interface, first_seen, last_seen)
+                   VALUES ('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', 1788080400, 1788084000)"""
+            )
+            store.commit()
+
+            env = dict(os.environ, LENS_DB=path)
+            result = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, 'collect.py'),
+                 'traffic', '--hours', '100000'],
+                capture_output=True, text=True, env=env, timeout=30,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(100, payload['devices']['aa:bb:cc:dd:ee:01']['in']['octets'])
+            self.assertEqual(900, payload['unattributed']['far_end']['octets'])
 
     def test_purge_on_an_empty_store_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as directory:

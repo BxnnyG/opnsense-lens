@@ -61,17 +61,33 @@ class DeviceReport
      * @param int $now
      * @return array
      */
-    public static function describe(array $devices, array $macdb, ?int $observedAt, int $now): array
-    {
+    public static function describe(
+        array $devices,
+        array $macdb,
+        array $traffic,
+        ?int $observedAt,
+        int $now
+    ): array {
+        $totals = is_array($traffic['devices'] ?? null) ? $traffic['devices'] : [];
+
         $rows = [];
+        $measured = 0;
         foreach ($devices as $device) {
             if (!is_array($device) || empty($device['mac'])) {
                 continue;
             }
-            $rows[] = self::device($device, $macdb, $observedAt, $now);
+            $row = self::device($device, $macdb, $observedAt, $now);
+            $row = array_merge($row, self::traffic($totals[$row['mac']] ?? []));
+            $measured += $row['octets'];
+            $rows[] = $row;
         }
 
-        usort($rows, function ($left, $right) {
+        usort($rows, function ($left, $right) use ($measured) {
+            /* the question this page exists to answer is "who used 4 GB", so
+               traffic leads -- until there is none, when presence does */
+            if ($measured > 0 && $left['octets'] !== $right['octets']) {
+                return $right['octets'] <=> $left['octets'];
+            }
             if ($left['here'] !== $right['here']) {
                 return $left['here'] ? -1 : 1;
             }
@@ -84,6 +100,72 @@ class DeviceReport
             'observed_at' => $observedAt,
             'stale' => self::stale($observedAt, $now),
             'note' => self::note($observedAt, $now),
+            'accounting' => self::accounting($traffic, $measured),
+        ];
+    }
+
+    /**
+     * The aggregator names its directions for the interface, not for the device:
+     * a flow the device sent *entered* the interface. So `in` is what the device
+     * sent and `out` is what it received (DESIGN 1.4, the double write).
+     */
+    private static function traffic(array $totals): array
+    {
+        $sent = (int)($totals['in']['octets'] ?? 0);
+        $received = (int)($totals['out']['octets'] ?? 0);
+
+        return [
+            'octets' => $sent + $received,
+            'sent' => $sent,
+            'received' => $received,
+            'traffic' => $sent + $received > 0
+                ? sprintf(
+                    gettext('%s  (%s up, %s down)'),
+                    Bytes::human($sent + $received),
+                    Bytes::human($sent),
+                    Bytes::human($received)
+                )
+                : null,
+        ];
+    }
+
+    /**
+     * What the totals above do *not* cover, said out loud.
+     *
+     * Every harvested byte lands in exactly one of these lines or in a device.
+     * A top-talkers table that quietly drops what it cannot explain is the kind
+     * of number people make decisions on, so the remainder sits next to it.
+     */
+    private static function accounting(array $traffic, int $measured): array
+    {
+        $reasons = [
+            'far_end' => gettext(
+                'The far end of a flow - the internet address it was talking to. '
+                . 'NetFlow records every flow twice, once for each end.'
+            ),
+            'unknown' => gettext(
+                'On one of your own segments, but nothing was observed holding that '
+                . 'address in that hour. Usually a gap in collection.'
+            ),
+            'ambiguous' => gettext(
+                'Two devices held the same address inside one hour. The hour cannot '
+                . 'be split between them, and guessing would be worse than saying so.'
+            ),
+        ];
+
+        $rows = [];
+        foreach ($reasons as $key => $why) {
+            $octets = (int)($traffic['unattributed'][$key]['octets'] ?? 0);
+            if ($octets > 0) {
+                $rows[] = ['what' => Bytes::human($octets), 'why' => $why];
+            }
+        }
+
+        return [
+            'attributed' => Bytes::human($measured),
+            'attributed_octets' => $measured,
+            'hours' => (int)($traffic['hours'] ?? 0),
+            'rows' => $rows,
         ];
     }
 

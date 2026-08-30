@@ -26,27 +26,34 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- * The class under test is deliberately free of framework dependencies, so it is
- * required directly instead of booting the OPNsense autoloader.
- *
- * This directory sits outside src/ on purpose: everything under src/ goes into
- * the package and is installed into /usr/local, where opnsense-core already
- * owns mvc/tests/phpunit.xml and mvc/tests/bootstrap.php (PROCESS edge case 8).
- */
+namespace OPNsense\Lens;
 
-if (!function_exists('gettext')) {
-    /* OPNsense supplies this; off the box the untranslated string is the answer */
-    function gettext($message)
+/**
+ * Class Bytes
+ *
+ * Octets in units a person reads. Binary multiples, because that is what every
+ * other number on an OPNsense box uses.
+ *
+ * @package OPNsense\Lens
+ */
+class Bytes
+{
+    public static function human(int $octets): string
     {
-        return $message;
+        if ($octets < 1024) {
+            return sprintf(gettext('%d B'), max(0, $octets));
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB', 'PB'];
+        $value = $octets / 1024;
+
+        foreach ($units as $index => $unit) {
+            if ($value < 1024 || $index === count($units) - 1) {
+                return sprintf('%s %s', number_format($value, $value < 10 ? 1 : 0), $unit);
+            }
+            $value /= 1024;
+        }
+
+        return (string)$octets;
     }
 }
-
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Bytes.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Duration.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceFacts.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/StoreReport.php';
-require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceReport.php';

@@ -916,3 +916,28 @@ Two days of per-device hourly buckets on the operator's boxes are gone for good.
 stays exactly as it is — it is the only thing on any page that would have said
 so. The matching PROCESS rule: cite a precedent by its whole package, not by the
 file you went looking in.
+
+### §4.26 — Every byte is accounted for, or the number above it is not trustworthy (2026-08-30)
+**Question:** attribution joins hourly buckets onto address observations. Most
+buckets will not match a device. What happens to them?
+**The measurement that forces the answer:** on router-01, **91% of harvested rows
+carry `pppoe0`** — the far end of the flow, written by the aggregator's second
+pass (§1.4). Add `lo0` (the firewall talking to itself) and the literal `'0'`
+interface (805 MB of flows flowd could not place), and the majority of the input
+to a top-talkers view is not a device on the network at all.
+**Decision:** four outcomes, never three. A bucket belongs to a device, or it is
+*the far end of a flow*, or *nobody was observed holding that address in that
+hour*, or *two devices held it and the hour cannot be split*. The last three are
+shown on the page, with their byte totals and the reason, directly beneath the
+attributed total. An interface counts as a device network when any device has
+ever been observed on it — derived from the data, not a hardcoded list of WAN
+names.
+**Rationale:** a table that silently drops nine tenths of its input looks exactly
+like one that did not. Nothing on the page would contradict it, the totals would
+be internally consistent, and someone would eventually decide something on it.
+The same reasoning as §4.20 and §4.22: the plugin's value is that its numbers can
+be trusted, and that is a property of what it admits, not of what it computes.
+**Consequences:** `lenslib.attribute` returns both halves and a test asserts that
+every octet in equals every octet out. When ambiguity is resolvable later — a
+DHCP log with sub-hour resolution, say — it becomes a fourth attributed class,
+not a silent reassignment.

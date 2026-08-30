@@ -46,6 +46,10 @@ use OPNsense\Lens\DeviceReport;
  */
 class DevicesController extends ApiControllerBase
 {
+    /** the store keeps a year; asking for all of it by accident should not be possible */
+    private const DEFAULT_HOURS = 24;
+    private const MAX_HOURS = 24 * 366;
+
     /**
      * @return array the devices Lens has observed, named as well as it can
      */
@@ -55,15 +59,19 @@ class DevicesController extends ApiControllerBase
         $started = microtime(true);
         $calls = [];
 
+        $hours = (int)$this->request->get('hours', null, self::DEFAULT_HOURS);
+        $hours = $hours > 0 && $hours <= self::MAX_HOURS ? $hours : self::DEFAULT_HOURS;
+
         $devices = self::decode($backend, 'lens devices', $calls);
         $status = self::decode($backend, 'lens status', $calls);
         $macdb = self::decode($backend, 'interface list macdb', $calls);
+        $traffic = self::decode($backend, 'lens traffic ' . $hours, $calls);
 
         $observedAt = isset($status['runs']['observe']['at'])
             ? (int)$status['runs']['observe']['at']
             : null;
 
-        $report = DeviceReport::describe($devices, $macdb, $observedAt, time());
+        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
         $report['timing'] = [
             'total_ms' => (int)round((microtime(true) - $started) * 1000),
             'calls' => $calls,

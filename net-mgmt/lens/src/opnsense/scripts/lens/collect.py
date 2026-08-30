@@ -9,6 +9,7 @@ Two duties, one command each:
                           OPNsense deletes it 24 hours after writing it
     collect.py status     what the store holds, as JSON
     collect.py devices    every device and its address windows, as JSON
+    collect.py traffic    traffic joined onto devices at bucket time, as JSON
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -31,6 +32,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from lenslib import attribute                                   # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
 
@@ -51,6 +53,9 @@ RESOLUTION = 3600
 # Core keeps hourly per-device buckets for 24 hours; 23 leaves an hour of margin
 # without ever asking for what is already gone.
 HARVEST_WINDOW = 23 * 3600
+
+# How far back the traffic view reaches when nothing else is asked for.
+DEFAULT_TRAFFIC_HOURS = 24
 
 # ...but never in one request. get_timeseries.py fills every timeslice for every
 # dimension key it found, and on a box with nineteen interfaces that is a very
@@ -147,6 +152,27 @@ def observe(store, now):
     )
 
 
+def traffic(store, now, hours):
+    """
+    Traffic joined onto identity, at the time of the bucket.
+
+    A read, like `devices`: it writes no run_log row. The classification lives in
+    lenslib.attribute; this counts the rows and reports what the window covered,
+    because a total is meaningless without knowing how much of it Lens could see.
+    """
+    since = now - hours * 3600
+    rows = store.traffic_rows(since)
+    per_mac, unattributed = attribute.classify(rows, store.device_interfaces())
+
+    return {
+        'since': since,
+        'hours': hours,
+        'devices': per_mac,
+        'unattributed': unattributed,
+        'first_bucket': store.status()['first_bucket'],
+    }
+
+
 def fetch_chunk(start, end):
     """One window of hourly per-device traffic, as core's own reader returns it."""
     raw = must_read_command([
@@ -235,12 +261,20 @@ def main():
     parser = argparse.ArgumentParser(description='Lens collector')
     parser.add_argument(
         'duty',
-        choices=['observe', 'harvest', 'status', 'devices', 'prune', 'purge'],
+        choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'prune', 'purge'],
+    )
+    parser.add_argument(
+        '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
+        help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
     )
     args = parser.parse_args()
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'traffic':
+        print(json.dumps(traffic(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'devices':

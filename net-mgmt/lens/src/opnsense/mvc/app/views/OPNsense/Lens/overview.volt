@@ -45,6 +45,7 @@
     .lens-if { color: #999; }
     .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
     .lens-role { display: block; font-size: 90%; color: #999; font-style: italic; }
+    .lens-traffic { white-space: nowrap; }
 </style>
 
 <script>
@@ -120,6 +121,9 @@
                     $('<span/>').addClass(device.here ? 'lens-here' : '').text(device.presence)
                 );
 
+                const $traffic = $('<td/>').addClass('lens-traffic')
+                    .text(device.traffic || '');
+
                 const $named = $('<td/>').addClass('lens-cause').text(device.named_by);
                 if (device.caveat) {
                     $named.append($('<em/>').addClass('lens-caveat').text(device.caveat));
@@ -127,10 +131,25 @@
 
                 $body.append($('<tr/>')
                     .append($name)
+                    .append($traffic)
                     .append($addresses)
                     .append($presence)
                     .append(cell(device.known_for))
                     .append($named));
+            }
+
+            const accounting = report.accounting || {};
+            $('#lensAttributed').text(accounting.attributed || '0 B');
+            $('#lensAttributedHours').text(accounting.hours || 0);
+
+            const $acc = $('#lensAccounting > tbody').empty();
+            for (const row of (accounting.rows || [])) {
+                $acc.append($('<tr/>')
+                    .append($('<td/>').addClass('lens-traffic').text(row.what))
+                    .append($('<td/>').addClass('lens-cause').text(row.why)));
+            }
+            if ((accounting.rows || []).length) {
+                $('#lensAccountingBlock').show();
             }
 
             $('#lensDevicesBlock').show();
@@ -218,6 +237,7 @@
         <thead>
             <tr>
                 <th>{{ lang._('Device') }}</th>
+                <th>{{ lang._('Traffic') }}</th>
                 <th>{{ lang._('Addresses held') }}</th>
                 <th>{{ lang._('Presence') }}</th>
                 <th>{{ lang._('Known for') }}</th>
@@ -228,7 +248,20 @@
     </table>
     <p class="text-muted">
         {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
+        {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
     </p>
+
+    <div id="lensAccountingBlock" class="lens-block" style="display: none;">
+        <h3>{{ lang._('What the traffic above does not cover') }}</h3>
+        <p>
+            <span id="lensAttributed"></span>
+            {{ lang._('was attributed to a device over the last') }}
+            <span id="lensAttributedHours"></span> {{ lang._('hours. The rest is here, rather than quietly missing.') }}
+        </p>
+        <table id="lensAccounting" class="table table-condensed">
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
 
 <div id="lensLoading">

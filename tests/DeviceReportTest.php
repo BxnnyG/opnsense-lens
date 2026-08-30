@@ -65,9 +65,12 @@ class DeviceReportTest extends TestCase
         ], $overrides);
     }
 
-    private function describe(array $devices, ?int $observedAt = self::OBSERVED): array
-    {
-        return DeviceReport::describe($devices, self::MACDB, $observedAt, self::NOW);
+    private function describe(
+        array $devices,
+        ?int $observedAt = self::OBSERVED,
+        array $traffic = []
+    ): array {
+        return DeviceReport::describe($devices, self::MACDB, $traffic, $observedAt, self::NOW);
     }
 
     private function one(array $overrides = [], ?int $observedAt = self::OBSERVED): array
@@ -230,6 +233,86 @@ class DeviceReportTest extends TestCase
 
         $this->assertSame([], $report['devices']);
         $this->assertStringNotContainsString('has not run', $report['headline']);
+    }
+
+    // ----------------------------------------------------- traffic on identity
+
+    private const TRAFFIC = [
+        'hours' => 24,
+        'devices' => [
+            '42:c5:38:e1:54:c7' => [
+                'in' => ['octets' => 2 * 1024 * 1024, 'packets' => 10],
+                'out' => ['octets' => 8 * 1024 * 1024, 'packets' => 40],
+            ],
+        ],
+        'unattributed' => [
+            'far_end' => ['octets' => 900 * 1024 * 1024, 'packets' => 1],
+            'unknown' => ['octets' => 5 * 1024 * 1024, 'packets' => 1],
+            'ambiguous' => ['octets' => 0, 'packets' => 0],
+        ],
+    ];
+
+    public function testADevicesTrafficIsTheSumOfBothDirections()
+    {
+        $device = $this->describe([$this->given()], self::OBSERVED, self::TRAFFIC)['devices'][0];
+
+        $this->assertSame(10 * 1024 * 1024, $device['octets']);
+        $this->assertSame(2 * 1024 * 1024, $device['sent']);
+        $this->assertSame(8 * 1024 * 1024, $device['received']);
+        $this->assertStringContainsString('10 MB', $device['traffic']);
+    }
+
+    public function testADeviceWithNoTrafficIsStillListedAndSaysNothing()
+    {
+        $device = $this->describe([$this->given()], self::OBSERVED, self::TRAFFIC + [])['devices'][0];
+        $quiet = $this->describe([$this->given(['mac' => 'b8:27:eb:00:00:09'])])['devices'][0];
+
+        $this->assertNotNull($device['traffic']);
+        $this->assertSame(0, $quiet['octets']);
+        $this->assertNull($quiet['traffic']);
+    }
+
+    public function testTheHeaviestDeviceLeadsOnceThereIsTrafficToSortBy()
+    {
+        $report = $this->describe([
+            $this->given(['mac' => 'b8:27:eb:00:00:09']),
+            $this->given(),
+        ], self::OBSERVED, self::TRAFFIC);
+
+        $this->assertSame('42:c5:38:e1:54:c7', $report['devices'][0]['mac']);
+    }
+
+    public function testWithoutTrafficTheOrderFallsBackToPresence()
+    {
+        $report = $this->describe([
+            $this->given([
+                'mac' => 'b8:27:eb:00:00:09', 'last_seen' => self::NOW - 40000,
+                'addresses' => [['address' => '10.0.10.7', 'interface' => 'HOME',
+                                 'first_seen' => 0, 'last_seen' => self::NOW - 40000]],
+            ]),
+            $this->given(),
+        ]);
+
+        $this->assertTrue($report['devices'][0]['here']);
+    }
+
+    public function testWhatCouldNotBeAttributedIsShownRatherThanDropped()
+    {
+        $accounting = $this->describe([$this->given()], self::OBSERVED, self::TRAFFIC)['accounting'];
+
+        $this->assertSame('10 MB', $accounting['attributed']);
+        $this->assertCount(2, $accounting['rows'], 'ambiguous is zero, so it is not a row');
+        $this->assertStringContainsString('900', $accounting['rows'][0]['what']);
+        $this->assertStringContainsString('far end', $accounting['rows'][0]['why']);
+    }
+
+    public function testAnEmptyTrafficAnswerDoesNotBreakTheDeviceList()
+    {
+        $report = $this->describe([$this->given()], self::OBSERVED, []);
+
+        $this->assertCount(1, $report['devices']);
+        $this->assertSame([], $report['accounting']['rows']);
+        $this->assertSame('0 B', $report['accounting']['attributed']);
     }
 
     // ----------------------------------------------------- order and robustness
