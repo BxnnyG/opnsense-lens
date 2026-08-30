@@ -241,7 +241,16 @@ only.
 **Plan:** an observation table (MAC, address, interface, hostname, source,
 first seen, last seen) fed by the collector, collapsed into a device record.
 Key on MAC where one exists; fall back to a stable-address identity where it
-does not. Operator-owned fields — display name, icon, tags, notes — live beside
+does not.
+**A device holds a *set* of addresses, not one address with a history.**
+Confirmed on the operator's network 2026-08-30: `42:c5:38:e1:54:c7` is one admin
+PC deliberately present in MGNT *and* HOME with an address in each, at the same
+time. Servers with a management interface and the firewall itself (eight
+addresses across eight VLAN interfaces) are the same shape. So the data model is
+device → many concurrent (address, interface) pairs, each with its own validity
+window — not device → current address plus a change log. Getting this wrong
+would have been invisible until the top-talkers list quietly listed the admin PC
+twice, at half its size each. Operator-owned fields — display name, icon, tags, notes — live beside
 the observed ones and are never overwritten by an observation.
 ✅ **Decided (§4.17, 2026-08-30):** keyed on MAC. Ten hours of observation on
 the operator's network produced zero address collisions and zero fragmentation.
@@ -324,7 +333,12 @@ depth of history, out loud. This is the first real design question S3 owns.
 **Plan:** join `FlowSourceAddrTotals` / `FlowSourceAddrDetails` (§1.4) against
 S1's address history *at the time of the bucket* — not against the current ARP
 table, which would attribute last week's traffic to whoever holds the address
-today. Attribution confidence is a first-class value and is shown, because
+today. **Then sum across every address the device held**, because a multi-homed
+device (S1) produces one flow row per address: an admin PC in two VLANs appears
+as two source addresses and must be reported as one device at full size, never
+as two devices at half. The per-segment split stays available underneath — "this
+device did X on MGNT and Y on HOME" is a real question — but the headline number
+is the device's. Attribution confidence is a first-class value and is shown, because
 sometimes the honest answer is "an address that was not leased to anyone we
 know".
 **Open:** unattributable traffic must have a visible home rather than being
@@ -679,7 +693,8 @@ operator's nine-segment network:
 | Randomised (locally administered) | **2** |
 | Addresses held by more than one MAC | **0** |
 | MACs present in ≤5 % of snapshots | **0** |
-| MACs holding more than one IPv4 | 2 — the firewall itself (8 VLAN interfaces) and the operator's own laptop, on MGNT and HOME at once |
+| MACs holding more than one IPv4 | 2 — and **neither is churn**: the firewall itself (8 VLAN interfaces) and an admin PC deliberately homed in MGNT and HOME at once (operator, 2026-08-30) |
+| MACs whose address actually changed over time | **0** |
 
 **Decision:** key on MAC. Address history is recorded per MAC; attribution of a
 flow bucket uses the address's owner *at the time of the bucket*. No clustering,
@@ -690,6 +705,11 @@ hostname (`bxy-cachyos-x8664`, `BXY-Pixel-10`). Zero address reuse means the
 attribution trap that would have poisoned every chart is, on this network,
 currently empty. Building merge machinery against a problem that is not present
 would be inventing complexity.
+**A measurement error found and fixed the same day.** The first summary counted
+concurrent multi-homing as address churn, which made the firewall look like the
+most unstable device on the network. Multi-homing and churn are now reported
+separately — only the second threatens attribution, and on this network it is
+currently zero.
 **What this decision is NOT.** Ten hours, overnight, on a Saturday. Phones were
 asleep, guests absent — the GUEST VLAN recorded literally zero packets.
 Randomisation shows itself when a device *rejoins* a network, which happens over

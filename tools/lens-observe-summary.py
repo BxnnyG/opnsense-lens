@@ -10,10 +10,16 @@ the identity service (S1) has to be built:
 
   1. How many of the MACs on this network are randomised (locally administered)?
      Those are the ones that will fragment a device into many.
-  2. How often does one MAC change address? That is what breaks naive
-     IP-keyed attribution.
+  2. How often does one MAC *change* address over time? That is churn, and it
+     breaks naive IP-keyed attribution.
   3. How often is one address reused by different MACs? That is what makes
      attributing *historical* traffic with the *current* ARP table wrong.
+
+Churn is reported separately from multi-homing. A device holding several
+addresses *at the same time* -- an admin machine in two VLANs, a server with a
+management interface, the firewall itself -- is normal and is not churn. Adding
+the two together inflates the number and hides real randomisation, which is
+exactly what the first version of this script did (fixed 2026-08-30).
 """
 import re
 import sys
@@ -51,6 +57,9 @@ def main(path):
     mac_seen = defaultdict(list)
     mac_if = defaultdict(set)
     own_macs = set()
+    # (mac, snapshot index) -> addresses seen together in that one snapshot.
+    # Lets multi-homing be told apart from an address that changed over time.
+    concurrent = defaultdict(lambda: defaultdict(set))
 
     with open(path, errors="replace") as fh:
         for line in fh:
@@ -81,6 +90,7 @@ def main(path):
                 mac_v6[mac].add(ip)
             else:
                 mac_v4[mac].add(ip)
+                concurrent[mac][len(snapshots) - 1].add(ip)
             ip_macs[ip].add(mac)
             mac_seen[mac].append(len(snapshots) - 1)
             mac_if[mac].add(hit.group("if"))
@@ -110,11 +120,24 @@ def main(path):
     print(f"Distinct addresses : {len(ip_macs)}")
     print()
 
-    churn = {m: ips for m, ips in mac_v4.items() if len(ips) > 1}
-    print(f"MACs that held more than one IPv4     : {len(churn)}")
+    def widest(m):
+        """Most addresses this MAC held simultaneously, in any one snapshot."""
+        return max((len(v) for v in concurrent[m].values()), default=0)
+
+    homed = {m: widest(m) for m in mac_v4 if widest(m) > 1}
+    print(f"MACs multi-homed (several IPv4 AT ONCE): {len(homed)}")
+    print("  (normal: an admin PC in two VLANs, a server with a mgmt interface)")
+    for m, n in sorted(homed.items(), key=lambda kv: -kv[1])[:10]:
+        tag = " [randomised]" if m in rnd else ""
+        print(f"  {m}{tag}  ->  {n} addresses at once")
+
+    print()
+    churn = {m: ips for m, ips in mac_v4.items() if len(ips) > widest(m)}
+    print(f"MACs whose IPv4 CHANGED over time     : {len(churn)}")
+    print("  (this is churn, and the only half of it that threatens attribution)")
     for m, ips in sorted(churn.items(), key=lambda kv: -len(kv[1]))[:10]:
         tag = " [randomised]" if m in rnd else ""
-        print(f"  {m}{tag}  ->  {len(ips)} addresses")
+        print(f"  {m}{tag}  ->  {len(ips)} addresses over time, {widest(m)} at once")
 
     churn6 = {m: ips for m, ips in mac_v6.items() if len(ips) > 2}
     print(f"MACs with more than 2 IPv6 addresses  : {len(churn6)}")

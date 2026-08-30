@@ -53,10 +53,16 @@ around it silently.
 2. **Identity is not stable, and that is normal.** MAC randomisation rotates a
    phone's address per network and over time; IPv6 privacy extensions rotate
    addresses hourly; DHCP hands the same address to a different device next
-   week; static hosts never appear in a lease at all. One device can look like
-   many, and one address can have been several devices. Nothing may attribute
-   historical traffic using the *current* ARP table. Ask, for every change: what
-   does this do to a phone that changed its MAC yesterday?
+   week; static hosts never appear in a lease at all (three of thirteen here).
+   One device can look like many, and one address can have been several devices.
+   Nothing may attribute historical traffic using the *current* ARP table. Ask,
+   for every change: what does this do to a phone that changed its MAC
+   yesterday?
+   **And the mirror of it: one device legitimately holds several addresses at
+   once.** An admin PC in two VLANs, a server with a management interface, the
+   firewall across eight. That is not churn and must never be counted as such —
+   nor may such a device be split into two half-sized entries in any list, chart
+   or total (§4.17, S4).
 3. **Load budget (§4.8, S13).** No unbounded scan on a page load. Every list
    paginated server-side, every time range bounded, every collector run
    measured. State the cost in the plan; measure it on the operator's real
