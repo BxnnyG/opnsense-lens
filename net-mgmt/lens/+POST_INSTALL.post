@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# The _cron() hook in plugins.inc.d/lens.inc only *declares* the two jobs.
+# Nothing on the install path writes /var/cron/tabs/root, so without this the
+# collector never runs on its own and the store fills only when somebody types
+# configctl by hand. Verified empty on both of the operator's firewalls,
+# 2026-08-30. This is the same line q-feeds-connector ships for the same reason.
+
+/usr/local/sbin/pluginctl -s cron restart

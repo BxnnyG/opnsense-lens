@@ -115,6 +115,13 @@ empty means the thinking has not happened — not that the chapter is unnecessar
   plan said a harvest that stores nothing while flowd is fresh must be reported,
   not swallowed; it was then implemented from memory and did the opposite, and
   shipped. Writing the requirement down is not implementing it.
+- **Cite a precedent by its whole package, not by the file you went looking in.**
+  The `_cron()` hook was checked against `q-feeds-connector`'s `.inc` line for
+  line and declared correct. It was correct. The same plugin also ships a
+  `+POST_INSTALL.post` whose one line is what actually writes the crontab, and
+  because nothing sent me to that file I did not open it, and Lens collected
+  nothing on its own for two days. `ls` the reference plugin's directory before
+  claiming a shape matches.
 - Small commits. Commit subjects start with `lens: `.
 - Record a fixture for every external API shape the stage relies on. That is
   what makes the next change provable without a router.

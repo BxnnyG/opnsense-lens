@@ -891,3 +891,28 @@ it is tested against the router's own shape. Also visible in the same screenshot
 and fixed with it: the firewall's own interfaces were listed as if they were
 clients, and are now labelled from the permanent-ARP flag the collector already
 records.
+
+### §4.25 — Declaring a cron job is not installing one (2026-08-30)
+**Question:** `lens_cron()` returns two `autocron` entries and has since stage 4.
+Neither firewall ever ran them. `grep -n lens /var/cron/tabs/root` is empty on
+both, after several package installs and configd restarts — so the jobs were
+never in the crontab at all, rather than being there and failing.
+**What happened:** the hook is right. `plugins.inc.d/lens.inc` matches
+`security/q-feeds-connector`'s `qfeeds.inc` line for line, which is what I
+checked and reported. What I did not check is that the same plugin also ships
+`+POST_INSTALL.post`, whose entire content is `/usr/local/sbin/pluginctl -s cron
+restart`. The `_cron()` hook *declares* jobs; the install path does not
+regenerate `/var/cron/tabs/root` on its own.
+**Decision:** ship `+POST_INSTALL.post` with that line, and `+POST_DEINSTALL.post`
+with the same — a crontab entry that outlives the package would call
+`configctl lens observe` every five minutes against an action that no longer
+exists. `tests/gates/run.sh` now runs `sh -n` over both; they execute as root at
+install time and were previously the only unchecked code in the package.
+**Rationale:** this is the failure the whole plugin is about, turned on itself.
+A collector that silently does not run leaves no trace except missing history,
+and missing history cannot be collected afterwards — S2's central constraint.
+Two days of per-device hourly buckets on the operator's boxes are gone for good.
+**Consequences:** stage 5's staleness banner (§4.22) is what surfaced it, and it
+stays exactly as it is — it is the only thing on any page that would have said
+so. The matching PROCESS rule: cite a precedent by its whole package, not by the
+file you went looking in.

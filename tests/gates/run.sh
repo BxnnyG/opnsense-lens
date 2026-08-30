@@ -143,8 +143,17 @@ else
 fi
 
 # ---------------------------------------------------------------- not run
+# ---------------------------------------------------------------- lint-shell
+# the two package scripts that write the crontab; they run as root at install
+head_ "lint-shell"
+she=0
+for f in $(find "${PLUGIN}" -maxdepth 1 -name '+*.p*' -type f); do
+	sh -n "${f}" || she=$((she + 1))
+done
+say "package scripts checked: $(find "${PLUGIN}" -maxdepth 1 -name '+*.p*' -type f | wc -l | tr -d ' '), errors: ${she}"
+errors=$((errors + she))
+
 head_ "not run here, and why"
-say "lint-shell    - the plugin ships no shell scripts (tools/ is not packaged)"
 say "lint-plist    - needs bmake; this plugin ships no plist"
 say "lint-acl      - needs opnsense/core's Scripts/dashboard-acl.sh"
 say "lint-class    - needs opnsense/core's Scripts/class-filename.sh"

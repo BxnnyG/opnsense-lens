@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# ...and take them out again. A crontab entry that outlives the package would
+# call `configctl lens observe` every five minutes against an action that no
+# longer exists.
+
+/usr/local/sbin/pluginctl -s cron restart

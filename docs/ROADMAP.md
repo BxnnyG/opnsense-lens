@@ -52,7 +52,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 2 | Preflight as a page, with verdicts instead of pings | S3 | 🔨 built 2026-08-30 |
 | 4 | Collect, before more of the hourly detail is deleted | S2 | ✅ router-tested 2026-08-30 |
 | 5 | Devices instead of addresses — the first screen core cannot draw | S1 | 🔨 built 2026-08-30 |
-| — | **The five-minute observe job is not firing on either box** — see operations | S2 | ⚠️ open 2026-08-30 |
+| — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
@@ -121,9 +121,16 @@ was installed. That is a fact on the box, not a thing to reason about:
     grep -n lens /var/cron/tabs/root
     grep -i lens /var/log/configd/latest.log | tail -20
 
-An entry present and no log lines means cron is not running the job. No entry
-means `rc.configure_plugins POST_INSTALL` does not regenerate the crontab, and
-the fix belongs in the install path, not in the hook.
+**Answered 2026-08-30: no entry, on either box.** The install path does not
+regenerate the crontab, and the fix belongs there rather than in the hook —
+`+POST_INSTALL.post` running `pluginctl -s cron restart`, which is what
+`q-feeds-connector` ships and what reading only its `.inc` missed (§4.25).
+Fixed in `0.3_3`. **Verify after installing it:**
+
+    grep -n lens /var/cron/tabs/root
+
+Two lines must appear, `*/5` and `*/30`. If they do, nothing further is needed;
+the store fills itself from then on.
 
 Until it is settled the two duties can be run by hand, and stage 5's device page
 states in words how long ago the last observation was, rather than presenting
