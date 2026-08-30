@@ -29,18 +29,20 @@
 namespace OPNsense\Lens;
 
 /**
- * Which of the data sources Lens reads are actually answering on this box.
+ * How Lens talks to configd, and how it reads the answers.
  *
- * This is the liveness half of S3. The honest, three-level check -- configured,
- * running, and producing fresh data (DESIGN.md 4.18) -- is stage 2. Here a
- * source either answers or it does not, which is enough to prove the plugin can
- * reach the rest of OPNsense at all.
+ * Nothing here judges a source -- that is SourceReport. This is the boundary
+ * layer: the exact commands, and the three ways their replies are read. All of
+ * it is static and pure, so the boundary is testable without a router, which
+ * matters because every plugin bug in this ecosystem's history is a boundary
+ * bug.
  *
- * Every command below is verified against opnsense/core stable/26.7 on
- * 2026-08-30. Note the spaces: configd addresses a dotted action name such as
- * [aggregate.metadata] as "netflow aggregate metadata" (DESIGN.md 1.8). Getting
- * that wrong answers "Action not allowed or missing", which reads like a
- * permission problem and is not.
+ * Every command is verified against opnsense/core stable/26.7 on 2026-08-30.
+ * Note the spaces: configd addresses a dotted action name such as
+ * [aggregate.metadata] as "netflow aggregate metadata" (DESIGN 1.8). Writing
+ * the dot answers "Action not allowed or missing", which reads like a
+ * permission problem and is not -- four of the first tool's commands were lost
+ * to exactly that.
  *
  * @package OPNsense\Lens
  */
@@ -49,127 +51,100 @@ class SourceProbe
     /** where the package drops its own version, as JSON */
     public const VERSION_FILE = '/usr/local/opnsense/version/lens';
 
-    /** @var callable runs one configd command and returns its raw output */
-    private $runner;
-
-    public function __construct(callable $runner)
-    {
-        $this->runner = $runner;
-    }
-
     /**
-     * The sources, and what each one makes possible. The second half matters:
-     * a missing source has to be explainable in one sentence, not as a red dot.
+     * @return array command name to configd command line
      */
-    public static function probes(): array
+    public static function commands(): array
     {
         return [
-            [
-                'id' => 'netflow',
-                'label' => gettext('NetFlow aggregation'),
-                'command' => 'netflow aggregate metadata json',
-                'enables' => gettext('Traffic history, per interface and per device'),
-            ],
-            [
-                'id' => 'arp',
-                'label' => gettext('ARP table'),
-                'command' => 'interface list arp json',
-                'enables' => gettext('Device identity: which MAC holds which address'),
-            ],
-            [
-                'id' => 'leases_dnsmasq',
-                'label' => gettext('DHCP leases (dnsmasq)'),
-                'command' => 'dnsmasq list leases',
-                'enables' => gettext('Device hostnames, where a device announces one'),
-            ],
-            [
-                'id' => 'leases_kea',
-                'label' => gettext('DHCP leases (Kea)'),
-                'command' => 'kea list leases4',
-                'enables' => gettext('Device hostnames, where a device announces one'),
-            ],
-            [
-                'id' => 'dns_unbound',
-                'label' => gettext('DNS query statistics (Unbound)'),
-                'command' => 'unbound qstats totals 1',
-                'enables' => gettext('The DNS view. Absent on a box that resolves with dnsmasq.'),
-            ],
+            'netflow_metadata' => 'netflow aggregate metadata json',
+            'netflow_collector' => 'netflow collect status',
+            'netflow_aggregator' => 'netflow aggregate status',
+            'arp' => 'interface list arp json',
+            'dnsmasq_status' => 'dnsmasq status',
+            'dnsmasq_leases' => 'dnsmasq list leases',
+            'kea_status' => 'kea status',
+            'kea_leases' => 'kea list leases4',
+            'unbound_status' => 'unbound status',
         ];
     }
 
     /**
-     * @return array the plugin version and one entry per source
+     * @param string $name key from commands()
+     * @return string the configd command line
      */
-    public function report(): array
+    public static function command(string $name): string
     {
-        $sources = [];
-        foreach (self::probes() as $probe) {
-            $sources[] = array_merge($probe, self::interpret(
-                (string)call_user_func($this->runner, $probe['command'])
-            ));
+        $commands = self::commands();
+
+        if (!isset($commands[$name])) {
+            throw new \InvalidArgumentException('unknown configd command: ' . $name);
         }
 
-        return [
-            'version' => self::version(),
-            'sources' => $sources,
-        ];
+        return $commands[$name];
     }
 
     /**
-     * What a configd answer means. Separate from the call so it can be tested
-     * against recorded output without a router.
+     * Whether a daemon is up, from an rc script's own words.
+     *
+     * "not running" is tested before "is running" on purpose: the negative form
+     * contains the positive one. An answer in neither form is null -- unknown,
+     * never healthy. Freshness of the data outranks this anyway; a source whose
+     * output is current is working whatever a status string says.
+     *
+     * @param string $raw configd output of a status action
+     * @return bool|null true, false, or null when the reply says neither
+     */
+    public static function serviceState(string $raw): ?bool
+    {
+        $raw = strtolower(trim($raw));
+
+        if ($raw === '') {
+            return null;
+        }
+
+        if (strpos($raw, 'not running') !== false || strpos($raw, 'is stopped') !== false) {
+            return false;
+        }
+
+        if (strpos($raw, 'is running') !== false) {
+            return true;
+        }
+
+        return null;
+    }
+
+    /**
+     * How many things came back, whether the reply wraps them in "records" or
+     * is a bare list.
+     *
+     * Null means the call did not answer with data at all, which is a different
+     * thing from answering with none -- a DHCP server with no leases is working,
+     * a missing one is not, and the page must not print the same word for both.
      *
      * @param string $raw configd output
-     * @return array answered flag and a short human detail
+     * @return int|null
      */
-    public static function interpret(string $raw): array
+    public static function countOf(string $raw): ?int
     {
         $raw = trim($raw);
 
-        if ($raw === '') {
-            return ['answered' => false, 'detail' => gettext('no answer')];
-        }
-
-        if (stripos($raw, 'Action not allowed or missing') !== false) {
-            return ['answered' => false, 'detail' => gettext('configd does not know this action')];
+        if ($raw === '' || stripos($raw, 'Action not allowed or missing') !== false) {
+            return null;
         }
 
         $decoded = json_decode($raw, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            /* a script that failed prints its complaint in plain text */
-            return ['answered' => false, 'detail' => gettext('answered, but not with data')];
-        }
 
-        return ['answered' => true, 'detail' => self::summarise($decoded)];
-    }
-
-    /**
-     * One short line about what came back. Never the payload itself: it can be
-     * long, and parts of it are strings supplied by devices on the LAN.
-     *
-     * @param mixed $decoded
-     * @return string
-     */
-    private static function summarise($decoded): string
-    {
-        if (!is_array($decoded)) {
-            return gettext('answered');
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            /* a backing script that failed prints its complaint, not JSON */
+            return null;
         }
 
         if (isset($decoded['records']) && is_array($decoded['records'])) {
-            return sprintf(gettext('%d records'), count($decoded['records']));
+            return count($decoded['records']);
         }
 
-        if (isset($decoded['last_sync'])) {
-            $age = time() - (int)$decoded['last_sync'];
-            return sprintf(gettext('last aggregated %d seconds ago'), max(0, $age));
-        }
-
-        if (array_values($decoded) === $decoded) {
-            return sprintf(gettext('%d entries'), count($decoded));
-        }
-
-        return gettext('answered');
+        return count($decoded);
     }
 
     /**
@@ -183,6 +158,7 @@ class SourceProbe
         }
 
         $decoded = json_decode((string)@file_get_contents($path), true);
+
         if (json_last_error() !== JSON_ERROR_NONE || !isset($decoded['product_version'])) {
             return '';
         }

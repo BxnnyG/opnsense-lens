@@ -25,24 +25,50 @@
  #}
 
 <p>
-    {{ lang._('This page is the liveness check: it asks each data source Lens reads whether it answers at all. Switching the missing ones on, with the cost of each stated, is what this page becomes next.') }}
+    {{ lang._('What this box can actually tell Lens, and where it cannot. Switching the missing sources on, with the cost of each stated, is what this page becomes next.') }}
 </p>
+
+<style>
+    .lens-verdict { font-weight: 600; white-space: nowrap; }
+    .lens-ready { color: #5cb85c; }
+    .lens-degraded { color: #f0ad4e; }
+    .lens-absent { color: #999; }
+    .lens-cause { max-width: 40em; }
+    .lens-action { display: block; margin-top: 4px; }
+    .lens-block { margin-top: 25px; }
+    #lensTiming { margin-top: 20px; }
+</style>
 
 <script>
     $(document).ready(() => {
         /*
-         * Layout only. What a source "is" is decided in PHP (SourceProbe), so
-         * that the second surface to show this cannot decide it differently.
+         * Layout only. What a source IS -- ready, degraded, absent -- is decided
+         * once in PHP (SourceReport), so that the next surface to show a source
+         * cannot decide it differently.
          */
-        const text = (value) => $('<td/>').text(value === undefined ? '' : value);
+        const WORDS = {
+            ready:    '{{ lang._("ready") }}',
+            degraded: '{{ lang._("needs attention") }}',
+            absent:   '{{ lang._("unavailable") }}'
+        };
 
-        const mark = (answered) => $('<td/>').append(
-            $('<span/>')
-                .addClass(answered ? 'text-success' : 'text-muted')
-                .text(answered ? '{{ lang._("answering") }}' : '{{ lang._("silent") }}')
+        const cell = (value) => $('<td/>').text(value === undefined || value === null ? '' : value);
+
+        const verdictCell = (verdict) => $('<td/>').append(
+            $('<span/>').addClass('lens-verdict lens-' + verdict).text(WORDS[verdict] || verdict)
         );
 
-        ajaxGet('/api/lens/sources/probe', {}, (report, requestStatus) => {
+        const causeCell = (source) => {
+            const $td = $('<td/>').addClass('lens-cause').text(source.cause || '');
+            if (source.action) {
+                $td.append($('<em/>').addClass('lens-action').text(source.action));
+            }
+            return $td;
+        };
+
+        const list = (names) => names && names.length ? names.join(', ') : '{{ lang._("none") }}';
+
+        ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
             $('#lensLoading').hide();
 
             if (requestStatus !== 'success' || !report || !report.sources) {
@@ -52,20 +78,41 @@
 
             $('#lensVersion').text(report.version || '{{ lang._("unknown") }}');
 
-            const answering = report.sources.filter(s => s.answered).length;
+            const ready = report.sources.filter(s => s.verdict === 'ready').length;
             $('#lensHeadline').text(
-                answering + ' {{ lang._("of") }} ' + report.sources.length
-                + ' {{ lang._("data sources are answering on this box.") }}'
+                ready + ' {{ lang._("of") }} ' + report.sources.length
+                + ' {{ lang._("data sources are ready.") }}'
             );
 
             const $body = $('#lensSources > tbody').empty();
             for (const source of report.sources) {
                 $body.append($('<tr/>')
-                    .append(text(source.label))
-                    .append(mark(source.answered))
-                    .append(text(source.detail))
-                    .append(text(source.enables)));
+                    .append(cell(source.label))
+                    .append(verdictCell(source.verdict))
+                    .append(cell(source.headline))
+                    .append(causeCell(source))
+                    .append(cell(source.enables)));
             }
+
+            /* coverage: the check that would have caught this box a week earlier */
+            const netflow = report.sources.find(s => s.id === 'netflow');
+            if (netflow) {
+                $('#lensCaptured').text(list(netflow.captured));
+                $('#lensMissing').text(list(netflow.missing));
+                $('#lensCoverage').show();
+            }
+
+            const $ret = $('#lensRetention > tbody').empty();
+            for (const row of (report.retention || [])) {
+                $ret.append($('<tr/>').append(cell(row.what)).append(cell(row.detail)));
+            }
+
+            const calls = Object.entries(report.timing.calls || {})
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, ms]) => name + ' ' + ms + ' ms')
+                .join(' · ');
+            $('#lensTimingTotal').text(report.timing.total_ms);
+            $('#lensTimingCalls').text(calls);
 
             $('#lensReport').show();
         });
@@ -74,11 +121,11 @@
 
 <div id="lensLoading">
     <i class="fa fa-spinner fa-spin"></i>
-    {{ lang._('Asking the box which data sources answer...') }}
+    {{ lang._('Asking the box what it can tell Lens...') }}
 </div>
 
 <div id="lensError" class="alert alert-danger" style="display: none;">
-    {{ lang._('The source probe did not answer. Lens is installed, but something between this page and configd is not working.') }}
+    {{ lang._('The report did not come back. Lens is installed, but something between this page and configd is not working.') }}
 </div>
 
 <div id="lensReport" style="display: none;">
@@ -89,15 +136,49 @@
             <tr>
                 <th>{{ lang._('Source') }}</th>
                 <th>{{ lang._('State') }}</th>
-                <th>{{ lang._('Answer') }}</th>
+                <th>{{ lang._('Now') }}</th>
+                <th>{{ lang._('Why, and what would change it') }}</th>
                 <th>{{ lang._('What it makes possible') }}</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 
-    <p class="text-muted">
+    <div id="lensCoverage" class="lens-block" style="display: none;">
+        <h3>{{ lang._('Traffic capture coverage') }}</h3>
+        <p>{{ lang._('A device on an interface that is not captured produces no traffic history at all, and no other page will mention it.') }}</p>
+        <table class="table table-condensed">
+            <tbody>
+                <tr>
+                    <td style="width: 12em;">{{ lang._('Captured') }}</td>
+                    <td id="lensCaptured"></td>
+                </tr>
+                <tr>
+                    <td>{{ lang._('Not captured') }}</td>
+                    <td id="lensMissing"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="lens-block">
+        <h3>{{ lang._('How far back the data goes') }}</h3>
+        <p>{{ lang._('These limits are fixed in OPNsense itself, not a setting. Actual depth is also bounded by when capture was switched on, which is the earlier of the two.') }}</p>
+        <table id="lensRetention" class="table table-condensed">
+            <thead>
+                <tr>
+                    <th style="width: 24em;">{{ lang._('What is kept') }}</th>
+                    <th>{{ lang._('For how long') }}</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <p id="lensTiming" class="text-muted">
         {{ lang._('Lens version') }} <span id="lensVersion"></span>.
-        {{ lang._('A source that answers is reachable. Whether it holds useful data, and how far back, is a different question -- that is the next stage.') }}
+        {{ lang._('This report took') }} <span id="lensTimingTotal"></span> ms
+        &mdash; <span id="lensTimingCalls"></span>.
+        {{ lang._('It runs once when the page is opened, never on a timer.') }}
     </p>
 </div>

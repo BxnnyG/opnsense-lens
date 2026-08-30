@@ -26,94 +26,96 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 use OPNsense\Lens\SourceProbe;
 use PHPUnit\Framework\TestCase;
 
 /**
- * What a configd answer means.
+ * The configd boundary: the commands, and the three ways their replies are read.
  *
- * Every "silent" case here was seen on a real box on 2026-08-30, which is why
- * they are separate cases rather than one "not JSON" catch-all: the operator
- * has to be able to tell "I typed the action wrong" apart from "this daemon is
- * not installed".
+ * Every "cannot read this" case here was seen on a real box on 2026-08-30, which
+ * is why they are separate cases rather than one catch-all: "the daemon is not
+ * installed" and "I typed the action wrong" have to stay distinguishable.
  */
 class SourceProbeTest extends TestCase
 {
-    public function testEmptyOutputIsSilent(): void
+    public function testNoCommandUsesADottedActionName(): void
     {
-        $result = SourceProbe::interpret('');
-
-        $this->assertFalse($result['answered']);
-        $this->assertSame('no answer', $result['detail']);
+        /* configd addresses [aggregate.metadata] as "aggregate metadata"; a dot
+           here is the mistake that cost the first preflight four commands, and
+           its reply reads like a permission problem */
+        foreach (SourceProbe::commands() as $name => $command) {
+            foreach (array_slice(explode(' ', $command), 1) as $word) {
+                $this->assertStringNotContainsString('.', $word, $name . ': ' . $command);
+            }
+        }
     }
 
-    public function testWhitespaceOnlyOutputIsSilent(): void
+    public function testEveryCommandNamesAModuleAndAnAction(): void
     {
-        /* configd pads its replies with trailing newlines */
-        $this->assertFalse(SourceProbe::interpret("\n\n  \n")['answered']);
+        foreach (SourceProbe::commands() as $name => $command) {
+            $this->assertGreaterThanOrEqual(2, count(explode(' ', $command)), $name);
+        }
     }
 
-    public function testUnknownActionIsNamedAsSuch(): void
+    public function testAnUnknownCommandNameThrowsRatherThanReturningEmpty(): void
     {
-        /* the reply to `configctl netflow collect.status` -- a syntax mistake
-           that reads like a permission problem (DESIGN 1.8) */
-        $result = SourceProbe::interpret("Action not allowed or missing\n\n\n");
-
-        $this->assertFalse($result['answered']);
-        $this->assertSame('configd does not know this action', $result['detail']);
+        /* an empty command would be handed to configd and fail obscurely */
+        $this->expectException(InvalidArgumentException::class);
+        SourceProbe::command('netflow_metadta');
     }
 
-    public function testPlainTextIsNotAnAnswer(): void
-    {
-        /* a backing script that failed prints its complaint, not JSON */
-        $result = SourceProbe::interpret("Traceback (most recent call last):\n  File ...");
+    /* ---------------------------------------------------- service state */
 
-        $this->assertFalse($result['answered']);
-        $this->assertSame('answered, but not with data', $result['detail']);
+    public function testRunningServiceIsRecognised(): void
+    {
+        $this->assertTrue(SourceProbe::serviceState("flowd is running as pid 8554 9195.\n\n\n"));
+        $this->assertTrue(SourceProbe::serviceState('unbound is running as pid 81864.'));
     }
 
-    public function testRecordListIsCounted(): void
+    public function testStoppedServiceIsRecognisedDespiteContainingTheWordRunning(): void
+    {
+        /* "not running" contains "running"; order of the tests is the whole
+           correctness of this function */
+        $this->assertFalse(SourceProbe::serviceState('flowd_aggregate is not running.'));
+        $this->assertFalse(SourceProbe::serviceState('kea is stopped'));
+    }
+
+    public function testAnUnrecognisedReplyIsUnknownNotHealthy(): void
+    {
+        $this->assertNull(SourceProbe::serviceState(''));
+        $this->assertNull(SourceProbe::serviceState('Action not allowed or missing'));
+        $this->assertNull(SourceProbe::serviceState('Traceback (most recent call last):'));
+    }
+
+    /* ---------------------------------------------------------- counting */
+
+    public function testRecordWrapperIsCounted(): void
     {
         $raw = file_get_contents(__DIR__ . '/fixtures/dnsmasq-leases.json');
-        $result = SourceProbe::interpret($raw);
 
-        $this->assertTrue($result['answered']);
-        $this->assertSame('2 records', $result['detail']);
-    }
-
-    public function testEmptyRecordListStillAnswers(): void
-    {
-        /* a DHCP server with no leases is working, not broken */
-        $result = SourceProbe::interpret('{"records":[]}');
-
-        $this->assertTrue($result['answered']);
-        $this->assertSame('0 records', $result['detail']);
-    }
-
-    public function testAggregationReportsItsAge(): void
-    {
-        $raw = json_encode(['last_sync' => time() - 42, 'aggregators' => []]);
-        $result = SourceProbe::interpret($raw);
-
-        $this->assertTrue($result['answered']);
-        $this->assertMatchesRegularExpression('/last aggregated 4[123] seconds ago/', $result['detail']);
-    }
-
-    public function testAggregationInTheFutureIsNotNegative(): void
-    {
-        /* clock skew after a time sync must not print "-9 seconds ago" */
-        $raw = json_encode(['last_sync' => time() + 600]);
-
-        $this->assertSame('last aggregated 0 seconds ago', SourceProbe::interpret($raw)['detail']);
+        $this->assertSame(2, SourceProbe::countOf($raw));
     }
 
     public function testBareListIsCounted(): void
     {
-        /* `interface list arp json` returns a plain array, not a record wrapper */
+        /* `interface list arp json` returns a plain array, not a wrapper */
         $raw = file_get_contents(__DIR__ . '/fixtures/arp.json');
 
-        $this->assertSame('3 entries', SourceProbe::interpret($raw)['detail']);
+        $this->assertSame(3, SourceProbe::countOf($raw));
     }
+
+    public function testNoneIsNotTheSameAsCouldNotRead(): void
+    {
+        /* a DHCP server with no leases is working; a missing one is not */
+        $this->assertSame(0, SourceProbe::countOf('{"records":[]}'));
+        $this->assertNull(SourceProbe::countOf(''));
+        $this->assertNull(SourceProbe::countOf("\n\n  \n"));
+        $this->assertNull(SourceProbe::countOf("Action not allowed or missing\n\n"));
+        $this->assertNull(SourceProbe::countOf('Traceback (most recent call last):'));
+    }
+
+    /* ----------------------------------------------------------- version */
 
     public function testVersionIsReadFromThePackageFile(): void
     {
@@ -123,27 +125,5 @@ class SourceProbeTest extends TestCase
     public function testMissingVersionFileIsEmptyNotFatal(): void
     {
         $this->assertSame('', SourceProbe::version(__DIR__ . '/fixtures/does-not-exist'));
-    }
-
-    public function testEveryProbeIsWellFormed(): void
-    {
-        /* a probe without an "enables" line would render a red dot with no
-           explanation, which VISION forbids */
-        foreach (SourceProbe::probes() as $probe) {
-            foreach (['id', 'label', 'command', 'enables'] as $key) {
-                $this->assertArrayHasKey($key, $probe);
-                $this->assertNotSame('', $probe[$key]);
-            }
-        }
-    }
-
-    public function testNoProbeUsesADottedActionName(): void
-    {
-        /* configd addresses [aggregate.metadata] as "aggregate metadata"; a dot
-           here is the mistake that cost the first preflight four commands */
-        foreach (SourceProbe::probes() as $probe) {
-            $verb = explode(' ', $probe['command'])[1] ?? '';
-            $this->assertStringNotContainsString('.', $verb, $probe['id'] . ': ' . $probe['command']);
-        }
     }
 }

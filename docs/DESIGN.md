@@ -204,7 +204,7 @@ next person does not have to re-discover it.
 
 | System | Status | Rest / note |
 |---|---|---|
-| S0 · Package skeleton & walking skeleton | 🔨 | built 2026-08-30; gates clean, 13 tests; not yet installed on a router |
+| S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
 | S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
 | S2 · Own store & collector | ⏳ | must start collecting before anything can display |
 | S3 · Preflight & setup wizard | ⏳ | hand-run scripts exist in `tools/` (2026-08-29) as the spec |

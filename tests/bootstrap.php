@@ -44,3 +44,4 @@ if (!function_exists('gettext')) {
 }
 
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceReport.php';

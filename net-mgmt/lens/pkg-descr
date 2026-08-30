@@ -21,7 +21,16 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
-0.1
+0.1_2
+
+* the data source page now judges rather than pings: ready, needs attention or
+  unavailable, each with the cause and what would change it
+* says which interfaces NetFlow is capturing and, more usefully, which it is not
+* reports a resolver that runs but records nothing as unusable, instead of green
+* states how long OPNsense keeps each kind of traffic data
+* shows what the report itself cost, per call
+
+0.1_1
 
 * first release: package skeleton, menu placement and a data source liveness
   check under Services: Lens and Reporting: Lens
