@@ -123,11 +123,31 @@ class SourceFactsTest extends TestCase
         $this->assertSame(1, $facts['dhcp']['leases']);
     }
 
+    public function testIscDhcpIsTheThirdServerOpnsenseCanRun(): void
+    {
+        /*
+         * The operator's second firewall leases every address on the network
+         * with isc-dhcp, and the page reported "No DHCP server is running here"
+         * because Lens only knew two of the three. An absence asserted from an
+         * incomplete list is a wrong answer, not a missing one.
+         */
+        $facts = SourceFacts::assemble($this->raw([
+            'dnsmasq_status' => 'dnsmasq is not running.',
+            'kea_status' => 'kea-dhcp4 is not running.',
+            'dhcpd_status' => 'dhcpd is running as pid 4242.',
+            'dhcpd_leases' => '{"records":[{"address":"10.0.25.12"},{"address":"10.0.25.13"}]}',
+        ]));
+
+        $this->assertSame('ISC DHCP', $facts['dhcp']['server']);
+        $this->assertSame(2, $facts['dhcp']['leases']);
+    }
+
     public function testNoDhcpServerAtAll(): void
     {
         $facts = SourceFacts::assemble($this->raw([
             'dnsmasq_status' => 'dnsmasq is not running.',
             'kea_status' => '',
+            'dhcpd_status' => '',
         ]));
 
         $this->assertNull($facts['dhcp']['server']);

@@ -97,6 +97,42 @@ def parse_dnsmasq_leases(text):
     return names
 
 
+def parse_isc_leases(text):
+    """
+    ISC dhcpd writes blocks, appending rather than rewriting, so the last block
+    for a MAC is the current one:
+
+        lease 10.0.10.5 {
+          hardware ethernet bc:24:11:1b:58:16;
+          client-hostname "nas-01";
+        }
+
+    Found on the operator's second firewall 2026-08-30, where the page had been
+    reporting "no DHCP server is running here" while isc-dhcp was handing out
+    every address on the network.
+
+    :return: dict of mac to hostname, skipping the ones that name nothing
+    """
+    names = {}
+    mac = hostname = None
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        if line.startswith('lease '):
+            mac = hostname = None
+        elif line.startswith('hardware ethernet '):
+            mac = normalise_mac(line[len('hardware ethernet '):].rstrip(';').strip())
+        elif line.startswith('client-hostname '):
+            hostname = line[len('client-hostname '):].rstrip(';').strip().strip('"')
+        elif line.startswith('}'):
+            if mac and hostname:
+                names[mac] = hostname
+            mac = hostname = None
+
+    return names
+
+
 def parse_kea_leases(text):
     """
     Kea writes a CSV with a header. Six of the operator's thirteen devices name

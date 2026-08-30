@@ -130,6 +130,11 @@ class SourcesController extends ApiControllerBase
             $raw['kea_status'] = $run('kea_status');
             if (SourceProbe::serviceState($raw['kea_status']) === true) {
                 $raw['kea_leases'] = $run('kea_leases');
+            } else {
+                $raw['dhcpd_status'] = $run('dhcpd_status');
+                if (SourceProbe::serviceState($raw['dhcpd_status']) === true) {
+                    $raw['dhcpd_leases'] = $run('dhcpd_leases');
+                }
             }
         }
 

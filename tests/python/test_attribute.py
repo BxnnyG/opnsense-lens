@@ -25,43 +25,67 @@ HOUR = 3600
 DEVICE_IFS = {'vtnet1_vlan10', 'vtnet1_vlan20'}
 
 
+WATCHING_SINCE = 1788000000
+
+
 def row(interface, address, direction, octets, macs, mac, bucket=1788080000):
     return (bucket, interface, address, direction, octets, 1, macs, mac)
 
 
+def classify(rows, interfaces=None, watching_since=WATCHING_SINCE):
+    return attribute.classify(rows, interfaces or DEVICE_IFS, watching_since)
+
+
 class ClassifyTest(unittest.TestCase):
     def test_a_bucket_with_one_holder_goes_to_that_device(self):
-        per_mac, _ = attribute.classify([
+        per_mac, _ = classify([
             row('vtnet1_vlan10', '10.10.10.5', 'in', 1000, 1, 'aa:bb:cc:dd:ee:01'),
             row('vtnet1_vlan10', '10.10.10.5', 'out', 4000, 1, 'aa:bb:cc:dd:ee:01'),
-        ], DEVICE_IFS)
+        ])
 
         self.assertEqual(1000, per_mac['aa:bb:cc:dd:ee:01']['in']['octets'])
         self.assertEqual(4000, per_mac['aa:bb:cc:dd:ee:01']['out']['octets'])
 
     def test_the_far_end_of_a_flow_is_never_a_device(self):
         """91% of the operator's rows; the internet is not on his network"""
-        per_mac, unattributed = attribute.classify([
+        per_mac, unattributed = classify([
             row('pppoe0', '142.250.185.78', 'out', 900, 0, None),
-        ], DEVICE_IFS)
+        ])
 
         self.assertEqual({}, per_mac)
         self.assertEqual(900, unattributed['far_end']['octets'])
 
     def test_an_address_nobody_was_seen_holding_is_named_not_dropped(self):
-        _, unattributed = attribute.classify([
+        _, unattributed = classify([
             row('vtnet1_vlan10', '10.10.10.77', 'in', 700, 0, None),
-        ], DEVICE_IFS)
+        ])
 
         self.assertEqual(700, unattributed['unknown']['octets'])
 
     def test_an_hour_two_devices_shared_is_refused_rather_than_guessed(self):
-        per_mac, unattributed = attribute.classify([
+        per_mac, unattributed = classify([
             row('vtnet1_vlan10', '10.10.10.5', 'in', 500, 2, 'aa:bb:cc:dd:ee:01'),
-        ], DEVICE_IFS)
+        ])
 
         self.assertEqual({}, per_mac)
         self.assertEqual(500, unattributed['ambiguous']['octets'])
+
+    def test_traffic_from_before_lens_was_watching_is_not_called_a_gap(self):
+        """129 GB of it on the operator's second firewall, and nothing to fix"""
+        _, unattributed = classify([
+            row('vtnet1_vlan10', '10.10.10.5', 'in', 600, 0, None,
+                bucket=WATCHING_SINCE - 7200),
+        ])
+
+        self.assertEqual(600, unattributed['not_watching']['octets'])
+        self.assertEqual(0, unattributed['unknown']['octets'])
+
+    def test_a_box_that_has_never_observed_blames_nothing_on_a_gap(self):
+        _, unattributed = classify([
+            row('vtnet1_vlan10', '10.10.10.5', 'in', 600, 0, None),
+        ], watching_since=None)
+
+        self.assertEqual(600, unattributed['not_watching']['octets'])
 
     def test_every_octet_lands_somewhere(self):
         rows = [
@@ -70,7 +94,7 @@ class ClassifyTest(unittest.TestCase):
             row('vtnet1_vlan20', '10.10.20.9', 'in', 300, 0, None),
             row('vtnet1_vlan20', '10.10.20.8', 'in', 400, 3, 'aa:bb:cc:dd:ee:02'),
         ]
-        per_mac, unattributed = attribute.classify(rows, DEVICE_IFS)
+        per_mac, unattributed = classify(rows)
 
         counted = sum(
             direction['octets'] for device in per_mac.values() for direction in device.values()

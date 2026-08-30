@@ -96,6 +96,17 @@ class SourceFacts
             ];
         }
 
+        /* OPNsense ships three DHCP servers and a box runs whichever it runs.
+           Knowing only two of them made the page report "no DHCP server is
+           running here" on a firewall that was leasing every address on the
+           network -- an absence asserted from an incomplete list. */
+        if (SourceProbe::serviceState((string)($raw['dhcpd_status'] ?? '')) === true) {
+            return [
+                'server' => 'ISC DHCP',
+                'leases' => SourceProbe::countOf((string)($raw['dhcpd_leases'] ?? '')),
+            ];
+        }
+
         return ['server' => null, 'leases' => 0];
     }
 

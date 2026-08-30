@@ -72,3 +72,37 @@ beneath it, every class of byte that was not, with the reason.
   slow, the window shrinks or the join moves into a materialised table.
 - **Way back:** schema v3 only swaps an index. Removing the column and the block
   from the view restores stage 5 exactly.
+
+## 7. What the router test found (2026-08-30)
+
+`os-lens-0.4_1`, both boxes, 676 ms and 665 ms for the whole page. The join
+holds: `BXY-Pixel-10` shows 1,018 MB as 38 MB up and 979 MB down, `monitoring-04`
+21 up / 117 down, and the ASUS box 797 up / 84 down — a phone, a monitoring host
+and a machine that serves, each shaped the way it should be. **The direction
+inference in §6 is confirmed:** `in` is what the device sent.
+
+Two defects, both of them the page asserting something untrue rather than
+failing:
+
+**"No DHCP server is running here"** on a firewall that leases every address on
+its network. Lens knew dnsmasq and Kea; OPNsense ships three, and box 2 runs
+isc-dhcp. Fixed and recorded as §4.27 — an absence is only as true as the list it
+was asserted from. Every device on that box had lost its name for it.
+
+**129 GB filed under "usually a gap in collection"** on the same box, where
+observations had been running for 0.1 days against 1.1 days of harvested
+buckets. That is not a gap, it is the past: the first harvest reaches 23 hours
+back and identity begins when the collector does. Now its own class, described
+as shrinking to nothing on its own (§4.28).
+
+The accounting itself did its job: both numbers were only visible *because* the
+page refuses to drop what it cannot explain.
+
+## 8. The operator's verdict on the product (2026-08-30)
+
+> "die Seite zeigt viele Infos, aber ist für DAUs wenig hilfreich bis wenig
+> einordnenbar, wie im Vergleich z.B. UniFi mit deren Seiten und Filter"
+
+Correct, and it moves the roadmap. Lens can now answer more than it can show —
+52 rows of identical visual weight, no grouping, no filter, no search, no icons.
+Recorded as BACKLOG #17 through #20 and pulled ahead of stages 8 and 9.

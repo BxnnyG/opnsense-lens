@@ -143,9 +143,15 @@ class DeviceReport
                 'The far end of a flow - the internet address it was talking to. '
                 . 'NetFlow records every flow twice, once for each end.'
             ),
+            'not_watching' => gettext(
+                'Measured before Lens started watching. The first harvest reaches '
+                . '23 hours back; identity only starts when the collector does. '
+                . 'Nothing to fix - this shrinks to nothing on its own.'
+            ),
             'unknown' => gettext(
-                'On one of your own segments, but nothing was observed holding that '
-                . 'address in that hour. Usually a gap in collection.'
+                'On one of your own segments, Lens was watching, and still nothing '
+                . 'was seen holding that address that hour. Either the collector '
+                . 'stopped, or the device never answered ARP.'
             ),
             'ambiguous' => gettext(
                 'Two devices held the same address inside one hour. The hour cannot '

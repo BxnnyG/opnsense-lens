@@ -941,3 +941,39 @@ be trusted, and that is a property of what it admits, not of what it computes.
 every octet in equals every octet out. When ambiguity is resolvable later — a
 DHCP log with sub-hour resolution, say — it becomes a fourth attributed class,
 not a silent reassignment.
+
+### §4.27 — An absence is only as true as the list it was asserted from (2026-08-30)
+**Question:** the preflight page told the operator "No DHCP server is running
+here" on a firewall that was leasing every address on its network. Lens knew
+dnsmasq and Kea. OPNsense ships three.
+**Decision:** `isc-dhcp` joins the chain — `dhcpd status`, `dhcpd list leases 0`,
+and `/var/dhcpd/var/db/dhcpd.leases` for the collector, which reads lease files
+directly because it runs inside configd. The verdict falls through all three
+before it says "none".
+**Rationale:** this is a worse class of wrong than a missing feature. "Nothing is
+running" is a *conclusion*, and the page presented it with the same confidence as
+the facts it had actually established. Every device on that box lost its name for
+it. The same reasoning as §4.18 and §4.22: before a surface asserts an absence, it
+has to have looked everywhere the thing could be.
+**Consequences:** any future source with more than one implementation — a
+resolver, a DHCP server, a flow collector — is enumerated exhaustively in
+`SourceProbe::commands()` or it does not get a "none" verdict at all.
+
+### §4.28 — "Before Lens was watching" is not a gap in collection (2026-08-30)
+**Question:** stage 7 shipped an accounting of unattributable traffic. On the
+operator's second firewall it reported **129 GB** under "nothing was observed
+holding that address in that hour. Usually a gap in collection."
+**Why that number exists:** the first harvest reaches 23 hours back (§S2), and
+identity starts the moment the collector first runs. On a box installed an hour
+ago, almost every bucket predates every observation. It is not a gap; it is the
+past.
+**Decision:** a fifth class, `not_watching`, for buckets that closed before the
+first observation ever recorded. It is described as shrinking to nothing on its
+own, with nothing to fix. `unknown` now means what its text always claimed: Lens
+*was* watching and still saw nobody.
+**Rationale:** §4.20 again — a warning that can never go green teaches the reader
+to skip that row, and then the row next to it. 129 GB of alarming grey on a fresh
+install would have taught it on day one.
+**Consequences:** `attribute.classify()` takes the first observation timestamp.
+A box with no observations at all attributes everything to `not_watching` rather
+than blaming a collector that has never had a chance to run.

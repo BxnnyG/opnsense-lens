@@ -39,9 +39,13 @@ from lenslib.store import Store                                 # noqa: E402
 # overridable so the tests can drive the real script against a temporary file
 DB_PATH = os.environ.get('LENS_DB', '/var/db/lens/lens.sqlite')
 
+# Every DHCP server OPNsense can run, because a box has whichever one it has and
+# the collector cannot ask configd which (it runs inside it). A file that is not
+# there costs one failed open.
 LEASE_FILES = (
     ('/var/db/dnsmasq.leases', parse.parse_dnsmasq_leases, 'dnsmasq'),
     ('/var/db/kea/kea-leases4.csv', parse.parse_kea_leases, 'kea'),
+    ('/var/dhcpd/var/db/dhcpd.leases', parse.parse_isc_leases, 'isc-dhcp'),
 )
 
 # core's own timeseries reader, invoked the way core's configd action does
@@ -161,15 +165,19 @@ def traffic(store, now, hours):
     because a total is meaningless without knowing how much of it Lens could see.
     """
     since = now - hours * 3600
+    status = store.status()
     rows = store.traffic_rows(since)
-    per_mac, unattributed = attribute.classify(rows, store.device_interfaces())
+    per_mac, unattributed = attribute.classify(
+        rows, store.device_interfaces(), status['first_observation']
+    )
 
     return {
         'since': since,
         'hours': hours,
         'devices': per_mac,
         'unattributed': unattributed,
-        'first_bucket': store.status()['first_bucket'],
+        'first_bucket': status['first_bucket'],
+        'watching_since': status['first_observation'],
     }
 
 

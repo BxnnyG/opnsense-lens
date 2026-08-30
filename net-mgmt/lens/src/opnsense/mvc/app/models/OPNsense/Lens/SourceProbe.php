@@ -65,6 +65,8 @@ class SourceProbe
             'dnsmasq_leases' => 'dnsmasq list leases',
             'kea_status' => 'kea status',
             'kea_leases' => 'kea list leases4',
+            'dhcpd_status' => 'dhcpd status',
+            'dhcpd_leases' => 'dhcpd list leases 0',
             'unbound_status' => 'unbound status',
         ];
     }

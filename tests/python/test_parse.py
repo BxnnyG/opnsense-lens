@@ -172,5 +172,37 @@ class BucketsTest(unittest.TestCase):
         ))
 
 
+class IscLeaseTest(unittest.TestCase):
+    """found on the operator's second firewall, which the page had called serverless"""
+
+    LEASES = """
+lease 10.0.25.12 {
+  starts 6 2026/08/30 12:00:00;
+  ends 6 2026/08/30 14:00:00;
+  hardware ethernet bc:24:11:1b:58:16;
+  client-hostname "nas-01";
+}
+lease 10.0.25.13 {
+  hardware ethernet BC:24:11:9B:96:36;
+  binding state active;
+}
+lease 10.0.25.12 {
+  hardware ethernet bc:24:11:1b:58:16;
+  client-hostname "nas-01-renamed";
+}
+"""
+
+    def test_the_last_block_for_a_mac_wins_because_the_file_is_appended_to(self):
+        names = parse.parse_isc_leases(self.LEASES)
+
+        self.assertEqual('nas-01-renamed', names['bc:24:11:1b:58:16'])
+
+    def test_a_lease_that_names_nothing_is_not_an_empty_name(self):
+        self.assertNotIn('bc:24:11:9b:96:36', parse.parse_isc_leases(self.LEASES))
+
+    def test_an_absent_file_is_no_leases_and_not_an_error(self):
+        self.assertEqual({}, parse.parse_isc_leases(''))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -15,24 +15,31 @@ be named rather than dropped:
                 carries the egress interface -- pppoe0 on the operator's router,
                 where it is 91% of all rows. Those are the internet's addresses,
                 not devices, and no observation will ever match them.
-  unknown       a device interface, an address, and nobody observed holding it
-                in that hour. Either the collector was not running, or the
-                device never answered ARP.
+  not watching  measured before Lens had started observing at all. The harvest
+                reaches 23 hours back on its first run; identity starts the
+                moment the collector does. On the operator's second firewall
+                that is 129 GB, and calling it a collection gap would be a
+                warning that can never go green (4.20).
+  unknown       a device interface, an address, Lens was watching, and still
+                nobody was seen holding it that hour. Either the collector
+                stopped, or the device never answered ARP.
   ambiguous     two devices held the same address inside one hour. The bucket
                 cannot be split between them and guessing would be worse than
                 saying so.
 """
 
 
-def classify(rows, device_interfaces):
+def classify(rows, device_interfaces, watching_since=None):
     """
     :param rows: (bucket, interface, address, direction, octets, packets, macs, mac)
     :param device_interfaces: interfaces on which any device has ever been seen
+    :param watching_since: first observation ever recorded, None if there is none
     :return: (per_mac, unattributed) -- both dicts of counters
     """
     per_mac = {}
     unattributed = {
         'far_end': _counter(),
+        'not_watching': _counter(),
         'unknown': _counter(),
         'ambiguous': _counter(),
     }
@@ -40,6 +47,8 @@ def classify(rows, device_interfaces):
     for bucket, interface, address, direction, octets, packets, macs, mac in rows:
         if interface not in device_interfaces:
             _add(unattributed['far_end'], octets, packets)
+        elif watching_since is None or bucket + 3600 <= watching_since:
+            _add(unattributed['not_watching'], octets, packets)
         elif not macs:
             _add(unattributed['unknown'], octets, packets)
         elif macs > 1:

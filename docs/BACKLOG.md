@@ -98,6 +98,39 @@ Nothing. There is no code.
   S12 is built, decide what "enough queries, from enough clients" means. Cheap
   now, embarrassing later.
 
+### Operator feedback, 2026-08-30 (after seeing stage 7 on both boxes)
+
+The first real verdict on the product rather than on its correctness, and it is
+the one that matters: *"die Seite zeigt viele Infos, aber ist für DAUs wenig
+hilfreich bis wenig einordnenbar, im Vergleich z.B. UniFi mit deren Seiten und
+Filtern."* Recorded as given, ordered by my judgement.
+
+- **#17 — Legibility. The page is a table, and it should be a view.** ⚠️ **This
+  is now the top of the list, above any new data.** Lens can already answer more
+  than it can show: 52 rows of equal visual weight, no grouping, no filter, no
+  search, no icons, one font size. UniFi's advantage is not its data — it is that
+  a person can find one device in three seconds. Concretely: a filter and search
+  box, grouping by segment, device-type icons derived from the vendor, a size
+  cue for traffic instead of a number in a cell, and a detail view per device.
+  Blocks stages 8 and 9, and arguably comes before finishing 6.
+- **#18 — One-click fix for every "needs attention".** Where the preflight says
+  NetFlow is not capturing an interface, offer the button that captures it —
+  with a dialogue naming exactly which setting changes, before it changes. This
+  is the wizard from §4.13 and stage 3, but arrived at from the other end: not a
+  setup flow, a fix button next to the finding that provoked it. Crosses the
+  read-only line (§4.9), so it is an explicit, per-action, confirmed write.
+- **#19 — Group the hypervisor.** Box 2 shows ~30 `Proxmox Server Solutions
+  GmbH` guests in a flat list. They are one machine's worth of virtual NICs and
+  should collapse into a group that can be expanded, either by vendor OUI or by
+  a tag the operator sets. A treemap was suggested and is the right shape for
+  "who used the bytes" once grouping exists.
+- **#20 — Reachability: latency and packet loss.** Gateway, and named public
+  resolvers (1.1.1.1, 8.8.8.8, 9.9.9.9). Not currently in any system in DESIGN.
+  It is genuinely a different data source — `dpinger` already runs on the box for
+  the gateway, the public targets would be new probing — so it needs its own
+  system entry and its own decision about writing traffic, however small, from a
+  reporting plugin. Sketched, not yet designed.
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages

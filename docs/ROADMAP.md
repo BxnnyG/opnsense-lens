@@ -22,7 +22,7 @@ this one inherits, and 23 stages of experience with it.
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
 | 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
-| 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | 🔨 built 2026-08-30 · gates clean, 81 PHP + 57 Python tests · **awaiting router test** |
+| 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | Client profile page | S5 | ⏳ |
 | 9 | Reporting overview, first version | S6 | ⏳ |
 | 10 | Dashboard widgets | S7 | ⏳ |
@@ -52,8 +52,12 @@ against observations from the operator's own network, which stage 4 produces.
 | 2 | Preflight as a page, with verdicts instead of pings | S3 | 🔨 built 2026-08-30 |
 | 4 | Collect, before more of the hourly detail is deleted | S2 | ✅ router-tested 2026-08-30 |
 | 5 | Devices instead of addresses — the first screen core cannot draw | S1 | ✅ router-tested 2026-08-30 |
-| 7 | Traffic on identity — the sentence the plugin was built for | S4 | 🔨 built 2026-08-30 |
+| 7 | Traffic on identity — the sentence the plugin was built for | S4 | ✅ router-tested 2026-08-30 |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
+| — | **Legibility: filter, search, grouping, icons, detail view** (BACKLOG #17) | S6 | ⏳ **next, on operator feedback 2026-08-30** |
+| — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
+| — | Group the hypervisor's guests (BACKLOG #19) | S1 | ⏳ |
+| — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
