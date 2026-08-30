@@ -21,6 +21,11 @@ install, is switching on the data sources it needs.
 Plugin Changelog
 ================
 
+0.1_4
+
+* fixes a bug where the page could report "10 leases from dnsmasq" and "Unbound
+  is the only resolver here" at the same time
+
 0.1_3
 
 * a resolver that is simply not the one in use is reported as unavailable, not

@@ -92,5 +92,5 @@ against observations from the operator's own network, which stage 4 produces.
 | Live-test without installing | on the router: `make mount` … `make umount` | — |
 | Measured collector cost | — | to be filled at stage 4 (§4.8) |
 | Measured page load cost | 0.1_1: **~2 s**, five calls · 0.1_2: **550–600 ms**, seven calls | the 1.4 s was `unbound qstats totals`, removed for a different reason |
-| Slowest calls (0.1_2) | `netflow aggregate metadata` 101–231 ms · `unbound status` 184–187 ms · `dnsmasq list leases` 68–174 ms | measured on the box 2026-08-30 |
+| Slowest calls | `unbound status` 149–187 ms · `interface list arp json` 1–123 ms (30 s configd cache) · `netflow aggregate metadata` 63–231 ms | measured on the box 2026-08-30 |
 | Retention defaults | — | to be set at stage 4 (S14) |

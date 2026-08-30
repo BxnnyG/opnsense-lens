@@ -104,6 +104,13 @@ empty means the thinking has not happened — not that the chapter is unnecessar
 
 - Derivation and store logic first, with tests; then the endpoint; then the
   surface. Interpretation in PHP or Python, layout in JavaScript (DESIGN §0).
+- **A controller does input and output. Nothing else.** If it decides anything —
+  which key to set, which branch a value falls into — that decision has no test,
+  because it cannot be reached without `Backend` and `Config`. Put it in a pure
+  class instead (§4.21). This is not style: it is the shape of the one bug that
+  passed the entire suite.
+- **When a change touches two files, test the join.** Green unit tests on either
+  side of a wiring mistake stay green.
 - Small commits. Commit subjects start with `lens: `.
 - Record a fixture for every external API shape the stage relies on. That is
   what makes the next change provable without a router.

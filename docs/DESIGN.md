@@ -777,3 +777,24 @@ meaning of amber is what keeps the rest of the page worth reading.
 **Consequences:** the same test applies to every future verdict — before an amber
 state is added, name what the operator would do about it. If the answer is
 "nothing, that is just how my network is", it is grey.
+
+### §4.21 — A controller that interprets anything is a bug waiting (2026-08-30)
+**Question:** `os-lens-0.1_3` shipped a page that said "10 leases from dnsmasq"
+and, two rows below, "Unbound is the only resolver here". Both rows came from the
+same daemon's state. Every test passed. How?
+**What happened:** the change that introduced the distinction between a resolver
+that is *not used* and one that is *broken* (§4.20) touched two files. It landed
+in `SourceReport`, where it was covered by four tests, and silently failed to
+land in the controller that supplies the key those tests set by hand. The unit
+tests on both sides were green because neither of them crosses the join.
+**Decision:** assembly of facts from raw replies moves into `SourceFacts`, a pure
+class, and the controller is left with input and output only — configd calls,
+config reads, one `stat`. Every layer that decides anything is now reachable from
+a test that starts with recorded configd output and ends at a verdict.
+**Rationale:** a defect that every test passes is not a testing failure, it is a
+structural one. The wiring had no test because it was inseparable from `Backend`
+and `Config`; making it separable is the fix, and asserting harder on the two
+ends would not have been.
+**Consequences:** `tests/SourceFactsTest.php` starts where the box starts. Its
+first case is this exact contradiction. Anything a future controller is tempted
+to decide belongs in `SourceFacts` or `SourceReport` instead.

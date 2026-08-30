@@ -172,3 +172,25 @@ Seven configd calls in the common case, up from five, and `unbound qstats
 totals` is gone — freshness now comes from the database's mtime, which costs a
 `stat`. Whether that nets out faster or slower than stage 1's two seconds is a
 measurement, not a guess, and the page carries it.
+
+---
+
+## 9. What the router test found (2026-08-30)
+
+Both menu roots appear — `Services → Lens → Data Sources` and `Reporting → Lens`.
+Risk 1 of stage 1 is closed, and Lens is the first plugin in the collection to
+place an entry under `Reporting`.
+
+The report takes **358–597 ms**, against stage 1's two seconds, with *more*
+calls. The one that cost the difference was `unbound qstats totals`, dropped for
+an unrelated reason. Slowest now: `unbound status` 149–187 ms, `interface list
+arp json` 1–123 ms depending on its 30 s configd cache.
+
+**And it found a real defect.** `0.1_3` reported "10 leases from dnsmasq" and
+"Unbound is the only resolver here" on the same page. See §4.21: the fix was
+structural, not a missing line, and `tests/SourceFactsTest.php` now starts from
+recorded configd output so a wiring mistake cannot pass again.
+
+Verdicts on the operator's real box, `0.1_4`: NetFlow ready (11 of 11
+interfaces), identity ready (21 addresses), DHCP ready (10 leases), DNS
+unavailable-by-choice.
