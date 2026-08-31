@@ -66,6 +66,13 @@
     }
     .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
     #lensShowing { margin-left: 8px; color: #999; }
+    .lens-edit { margin-left: 6px; opacity: 0.35; }
+    tr:hover .lens-edit { opacity: 1; }
+    .lens-tag {
+        display: inline-block; margin: 3px 4px 0 20px;
+        padding: 0 6px; border: 1px solid #999; border-radius: 8px; font-size: 85%;
+    }
+    .lens-note { display: block; margin-left: 20px; font-size: 90%; color: #999; }
 </style>
 
 <script>
@@ -113,6 +120,8 @@
          */
         let devices = [];
         let segments = new Set();
+        let kinds = {};
+        let editing = null;
 
         const render = () => {
             const needle = ($('#lensSearch').val() || '').toLowerCase().trim();
@@ -154,9 +163,22 @@
                 .addClass('fa fa-fw lens-icon ' + device.kind.icon)
                 .attr('title', device.kind.type));
             $name.append($('<span/>').addClass('lens-name').text(device.name));
+            $name.append($('<a/>').addClass('lens-edit').attr('href', '#')
+                .attr('title', '{{ lang._("Give this device a name of your own") }}')
+                .append($('<i/>').addClass('fa fa-pencil'))
+                .on('click', function (event) {
+                    event.preventDefault();
+                    openEditor(device);
+                }));
             $name.append($('<span/>').addClass('lens-mac').text(device.mac));
             if (device.role) {
                 $name.append($('<span/>').addClass('lens-role').text(device.role));
+            }
+            for (const tag of device.tags) {
+                $name.append($('<span/>').addClass('lens-tag').text(tag));
+            }
+            if (device.label.note) {
+                $name.append($('<span/>').addClass('lens-note').text(device.label.note));
             }
 
             const $traffic = $('<td/>').addClass('lens-traffic');
@@ -216,6 +238,60 @@
                 .append($named);
         };
 
+        const openEditor = (device) => {
+            editing = device;
+
+            $('#lensEditFor').text(device.mac);
+            $('#lensEditName').val(device.label.name);
+            $('#lensEditTags').val(device.label.tags);
+            $('#lensEditNote').val(device.label.note);
+
+            const $kind = $('#lensEditKind').empty();
+            $('<option/>').val('').text(
+                '{{ lang._("work it out from the hardware vendor") }}'
+                + ' \u2014 ' + device.kind.type
+            ).appendTo($kind);
+            for (const key of Object.keys(kinds)) {
+                $('<option/>').val(key).text(kinds[key]).appendTo($kind);
+            }
+            $kind.val(device.label.kind || '');
+
+            $('#lensEditError').hide();
+            $('#lensEditor').modal('show');
+        };
+
+        const saveLabel = () => {
+            if (!editing) {
+                return;
+            }
+
+            const payload = {
+                mac: editing.mac,
+                name: $('#lensEditName').val(),
+                kind: $('#lensEditKind').val(),
+                tags: $('#lensEditTags').val(),
+                note: $('#lensEditNote').val()
+            };
+
+            $('#lensEditSave').prop('disabled', true);
+            ajaxCall('/api/lens/devices/label', payload, (reply, saveStatus) => {
+                $('#lensEditSave').prop('disabled', false);
+
+                if (saveStatus !== 'success' || !reply || reply.status !== 'ok') {
+                    $('#lensEditError')
+                        .text((reply && reply.message) || '{{ lang._("The name was not saved.") }}')
+                        .show();
+                    return;
+                }
+
+                /* re-read rather than patch the row in place: the name changes
+                   what the search matches and what the label column says, and
+                   one source of truth is cheaper than keeping two agreeing */
+                $('#lensEditor').modal('hide');
+                load();
+            });
+        };
+
         const drawSegments = () => {
             const counts = new Map();
             for (const device of devices) {
@@ -227,6 +303,7 @@
             const $bar = $('#lensSegments').empty();
             for (const [name, count] of [...counts.entries()].sort()) {
                 $('<a/>').addClass('lens-chip').attr('href', '#')
+                    .toggleClass('lens-chip-on', segments.has(name))
                     .text(name + ' (' + count + ')')
                     .on('click', function (event) {
                         event.preventDefault();
@@ -242,13 +319,14 @@
             }
         };
 
-        ajaxGet('/api/lens/devices/list', {}, (report, deviceStatus) => {
+        const load = () => ajaxGet('/api/lens/devices/list', {}, (report, deviceStatus) => {
             if (deviceStatus !== 'success' || !report || !report.devices) {
                 $('#lensDevicesError').show();
                 return;
             }
 
             devices = report.devices;
+            kinds = report.kinds || {};
             $('#lensDevicesHeadline').text(report.headline || '');
 
             if (report.note) {
@@ -258,8 +336,6 @@
             drawSegments();
             render();
 
-            $('#lensSearch').on('input', render);
-            $('#lensOnlyTraffic').on('change', render);
             $('#lensControls').toggle(devices.length > 0);
 
             const accounting = report.accounting || {};
@@ -278,6 +354,11 @@
 
             $('#lensDevicesBlock').show();
         });
+
+        load();
+        $('#lensSearch').on('input', render);
+        $('#lensOnlyTraffic').on('change', render);
+        $('#lensEditSave').on('click', saveLabel);
 
         ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
             $('#lensLoading').hide();
@@ -390,6 +471,47 @@
         {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
         {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
     </p>
+
+    <div class="modal" id="lensEditor" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">{{ lang._('What do you call this device?') }}</h4>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">
+                        {{ lang._('Kept apart from what the box observed, against') }}
+                        <span id="lensEditFor" class="lens-mac"></span>.
+                        {{ lang._('It survives a new address, a new lease and a rename, and no observation ever writes over it.') }}
+                    </p>
+                    <div id="lensEditError" class="alert alert-danger" style="display: none;"></div>
+                    <div class="form-group">
+                        <label for="lensEditName">{{ lang._('Name') }}</label>
+                        <input type="text" class="form-control" id="lensEditName"
+                               placeholder="{{ lang._('leave empty to keep the observed name') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="lensEditKind">{{ lang._('Kind') }}</label>
+                        <select class="form-control" id="lensEditKind"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lensEditTags">{{ lang._('Tags') }}</label>
+                        <input type="text" class="form-control" id="lensEditTags"
+                               placeholder="{{ lang._('comma separated, e.g. hypervisor, production') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="lensEditNote">{{ lang._('Note') }}</label>
+                        <input type="text" class="form-control" id="lensEditNote">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-dismiss="modal">{{ lang._('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="lensEditSave">{{ lang._('Save') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="lensAccountingBlock" class="lens-block" style="display: none;">
         <h3>{{ lang._('What the traffic above does not cover') }}</h3>

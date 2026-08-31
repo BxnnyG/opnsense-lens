@@ -99,6 +99,55 @@ class StoreTest(unittest.TestCase):
     def test_devices_on_an_empty_store_is_a_list_not_an_error(self):
         self.assertEqual([], self.store.devices())
 
+    def test_a_label_survives_every_later_observation(self):
+        self.store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=False, is_local=False,
+                              hostname='old-name', source='dnsmasq')
+        self.store.set_label('aa:bb:cc:dd:ee:01', {'name': 'NAS', 'tags': 'storage'}, 1000)
+        self.store.see_device('aa:bb:cc:dd:ee:01', 2000, randomised=False, is_local=False,
+                              hostname='renamed-by-dhcp', source='dnsmasq')
+        self.store.commit()
+
+        device = self.store.devices()[0]
+
+        self.assertEqual('NAS', device['label']['name'])
+        self.assertEqual('storage', device['label']['tags'])
+        self.assertEqual('renamed-by-dhcp', device['hostname'])
+
+    def test_clearing_every_field_removes_the_label_rather_than_storing_blanks(self):
+        self.store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=False, is_local=False)
+        self.store.set_label('aa:bb:cc:dd:ee:01', {'name': 'NAS'}, 1000)
+        self.assertEqual('cleared', self.store.set_label(
+            'aa:bb:cc:dd:ee:01', {'name': '  ', 'kind': '', 'tags': '', 'note': ''}, 2000))
+        self.store.commit()
+
+        self.assertIsNone(self.store.devices()[0]['label'])
+
+    def test_a_label_leaves_with_the_device_it_describes(self):
+        """
+        It is a MAC address plus what a person wrote about it, so S14 covers it
+        like everything else. An orphan would outlive the retention it was
+        promised under, invisibly, because nothing else joins to that table.
+        """
+        self.store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=False, is_local=False)
+        self.store.set_label('aa:bb:cc:dd:ee:01', {'name': 'NAS'}, 1000)
+        self.store.commit()
+
+        self.store.prune(9999999999)
+        self.store.commit()
+
+        self.assertEqual(
+            0, self.store.db.execute("SELECT count(*) FROM device_label").fetchone()[0])
+
+    def test_a_label_stays_while_its_device_is_within_retention(self):
+        self.store.see_device('aa:bb:cc:dd:ee:01', 9999999000, randomised=False, is_local=False)
+        self.store.set_label('aa:bb:cc:dd:ee:01', {'name': 'NAS'}, 9999999000)
+        self.store.commit()
+
+        self.store.prune(9999999999)
+        self.store.commit()
+
+        self.assertEqual('NAS', self.store.devices()[0]['label']['name'])
+
     def test_buckets_are_stored_once_and_the_watermark_only_moves_forward(self):
         rows = [(1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3),
                 (1787994000, 'vtnet1_vlan20', '10.10.20.115', 'in', 300, 5)]
@@ -127,6 +176,17 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(1, status['traffic_rows'])
         self.assertEqual(0, status['observations'])
         self.assertEqual(0, status['devices'])
+
+    def test_purge_takes_the_labels_too(self):
+        """S14 says everything, and a name a person typed is the most personal of it"""
+        self.store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=False, is_local=False)
+        self.store.set_label('aa:bb:cc:dd:ee:01', {'name': 'NAS', 'note': 'in the cellar'}, 1000)
+        self.store.commit()
+
+        self.store.purge()
+
+        self.assertEqual(
+            0, self.store.db.execute("SELECT count(*) FROM device_label").fetchone()[0])
 
     def test_purge_actually_empties_everything(self):
         """S14 promises this works; a promise that is not tested is a hope"""
@@ -300,6 +360,45 @@ class CollectorSmokeTest(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(100, payload['devices']['aa:bb:cc:dd:ee:01']['in']['octets'])
             self.assertEqual(900, payload['unattributed']['far_end']['octets'])
+
+    def test_a_label_survives_the_trip_through_configd_with_its_punctuation(self):
+        """
+        A device name is free text a person typed. base64url means the answer to
+        "what does configd's parameter list do with a quote" never has to be
+        found out the hard way.
+        """
+        import base64
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'lens.sqlite')
+            store = Store(path)
+            store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=False, is_local=False)
+            store.commit()
+
+            typed = {'name': 'Bennys "Küche"; rm -rf /', 'tags': 'wohnzimmer, lärm'}
+            encoded = base64.urlsafe_b64encode(
+                json.dumps(typed).encode('utf-8')).decode('ascii').rstrip('=')
+
+            env = dict(os.environ, LENS_DB=path)
+            result = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, 'collect.py'), 'label',
+                 '--mac', 'AA:BB:CC:DD:EE:01', '--fields', encoded],
+                capture_output=True, text=True, env=env, timeout=30,
+            )
+
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual('saved', result.stdout.strip())
+            self.assertEqual(typed['name'], Store(path).devices()[0]['label']['name'])
+
+    def test_unreadable_label_fields_are_refused_rather_than_stored_as_junk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = dict(os.environ, LENS_DB=os.path.join(directory, 'lens.sqlite'))
+            result = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, 'collect.py'), 'label',
+                 '--mac', 'aa:bb:cc:dd:ee:01', '--fields', 'not-base64-at-all!!'],
+                capture_output=True, text=True, env=env, timeout=30,
+            )
+
+            self.assertEqual(1, result.returncode)
 
     def test_purge_on_an_empty_store_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as directory:

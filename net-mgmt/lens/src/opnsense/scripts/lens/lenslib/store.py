@@ -11,7 +11,7 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 DEFAULT_SETTINGS = {
     # how long observations and harvested traffic are kept
@@ -88,6 +88,19 @@ MIGRATIONS = {
         "DROP INDEX address_observation_by_address",
         "CREATE INDEX address_observation_by_address"
         " ON address_observation(address, interface)",
+    ],
+    # What the operator says, kept apart from what the box observed. Nothing in
+    # the collector ever writes this table and nothing outside the operator ever
+    # reads over it: an observation cannot overwrite a name a person chose.
+    4: [
+        """CREATE TABLE device_label (
+            mac TEXT PRIMARY KEY,
+            name TEXT,
+            kind TEXT,
+            tags TEXT,
+            note TEXT,
+            updated INTEGER NOT NULL
+        )""",
     ],
 }
 
@@ -204,8 +217,20 @@ class Store:
                 'is_local': bool(row['is_local']),
                 'hostname': row['hostname'],
                 'hostname_source': row['hostname_source'],
+                'label': None,
                 'addresses': [],
             }
+
+        for row in self.db.execute(
+            "SELECT mac, name, kind, tags, note FROM device_label"
+        ):
+            if row['mac'] in devices:
+                devices[row['mac']]['label'] = {
+                    'name': row['name'],
+                    'kind': row['kind'],
+                    'tags': row['tags'],
+                    'note': row['note'],
+                }
 
         for row in self.db.execute(
             """SELECT mac, address, interface, first_seen, last_seen
@@ -220,6 +245,32 @@ class Store:
                 })
 
         return list(devices.values())
+
+    def set_label(self, mac, fields, now):
+        """
+        What the operator called this device. An empty value clears that field
+        rather than storing an empty string, so "no name of my own" and "a name
+        that happens to be blank" cannot be confused later.
+
+        :param fields: any of name, kind, tags, note
+        """
+        columns = ('name', 'kind', 'tags', 'note')
+        values = [(fields.get(key) or '').strip() or None for key in columns]
+
+        if not any(values):
+            self.db.execute("DELETE FROM device_label WHERE mac = ?", (mac,))
+            return 'cleared'
+
+        self.db.execute(
+            """INSERT INTO device_label (mac, name, kind, tags, note, updated)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(mac) DO UPDATE SET
+                   name = excluded.name, kind = excluded.kind,
+                   tags = excluded.tags, note = excluded.note,
+                   updated = excluded.updated""",
+            (mac, values[0], values[1], values[2], values[3], now),
+        )
+        return 'saved'
 
     # ----------------------------------------------------------- traffic
 
@@ -302,12 +353,18 @@ class Store:
         self.db.execute("DELETE FROM traffic_hour WHERE bucket < ?", (cutoff,))
         self.db.execute("DELETE FROM address_observation WHERE last_seen < ?", (cutoff,))
         self.db.execute("DELETE FROM device WHERE last_seen < ?", (cutoff,))
+        # a label is a MAC address plus what a person wrote about it, so it goes
+        # when the device it describes goes -- S14 applies to it like everything
+        # else, and an orphan would outlive the retention it was promised under
+        self.db.execute(
+            "DELETE FROM device_label WHERE mac NOT IN (SELECT mac FROM device)"
+        )
         return self.db.total_changes - before
 
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
-                      'harvest_state', 'run_log'):
+                      'device_label', 'harvest_state', 'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
         self.db.execute("VACUUM")

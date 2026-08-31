@@ -81,6 +81,39 @@ class DevicesController extends ApiControllerBase
     }
 
     /**
+     * What the operator calls one device. The only write in the plugin, and it
+     * goes into Lens's own store -- never into the firewall's configuration.
+     *
+     * @return array
+     */
+    public function labelAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'message' => gettext('POST only')];
+        }
+
+        $mac = (string)$this->request->getPost('mac', null, '');
+        if (!preg_match('/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/', $mac)) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+
+        $fields = [];
+        foreach (['name', 'kind', 'tags', 'note'] as $field) {
+            $fields[$field] = (string)$this->request->getPost($field, null, '');
+        }
+
+        /* base64url, so free text a person typed never has to survive a trip
+           through configd's parameter list as punctuation */
+        $encoded = rtrim(strtr(base64_encode(json_encode($fields)), '+/', '-_'), '=');
+
+        $reply = trim((string)(new Backend())->configdpRun('lens label', [$mac, $encoded]));
+
+        return in_array($reply, ['saved', 'cleared'], true)
+            ? ['status' => 'ok', 'result' => $reply]
+            : ['status' => 'failed', 'message' => $reply];
+    }
+
+    /**
      * @param Backend $backend
      * @param string $command
      * @param array $calls collects what each call cost, so the page can show it

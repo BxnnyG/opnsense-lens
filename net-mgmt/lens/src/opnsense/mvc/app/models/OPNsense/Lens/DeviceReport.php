@@ -101,6 +101,7 @@ class DeviceReport
             'stale' => self::stale($observedAt, $now),
             'note' => self::note($observedAt, $now),
             'accounting' => self::accounting($traffic, $measured),
+            'kinds' => DeviceType::choices(),
         ];
     }
 
@@ -181,6 +182,13 @@ class DeviceReport
         $vendor = self::vendor($mac, $macdb);
         $hostname = trim((string)($device['hostname'] ?? ''));
 
+        /* what the operator said, kept apart from what the box observed: it
+           wins where it exists and is never written over by an observation */
+        $label = is_array($device['label'] ?? null) ? $device['label'] : [];
+        $chosenName = trim((string)($label['name'] ?? ''));
+        $chosenKind = trim((string)($label['kind'] ?? ''));
+        $tags = self::tags($label['tags'] ?? null);
+
         $addresses = self::addresses($device, $observedAt, $now);
         $here = false;
         $interfaces = [];
@@ -191,8 +199,17 @@ class DeviceReport
 
         return [
             'mac' => $mac,
-            'name' => self::name($mac, $hostname, $vendor),
-            'named_by' => self::namedBy($hostname, $device, $vendor),
+            'name' => $chosenName !== '' ? $chosenName : self::name($mac, $hostname, $vendor),
+            'named_by' => $chosenName !== ''
+                ? gettext('you named it')
+                : self::namedBy($hostname, $device, $vendor),
+            'label' => [
+                'name' => $chosenName,
+                'kind' => $chosenKind,
+                'tags' => implode(', ', $tags),
+                'note' => trim((string)($label['note'] ?? '')),
+            ],
+            'tags' => $tags,
             'vendor' => $vendor,
             'hostname' => $hostname === '' ? null : $hostname,
             'addresses' => $addresses,
@@ -200,11 +217,12 @@ class DeviceReport
             'here' => $here,
             'randomised' => !empty($device['randomised']),
             'is_local' => !empty($device['is_local']),
-            'kind' => DeviceType::of($vendor, $hostname, !empty($device['is_local'])),
+            'kind' => ($chosenKind !== '' ? DeviceType::chosen($chosenKind) : null)
+                ?? DeviceType::of($vendor, $hostname, !empty($device['is_local'])),
             /* everything a search box should match, assembled once here rather
                than reassembled in the browser on every keystroke */
             'haystack' => strtolower(implode(' ', array_merge(
-                [$mac, $hostname, (string)$vendor],
+                [$mac, $hostname, (string)$vendor, $chosenName, implode(' ', $tags)],
                 array_map(function ($address) {
                     return $address['address'] . ' ' . $address['interface'];
                 }, $addresses)
@@ -329,6 +347,25 @@ class DeviceReport
         }
 
         return null;
+    }
+
+    /**
+     * Tags are one text field the operator types, because a tag editor is a
+     * whole interaction and a comma is one they already know.
+     *
+     * @return array unique, trimmed, in the order given
+     */
+    private static function tags($raw): array
+    {
+        $tags = [];
+        foreach (explode(',', (string)$raw) as $tag) {
+            $tag = trim($tag);
+            if ($tag !== '' && !in_array($tag, $tags, true)) {
+                $tags[] = $tag;
+            }
+        }
+
+        return $tags;
     }
 
     private static function vendor(string $mac, array $macdb): ?string

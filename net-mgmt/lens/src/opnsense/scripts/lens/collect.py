@@ -10,6 +10,7 @@ Two duties, one command each:
     collect.py status     what the store holds, as JSON
     collect.py devices    every device and its address windows, as JSON
     collect.py traffic    traffic joined onto devices at bucket time, as JSON
+    collect.py label      store what the operator calls one device
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -24,6 +25,7 @@ its configd action.
 """
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -156,6 +158,38 @@ def observe(store, now):
     )
 
 
+def label(mac, encoded):
+    """
+    Store what the operator calls a device.
+
+    The fields arrive base64url-encoded. A device name is free text a person
+    typed -- quotes, spaces, umlauts, a semicolon if they feel like it -- and it
+    travels here through configd's parameter list. Encoding it removes the
+    question of what that path does with punctuation instead of answering it,
+    and base64url has no characters a parameter filter would object to.
+    """
+    if not mac or not encoded:
+        print('label needs --mac and --fields', file=sys.stderr)
+        return 1
+
+    padding = '=' * (-len(encoded) % 4)
+    try:
+        fields = json.loads(base64.urlsafe_b64decode(encoded + padding).decode('utf-8'))
+    except (ValueError, UnicodeDecodeError) as failure:
+        print('unreadable label fields: %s' % failure, file=sys.stderr)
+        return 1
+
+    if not isinstance(fields, dict):
+        print('label fields must be an object', file=sys.stderr)
+        return 1
+
+    store = Store(DB_PATH)
+    outcome = store.set_label(parse.normalise_mac(mac), fields, int(time.time()))
+    store.commit()
+    print(outcome)
+    return 0
+
+
 def traffic(store, now, hours):
     """
     Traffic joined onto identity, at the time of the bucket.
@@ -269,8 +303,11 @@ def main():
     parser = argparse.ArgumentParser(description='Lens collector')
     parser.add_argument(
         'duty',
-        choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'prune', 'purge'],
+        choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'label',
+                 'prune', 'purge'],
     )
+    parser.add_argument('--mac', help='the device to label')
+    parser.add_argument('--fields', help='base64url of a JSON object of label fields')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
         help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
@@ -280,6 +317,9 @@ def main():
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
         return 0
+
+    if args.duty == 'label':
+        return label(args.mac, args.fields)
 
     if args.duty == 'traffic':
         print(json.dumps(traffic(Store(DB_PATH), int(time.time()), args.hours)))

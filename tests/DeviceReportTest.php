@@ -235,6 +235,69 @@ class DeviceReportTest extends TestCase
         $this->assertStringNotContainsString('has not run', $report['headline']);
     }
 
+    // ----------------------------------------------------- the operator's own words
+
+    public function testANameTheOperatorChoseWinsOverEverythingObserved()
+    {
+        $device = $this->one([
+            'hostname' => 'wlan0',
+            'hostname_source' => 'dnsmasq',
+            'label' => ['name' => 'Kitchen speaker'],
+        ]);
+
+        $this->assertSame('Kitchen speaker', $device['name']);
+        $this->assertSame('you named it', $device['named_by']);
+    }
+
+    public function testAnObservationNeverWritesOverTheOperatorsName()
+    {
+        /* the whole point of keeping the two apart: dnsmasq renames it, Lens
+           does not care */
+        $first = $this->one(['hostname' => 'old-name', 'label' => ['name' => 'NAS']]);
+        $later = $this->one(['hostname' => 'brand-new-name', 'label' => ['name' => 'NAS']]);
+
+        $this->assertSame('NAS', $first['name']);
+        $this->assertSame('NAS', $later['name']);
+    }
+
+    public function testAChosenKindOverridesTheGuessAndStopsBeingAGuess()
+    {
+        $device = $this->one(['label' => ['kind' => 'server']]);
+
+        $this->assertSame('fa-hdd-o', $device['kind']['icon']);
+        $this->assertFalse($device['kind']['guessed']);
+    }
+
+    public function testAKindThisVersionDoesNotKnowFallsBackRatherThanBlanking()
+    {
+        $device = $this->one(['label' => ['kind' => 'quantum-toaster']]);
+
+        $this->assertSame('fa-desktop', $device['kind']['icon'], 'Intel Corporate');
+    }
+
+    public function testTagsAreSplitTrimmedAndDeduplicated()
+    {
+        $device = $this->one(['label' => ['tags' => ' hypervisor , production,hypervisor ,, ']]);
+
+        $this->assertSame(['hypervisor', 'production'], $device['tags']);
+    }
+
+    public function testANameAndItsTagsAreSearchable()
+    {
+        $device = $this->one(['label' => ['name' => 'Kitchen speaker', 'tags' => 'living-room']]);
+
+        $this->assertStringContainsString('kitchen speaker', $device['haystack']);
+        $this->assertStringContainsString('living-room', $device['haystack']);
+    }
+
+    public function testADeviceWithNoLabelReportsEmptyFieldsRatherThanNulls()
+    {
+        $device = $this->one();
+
+        $this->assertSame(['name' => '', 'kind' => '', 'tags' => '', 'note' => ''], $device['label']);
+        $this->assertSame([], $device['tags']);
+    }
+
     // ----------------------------------------------------- traffic on identity
 
     private const TRAFFIC = [

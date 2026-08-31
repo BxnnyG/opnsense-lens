@@ -58,24 +58,24 @@ class DeviceType
     private static function rules(): array
     {
         return [
-            ['fa-print', 'Printer',
+            ['printer', 'fa-print', 'Printer',
              'brother', 'lexmark', 'kyocera', 'laserjet', 'officejet', 'printer'],
-            ['fa-mobile', 'Phone or tablet',
+            ['phone', 'fa-mobile', 'Phone or tablet',
              'iphone', 'ipad', 'pixel', 'galaxy', 'oneplus', 'xiaomi', 'oppo',
              'redmi', 'huawei', 'motorola', 'android', '-phone'],
-            ['fa-wifi', 'Network equipment',
+            ['network', 'fa-wifi', 'Network equipment',
              'ubiquiti', 'unifi', 'routerboard', 'mikrotik', 'tp-link', 'avm ',
              'netgear', 'aruba', 'zyxel', 'ruckus', 'cisco'],
-            ['fa-server', 'Virtual machine',
+            ['vm', 'fa-server', 'Virtual machine',
              'proxmox', 'vmware', 'xensource', 'qemu', 'innotek', 'parallels',
              'oracle virtual'],
-            ['fa-hdd-o', 'Server or appliance',
+            ['server', 'fa-hdd-o', 'Server or appliance',
              'fujitsu', 'supermicro', 'hewlett packard', 'dell inc', 'synology',
              'qnap', 'nas'],
-            ['fa-lightbulb-o', 'Smart home device',
+            ['iot', 'fa-lightbulb-o', 'Smart home device',
              'tuya', 'espressif', 'shelly', 'sonoff', 'sonos', 'signify',
              'philips lighting', 'nest', 'ring inc', 'tado'],
-            ['fa-desktop', 'Computer',
+            ['computer', 'fa-desktop', 'Computer',
              'asustek', 'micro-star', 'gigabyte', 'lenovo', 'intel corporate',
              'apple', 'realtek', 'azurewave', 'hon hai', 'framework'],
         ];
@@ -91,23 +91,64 @@ class DeviceType
     {
         if ($isLocal) {
             /* not a guess: a permanent ARP entry is this box's own address */
-            return ['icon' => 'fa-shield', 'type' => gettext('This firewall'), 'guessed' => false];
+            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false);
         }
 
         $haystack = strtolower(trim(($vendor ?? '') . ' ' . ($hostname ?? '')));
 
         if ($haystack !== '') {
             foreach (self::rules() as $rule) {
+                $key = array_shift($rule);
                 $icon = array_shift($rule);
                 $label = array_shift($rule);
                 foreach ($rule as $needle) {
                     if (strpos($haystack, $needle) !== false) {
-                        return ['icon' => $icon, 'type' => gettext($label), 'guessed' => true];
+                        return self::kind($key, $icon, gettext($label), true);
                     }
                 }
             }
         }
 
-        return ['icon' => 'fa-circle-o', 'type' => gettext('Unrecognised'), 'guessed' => false];
+        return self::kind('unknown', 'fa-circle-o', gettext('Unrecognised'), false);
+    }
+
+    /**
+     * The operator's own choice, which is not a guess at all.
+     *
+     * @param string $key one of choices()
+     * @return array|null null when the key is not one this version knows
+     */
+    public static function chosen(string $key): ?array
+    {
+        if ($key === 'firewall') {
+            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false);
+        }
+
+        foreach (self::rules() as $rule) {
+            if ($rule[0] === $key) {
+                return self::kind($key, $rule[1], gettext($rule[2]), false);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array key to label, for the picker
+     */
+    public static function choices(): array
+    {
+        $choices = [];
+        foreach (self::rules() as $rule) {
+            $choices[$rule[0]] = gettext($rule[2]);
+        }
+        $choices['firewall'] = gettext('This firewall');
+
+        return $choices;
+    }
+
+    private static function kind(string $key, string $icon, string $type, bool $guessed): array
+    {
+        return ['key' => $key, 'icon' => $icon, 'type' => $type, 'guessed' => $guessed];
     }
 }

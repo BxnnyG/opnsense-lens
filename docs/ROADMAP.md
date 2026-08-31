@@ -21,7 +21,7 @@ this one inherits, and 23 stages of experience with it.
 | 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | ✅ 2026-08-30 · router-tested as `os-lens-0.2_3` on both boxes; 463 buckets in 1 chunk on router-01, the second box's hang gone |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
 | 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
-| 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
+| 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | 🔨 built 2026-08-30 · **awaiting router test** |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | Client profile page | S5 | ⏳ |
 | 9 | Reporting overview, first version | S6 | ⏳ |
@@ -54,8 +54,8 @@ against observations from the operator's own network, which stage 4 produces.
 | 4 | Collect, before more of the hourly detail is deleted | S2 | ✅ router-tested 2026-08-30 |
 | 5 | Devices instead of addresses — the first screen core cannot draw | S1 | ✅ router-tested 2026-08-30 |
 | 7 | Traffic on identity — the sentence the plugin was built for | S4 | ✅ router-tested 2026-08-30 |
-| 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
-| 16 | **Legibility: search, segment filters, icons, traffic bars** (BACKLOG #17) | S6 | 🔨 built 2026-08-30 · **awaiting router test** |
+| 6 | The operator's own labels — the promise §4.29 made | S1 | 🔨 built 2026-08-30 |
+| 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | 🔨 built 2026-08-30 |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | ⏳ |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |

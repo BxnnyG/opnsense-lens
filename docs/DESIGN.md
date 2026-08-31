@@ -997,3 +997,20 @@ prevent: a confident, plausible, unfalsifiable wrong answer.
 **Consequences:** any future inference — device grouping, "unusual" verdicts in
 S8, a reputation badge — is held to the same two conditions: it says what it
 inferred from, and it declines rather than approximates.
+
+### §4.30 — What a person typed lives in its own table (2026-08-30)
+**Question:** the operator's name for a device could be a column on `device`,
+next to the hostname the box observed. One table, one row, one read. Why a
+second table?
+**Decision:** `device_label` is separate, and the collector never writes it.
+**Rationale:** `device.hostname` is refreshed on every observation from whatever
+DHCP last said. The day someone adds a `COALESCE` or an `excluded.hostname` to
+that upsert — and stage 4's `see_device` already carries exactly such a clause —
+a name a person typed is gone, silently, with no way to tell it ever existed.
+Separating the tables makes that mistake impossible to make by accident rather
+than merely forbidden by a comment. It is §S1's rule ("never overwritten by an
+observation") enforced by shape instead of by discipline.
+**Consequences:** every read that shows a device joins both and prefers the
+label; every write path touches exactly one of them. Retention and purge had to
+be taught about the new table before the stage shipped — a test caught both, and
+the second one would have broken the S14 promise outright.
