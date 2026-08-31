@@ -977,3 +977,23 @@ install would have taught it on day one.
 **Consequences:** `attribute.classify()` takes the first observation timestamp.
 A box with no observations at all attributes everything to `not_watching` rather
 than blaming a collector that has never had a chance to run.
+
+### §4.29 — One inferred thing, and it is labelled (2026-08-30)
+**Question:** stage 16 puts an icon on every device so fifty rows of identical
+text become scannable. The icon comes from matching the vendor string and the
+hostname against a list. Every other thing Lens shows was *observed*. Is this a
+line worth crossing?
+**Decision:** yes, once, and visibly. `DeviceType` maps a vendor or hostname to
+one of seven icons and a label; the label is in the row's `title`, so the guess
+can always be read out loud. **A string nothing matches produces a neutral mark,
+never the nearest plausible icon.** Stage 6 lets the operator override it
+permanently, at which point it stops being a guess for that device.
+**Rationale:** the page was correct and unreadable, and correctness that nobody
+can navigate is not much of a virtue. But the plugin's whole claim is that its
+numbers can be trusted, so an inference must be visibly a different *kind* of
+statement from an observation — not blended in beside it. Forcing an unknown
+vendor into the closest category would be the exact failure this rule exists to
+prevent: a confident, plausible, unfalsifiable wrong answer.
+**Consequences:** any future inference — device grouping, "unusual" verdicts in
+S8, a reputation badge — is held to the same two conditions: it says what it
+inferred from, and it declines rather than approximates.

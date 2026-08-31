@@ -200,6 +200,15 @@ class DeviceReport
             'here' => $here,
             'randomised' => !empty($device['randomised']),
             'is_local' => !empty($device['is_local']),
+            'kind' => DeviceType::of($vendor, $hostname, !empty($device['is_local'])),
+            /* everything a search box should match, assembled once here rather
+               than reassembled in the browser on every keystroke */
+            'haystack' => strtolower(implode(' ', array_merge(
+                [$mac, $hostname, (string)$vendor],
+                array_map(function ($address) {
+                    return $address['address'] . ' ' . $address['interface'];
+                }, $addresses)
+            ))),
             /* a permanent ARP entry is an address configured on this box, not a client */
             'role' => !empty($device['is_local']) ? gettext('this firewall') : null,
             'first_seen' => (int)($device['first_seen'] ?? 0),

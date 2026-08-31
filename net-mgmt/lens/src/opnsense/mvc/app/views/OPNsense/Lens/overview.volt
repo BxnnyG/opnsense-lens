@@ -45,7 +45,27 @@
     .lens-if { color: #999; }
     .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
     .lens-role { display: block; font-size: 90%; color: #999; font-style: italic; }
-    .lens-traffic { white-space: nowrap; }
+    .lens-traffic { white-space: nowrap; min-width: 14em; }
+    .lens-icon { margin-right: 6px; opacity: 0.75; }
+    .lens-name { font-weight: 600; }
+    .lens-mac { display: block; margin-left: 20px; }
+    .lens-role { margin-left: 20px; }
+    .lens-bar {
+        display: block; height: 4px; margin-bottom: 3px;
+        background: #d94f00; opacity: 0.55; min-width: 2px; border-radius: 2px;
+    }
+    .lens-bytes { font-size: 95%; }
+    .lens-addr-toggle { display: block; font-size: 90%; }
+    #lensControls { margin: 10px 0 14px 0; }
+    #lensSearch { width: 22em; max-width: 100%; }
+    #lensSegments { display: inline-block; margin-left: 6px; }
+    .lens-chip {
+        display: inline-block; padding: 1px 8px; margin: 2px 3px;
+        border: 1px solid #999; border-radius: 10px; font-size: 90%;
+        text-decoration: none;
+    }
+    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
+    #lensShowing { margin-left: 8px; color: #999; }
 </style>
 
 <script>
@@ -82,61 +102,165 @@
          * loaded on its own request so that a slow source probe cannot delay it,
          * and so that one failing does not blank the other.
          */
+        /*
+         * Devices first: this is the answer the page exists to give. Loaded on
+         * its own request so a slow source probe cannot delay it, and so one
+         * failing does not blank the other.
+         *
+         * The report arrives once and is filtered in the browser. Fifty devices
+         * is not a dataset -- it is a list a person is trying to find one thing
+         * in, and a round trip per keystroke would make that worse, not better.
+         */
+        let devices = [];
+        let segments = new Set();
+
+        const render = () => {
+            const needle = ($('#lensSearch').val() || '').toLowerCase().trim();
+            const onlyBusy = $('#lensOnlyTraffic').is(':checked');
+
+            const shown = devices.filter(device => {
+                if (needle && device.haystack.indexOf(needle) === -1) {
+                    return false;
+                }
+                if (onlyBusy && !device.octets) {
+                    return false;
+                }
+                if (segments.size && !device.interfaces.some(i => segments.has(i))) {
+                    return false;
+                }
+                return true;
+            });
+
+            /* the bar is relative to what is on screen, so filtering to one
+               segment rescales it instead of leaving every bar a sliver */
+            const largest = shown.reduce((max, d) => Math.max(max, d.octets), 0);
+
+            const $body = $('#lensDevices > tbody').empty();
+            for (const device of shown) {
+                $body.append(deviceRow(device, largest));
+            }
+
+            $('#lensShowing').text(
+                shown.length === devices.length
+                    ? ''
+                    : shown.length + ' {{ lang._("of") }} ' + devices.length
+            );
+            $('#lensEmpty').toggle(shown.length === 0 && devices.length > 0);
+        };
+
+        const deviceRow = (device, largest) => {
+            const $name = $('<td/>');
+            $name.append($('<i/>')
+                .addClass('fa fa-fw lens-icon ' + device.kind.icon)
+                .attr('title', device.kind.type));
+            $name.append($('<span/>').addClass('lens-name').text(device.name));
+            $name.append($('<span/>').addClass('lens-mac').text(device.mac));
+            if (device.role) {
+                $name.append($('<span/>').addClass('lens-role').text(device.role));
+            }
+
+            const $traffic = $('<td/>').addClass('lens-traffic');
+            if (device.octets) {
+                $traffic.append($('<span/>').addClass('lens-bar').css(
+                    'width', largest ? Math.max(2, (device.octets / largest) * 100) + '%' : 0
+                ));
+                $traffic.append($('<span/>').addClass('lens-bytes').text(device.traffic));
+            }
+
+            const $addresses = $('<td/>');
+            if (!device.addresses.length) {
+                $addresses.text('{{ lang._("no address recorded") }}');
+            }
+            device.addresses.forEach((address, index) => {
+                const $line = $('<span/>').addClass('lens-addr').text(address.address);
+                $line.append($('<span/>').addClass('lens-if').text(' \u00b7 ' + address.interface));
+                if (!address.current) {
+                    $line.addClass('lens-addr-gone')
+                         .append($('<span/>').text(' (' + address.seen + ')'));
+                }
+                /* the firewall holds twelve addresses and drowned every other
+                   row on the page; the rest are one click away */
+                if (index >= 3) {
+                    $line.addClass('lens-addr-more').hide();
+                }
+                $addresses.append($line);
+            });
+            if (device.addresses.length > 3) {
+                $addresses.append($('<a/>')
+                    .addClass('lens-addr-toggle').attr('href', '#')
+                    .text('+ ' + (device.addresses.length - 3) + ' {{ lang._("more") }}')
+                    .on('click', function (event) {
+                        event.preventDefault();
+                        $(this).siblings('.lens-addr-more').toggle();
+                        $(this).text($(this).siblings('.lens-addr-more:visible').length
+                            ? '{{ lang._("show fewer") }}'
+                            : '+ ' + (device.addresses.length - 3) + ' {{ lang._("more") }}');
+                    }));
+            }
+
+            const $presence = $('<td/>').append(
+                $('<span/>').addClass(device.here ? 'lens-here' : '').text(device.presence)
+            );
+
+            const $named = $('<td/>').addClass('lens-cause').text(device.named_by);
+            if (device.caveat) {
+                $named.append($('<em/>').addClass('lens-caveat').text(device.caveat));
+            }
+
+            return $('<tr/>')
+                .append($name)
+                .append($traffic)
+                .append($addresses)
+                .append($presence)
+                .append(cell(device.known_for))
+                .append($named);
+        };
+
+        const drawSegments = () => {
+            const counts = new Map();
+            for (const device of devices) {
+                for (const name of device.interfaces) {
+                    counts.set(name, (counts.get(name) || 0) + 1);
+                }
+            }
+
+            const $bar = $('#lensSegments').empty();
+            for (const [name, count] of [...counts.entries()].sort()) {
+                $('<a/>').addClass('lens-chip').attr('href', '#')
+                    .text(name + ' (' + count + ')')
+                    .on('click', function (event) {
+                        event.preventDefault();
+                        if (segments.has(name)) {
+                            segments.delete(name);
+                        } else {
+                            segments.add(name);
+                        }
+                        $(this).toggleClass('lens-chip-on', segments.has(name));
+                        render();
+                    })
+                    .appendTo($bar);
+            }
+        };
+
         ajaxGet('/api/lens/devices/list', {}, (report, deviceStatus) => {
             if (deviceStatus !== 'success' || !report || !report.devices) {
                 $('#lensDevicesError').show();
                 return;
             }
 
+            devices = report.devices;
             $('#lensDevicesHeadline').text(report.headline || '');
 
             if (report.note) {
                 $('#lensDevicesNote').text(report.note).show();
             }
 
-            const $body = $('#lensDevices > tbody').empty();
-            for (const device of report.devices) {
-                const $name = $('<td/>')
-                    .append($('<div/>').text(device.name))
-                    .append($('<span/>').addClass('lens-mac').text(device.mac));
-                if (device.role) {
-                    $name.append($('<span/>').addClass('lens-role').text(device.role));
-                }
+            drawSegments();
+            render();
 
-                const $addresses = $('<td/>');
-                for (const address of device.addresses) {
-                    const $line = $('<span/>').addClass('lens-addr').text(address.address);
-                    $line.append($('<span/>').addClass('lens-if').text(' · ' + address.interface));
-                    if (!address.current) {
-                        $line.addClass('lens-addr-gone')
-                             .append($('<span/>').text(' (' + address.seen + ')'));
-                    }
-                    $addresses.append($line);
-                }
-                if (!device.addresses.length) {
-                    $addresses.text('{{ lang._("no address recorded") }}');
-                }
-
-                const $presence = $('<td/>').append(
-                    $('<span/>').addClass(device.here ? 'lens-here' : '').text(device.presence)
-                );
-
-                const $traffic = $('<td/>').addClass('lens-traffic')
-                    .text(device.traffic || '');
-
-                const $named = $('<td/>').addClass('lens-cause').text(device.named_by);
-                if (device.caveat) {
-                    $named.append($('<em/>').addClass('lens-caveat').text(device.caveat));
-                }
-
-                $body.append($('<tr/>')
-                    .append($name)
-                    .append($traffic)
-                    .append($addresses)
-                    .append($presence)
-                    .append(cell(device.known_for))
-                    .append($named));
-            }
+            $('#lensSearch').on('input', render);
+            $('#lensOnlyTraffic').on('change', render);
+            $('#lensControls').toggle(devices.length > 0);
 
             const accounting = report.accounting || {};
             $('#lensAttributed').text(accounting.attributed || '0 B');
@@ -233,6 +357,22 @@
     <h3>{{ lang._('Devices') }}</h3>
     <p id="lensDevicesHeadline"></p>
     <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
+
+    <div id="lensControls" style="display: none;">
+        <input type="text" id="lensSearch" class="form-control input-sm"
+               style="display: inline-block;"
+               placeholder="{{ lang._('Search a name, address, MAC or vendor') }}">
+        <label style="font-weight: normal; margin: 0 0 0 10px;">
+            <input type="checkbox" id="lensOnlyTraffic"> {{ lang._('only devices with traffic') }}
+        </label>
+        <span id="lensShowing"></span>
+        <div id="lensSegments"></div>
+    </div>
+
+    <div id="lensEmpty" class="alert alert-info" style="display: none;">
+        {{ lang._('No device matches. Clear the search, or switch the segment filters off.') }}
+    </div>
+
     <table id="lensDevices" class="table table-condensed table-striped">
         <thead>
             <tr>

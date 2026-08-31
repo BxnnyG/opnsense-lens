@@ -31,6 +31,7 @@ this one inherits, and 23 stages of experience with it.
 | 13 | Correlation timeline | S9 | ⏳ |
 | 14 | Wallboard / kiosk | S10 | ⏳ |
 | 15 | Command palette | S11 | ⏳ |
+| 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | 🔨 built 2026-08-30 · runs before 8 and 9 (§4.29) |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -54,7 +55,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 5 | Devices instead of addresses — the first screen core cannot draw | S1 | ✅ router-tested 2026-08-30 |
 | 7 | Traffic on identity — the sentence the plugin was built for | S4 | ✅ router-tested 2026-08-30 |
 | 6 | Names, icons and tags — the operator's own labels | S1 | ⏳ |
-| — | **Legibility: filter, search, grouping, icons, detail view** (BACKLOG #17) | S6 | ⏳ **next, on operator feedback 2026-08-30** |
+| 16 | **Legibility: search, segment filters, icons, traffic bars** (BACKLOG #17) | S6 | 🔨 built 2026-08-30 · **awaiting router test** |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | ⏳ |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
