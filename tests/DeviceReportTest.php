@@ -313,6 +313,13 @@ class DeviceReportTest extends TestCase
             'unknown' => ['octets' => 5 * 1024 * 1024, 'packets' => 1],
             'ambiguous' => ['octets' => 0, 'packets' => 0],
         ],
+        'unexplained' => [
+            ['reason' => 'unknown', 'interface' => 'GUEST',
+             'address' => '10.0.147.9', 'octets' => 4 * 1024 * 1024, 'hours' => 12],
+            ['reason' => 'far_end', 'interface' => 'pppoe0',
+             'address' => '1.1.1.1', 'octets' => 1024, 'hours' => 1],
+            ['reason' => 'unknown', 'interface' => 'GUEST', 'octets' => 99],
+        ],
     ];
 
     public function testADevicesTrafficIsTheSumOfBothDirections()
@@ -376,6 +383,35 @@ class DeviceReportTest extends TestCase
         $this->assertCount(1, $report['devices']);
         $this->assertSame([], $report['accounting']['rows']);
         $this->assertSame('0 B', $report['accounting']['attributed']);
+    }
+
+    public function testTheHeaviestUnattributedAddressesAreNamedNotJustCounted()
+    {
+        $accounting = $this->describe([$this->given()], self::OBSERVED, self::TRAFFIC)['accounting'];
+
+        $this->assertCount(2, $accounting['unexplained'], 'the row without an address is dropped');
+        $this->assertSame('10.0.147.9', $accounting['unexplained'][0]['address']);
+        $this->assertSame('GUEST', $accounting['unexplained'][0]['interface']);
+        $this->assertSame('4.0 MB', $accounting['unexplained'][0]['what']);
+        $this->assertSame(12, $accounting['unexplained'][0]['hours']);
+    }
+
+    public function testTheReasonIsShownInWordsRatherThanAsAKey()
+    {
+        $accounting = $this->describe([$this->given()], self::OBSERVED, self::TRAFFIC)['accounting'];
+
+        $this->assertSame('nobody held it', $accounting['unexplained'][0]['reason']);
+        $this->assertSame('far end', $accounting['unexplained'][1]['reason']);
+    }
+
+    public function testAReasonFromANewerCollectorIsPassedThroughRatherThanBlanked()
+    {
+        $accounting = $this->describe([$this->given()], self::OBSERVED, [
+            'unexplained' => [['reason' => 'something_later', 'address' => '10.0.0.1',
+                               'interface' => 'LAN', 'octets' => 10]],
+        ])['accounting'];
+
+        $this->assertSame('something_later', $accounting['unexplained'][0]['reason']);
     }
 
     // ----------------------------------------------------- order and robustness

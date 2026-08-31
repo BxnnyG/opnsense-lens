@@ -152,7 +152,9 @@ class DeviceReport
             'unknown' => gettext(
                 'On one of your own segments, Lens was watching, and still nothing '
                 . 'was seen holding that address that hour. Either the collector '
-                . 'stopped, or the device never answered ARP.'
+                . 'stopped, the device never answered ARP, or the address belongs '
+                . 'to a network routed through this firewall rather than to a '
+                . 'device attached to it. The list below says which.'
             ),
             'ambiguous' => gettext(
                 'Two devices held the same address inside one hour. The hour cannot '
@@ -164,8 +166,29 @@ class DeviceReport
         foreach ($reasons as $key => $why) {
             $octets = (int)($traffic['unattributed'][$key]['octets'] ?? 0);
             if ($octets > 0) {
-                $rows[] = ['what' => Bytes::human($octets), 'why' => $why];
+                $rows[] = ['what' => Bytes::human($octets), 'why' => $why, 'reason' => $key];
             }
+        }
+
+        $names = [
+            'far_end' => gettext('far end'),
+            'not_watching' => gettext('before Lens watched'),
+            'unknown' => gettext('nobody held it'),
+            'ambiguous' => gettext('two devices'),
+        ];
+
+        $unexplained = [];
+        foreach ($traffic['unexplained'] ?? [] as $entry) {
+            if (empty($entry['address'])) {
+                continue;
+            }
+            $unexplained[] = [
+                'address' => (string)$entry['address'],
+                'interface' => (string)($entry['interface'] ?? ''),
+                'reason' => $names[$entry['reason'] ?? ''] ?? (string)($entry['reason'] ?? ''),
+                'what' => Bytes::human((int)($entry['octets'] ?? 0)),
+                'hours' => (int)($entry['hours'] ?? 0),
+            ];
         }
 
         return [
@@ -173,6 +196,7 @@ class DeviceReport
             'attributed_octets' => $measured,
             'hours' => (int)($traffic['hours'] ?? 0),
             'rows' => $rows,
+            'unexplained' => $unexplained,
         ];
     }
 

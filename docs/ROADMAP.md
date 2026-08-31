@@ -21,7 +21,7 @@ this one inherits, and 23 stages of experience with it.
 | 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | ✅ 2026-08-30 · router-tested as `os-lens-0.2_3` on both boxes; 463 buckets in 1 chunk on router-01, the second box's hang gone |
 | 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
 | 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
-| 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | 🔨 built 2026-08-30 · **awaiting router test** |
+| 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.5_2`; isc-dhcp names, icons, search and labels all confirmed on both boxes |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | Client profile page | S5 | ⏳ |
 | 9 | Reporting overview, first version | S6 | ⏳ |
@@ -55,7 +55,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 5 | Devices instead of addresses — the first screen core cannot draw | S1 | ✅ router-tested 2026-08-30 |
 | 7 | Traffic on identity — the sentence the plugin was built for | S4 | ✅ router-tested 2026-08-30 |
 | 6 | The operator's own labels — the promise §4.29 made | S1 | 🔨 built 2026-08-30 |
-| 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | 🔨 built 2026-08-30 |
+| 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | ✅ router-tested 2026-08-30 |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | ⏳ |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
@@ -164,3 +164,26 @@ chunks` was reported on the second box and is correct — no whole hour had clos
 since the last stored bucket — but it is the same sentence a request that came
 back empty would print, which is the failure mode `0.2_3` was released to fix.
 It now reads `already up to date; no complete hour since the last bucket`.
+
+### The 95 GB question (open, 2026-08-30)
+
+`os-lens-0.5_2` on the operator's second firewall, over 24 hours:
+
+| | attributed | far end | nobody held it |
+|---|---|---|---|
+| router-01 | 13 GB | 13 GB | **7.6 MB** |
+| second box | 43 GB | 45 GB | **95 GB** |
+
+Same build, same join, two very different answers — so it is a property of that
+network rather than a defect in the attribution. `0.5_3` adds the breakdown
+(§4.31): the heaviest twenty-five addresses that landed in each class, with the
+interface and how many hours each appeared in, behind a toggle under the
+accounting table.
+
+**Read that list before designing anything for it.** The hypothesis is that
+those addresses are routed *through* the firewall rather than attached to it —
+19 interfaces, a GPON link, a Netbird network — and such an address has no MAC
+on any segment and never will. If the list shows one or two repeated subnets,
+that becomes its own attributed class instead of a residue. If it shows the
+firewall's own VLAN addresses, it is something else entirely, and the guess was
+wrong.

@@ -1014,3 +1014,26 @@ observation") enforced by shape instead of by discipline.
 label; every write path touches exactly one of them. Retention and purge had to
 be taught about the new table before the stage shipped — a test caught both, and
 the second one would have broken the S14 promise outright.
+
+### §4.31 — A total nobody can break down is a number you believe or ignore (2026-08-30)
+**Question:** the accounting from §4.26 works. On the operator's second firewall
+it reports 43 GB attributed, 45 GB far end, and **95 GB** under "Lens was
+watching and still nobody held that address". Router-01, on the same build,
+reports 7.6 MB in that class. So it is not a bug in the join — it is something
+about that network. The page says the number and offers nothing to do with it.
+**Decision:** `attribute.classify()` also returns the heaviest twenty-five
+(reason, interface, address) triples, with their byte total and how many hours
+each appeared in. The page lists them behind a toggle.
+**Rationale:** refusing to drop what cannot be explained (§4.26) was the right
+half of the rule; it is only useful with the other half, which is being able to
+*look at* what could not be explained. Twenty-five is deliberate — the far end
+alone is tens of thousands of internet addresses, and a complete list answers
+nothing. What a person needs is to recognise a pattern: one repeated subnet, one
+interface, one machine behind another router.
+**The likely answer on that box, stated as a hypothesis and not as a fact:** an
+address routed *through* the firewall rather than attached to it has no MAC on
+any of its segments and never will. Whether that is what the 95 GB is will be
+read off the list, not argued from here.
+**Consequences:** the `unknown` wording now names that third possibility beside
+the two it already named. If the list confirms it, routed networks become their
+own attributed class rather than a residue.

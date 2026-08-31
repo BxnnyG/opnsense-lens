@@ -33,7 +33,13 @@ def row(interface, address, direction, octets, macs, mac, bucket=1788080000):
 
 
 def classify(rows, interfaces=None, watching_since=WATCHING_SINCE):
-    return attribute.classify(rows, interfaces or DEVICE_IFS, watching_since)
+    per_mac, unattributed, _ = attribute.classify(
+        rows, interfaces or DEVICE_IFS, watching_since)
+    return per_mac, unattributed
+
+
+def worst(rows, interfaces=None, watching_since=WATCHING_SINCE):
+    return attribute.classify(rows, interfaces or DEVICE_IFS, watching_since)[2]
 
 
 class ClassifyTest(unittest.TestCase):
@@ -101,6 +107,65 @@ class ClassifyTest(unittest.TestCase):
         ) + sum(reason['octets'] for reason in unattributed.values())
 
         self.assertEqual(1000, counted)
+
+
+class BreakdownTest(unittest.TestCase):
+    """
+    A total nobody can break down is a number you either believe or ignore.
+    Box 2 reported 95 GB unattributed against 43 GB attributed and the page
+    could say so without saying what it was.
+    """
+
+    def test_the_heaviest_unattributed_addresses_come_back_biggest_first(self):
+        rows = [
+            row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None),
+            row('vtnet1_vlan10', '10.10.10.99', 'in', 900, 0, None),
+            row('pppoe0', '1.1.1.1', 'out', 500, 0, None),
+        ]
+
+        listed = worst(rows)
+
+        self.assertEqual(['10.10.10.99', '1.1.1.1', '10.10.10.77'],
+                         [entry['address'] for entry in listed])
+        self.assertEqual('unknown', listed[0]['reason'])
+        self.assertEqual('far_end', listed[1]['reason'])
+
+    def test_the_same_address_over_many_hours_is_one_line_with_the_hours_counted(self):
+        """what a person needs to see is one subnet, not four hundred rows of it"""
+        rows = [
+            row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None, bucket=WATCHING_SINCE + 3600),
+            row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None, bucket=WATCHING_SINCE + 7200),
+            row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None, bucket=WATCHING_SINCE + 10800),
+        ]
+
+        listed = worst(rows)
+
+        self.assertEqual(1, len(listed))
+        self.assertEqual(300, listed[0]['octets'])
+        self.assertEqual(3, listed[0]['hours'])
+
+    def test_the_same_address_on_two_interfaces_stays_two_lines(self):
+        """which segment it was on is half the answer"""
+        rows = [
+            row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None),
+            row('vtnet1_vlan20', '10.10.10.77', 'in', 100, 0, None),
+        ]
+
+        self.assertEqual(2, len(worst(rows)))
+
+    def test_an_attributed_bucket_never_appears_in_the_breakdown(self):
+        rows = [row('vtnet1_vlan10', '10.10.10.5', 'in', 100, 1, 'aa:bb:cc:dd:ee:01')]
+
+        self.assertEqual([], worst(rows))
+
+    def test_the_list_is_capped_so_the_far_end_cannot_flood_it(self):
+        """tens of thousands of internet addresses answer nothing"""
+        rows = [row('pppoe0', '203.0.113.%d' % n, 'out', n, 0, None) for n in range(1, 200)]
+
+        listed = worst(rows)
+
+        self.assertEqual(25, len(listed))
+        self.assertEqual('203.0.113.199', listed[0]['address'])
 
 
 class JoinTest(unittest.TestCase):

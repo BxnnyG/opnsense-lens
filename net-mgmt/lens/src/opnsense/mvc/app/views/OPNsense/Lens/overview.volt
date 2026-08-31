@@ -348,6 +348,18 @@
                     .append($('<td/>').addClass('lens-traffic').text(row.what))
                     .append($('<td/>').addClass('lens-cause').text(row.why)));
             }
+            const $worst = $('#lensUnexplained > tbody').empty();
+            for (const row of (accounting.unexplained || [])) {
+                $worst.append($('<tr/>')
+                    .append($('<td/>').addClass('lens-traffic').text(row.what))
+                    .append($('<td/>').text(row.address))
+                    .append($('<td/>').addClass('lens-if').text(row.interface))
+                    .append($('<td/>').addClass('lens-if').text(row.reason))
+                    .append($('<td/>').addClass('lens-if').text(
+                        row.hours + ' {{ lang._("hours") }}')));
+            }
+            $('#lensUnexplainedBlock').toggle((accounting.unexplained || []).length > 0);
+
             if ((accounting.rows || []).length) {
                 $('#lensAccountingBlock').show();
             }
@@ -356,6 +368,13 @@
         });
 
         load();
+        $('#lensUnexplainedToggle').on('click', function (event) {
+            event.preventDefault();
+            $('#lensUnexplained').toggle();
+            $(this).text($('#lensUnexplained').is(':visible')
+                ? '{{ lang._("Hide the addresses") }}'
+                : '{{ lang._("Show which addresses those are") }}');
+        });
         $('#lensSearch').on('input', render);
         $('#lensOnlyTraffic').on('change', render);
         $('#lensEditSave').on('click', saveLabel);
@@ -523,6 +542,28 @@
         <table id="lensAccounting" class="table table-condensed">
             <tbody></tbody>
         </table>
+
+        <div id="lensUnexplainedBlock" style="display: none;">
+            <p>
+                <a href="#" id="lensUnexplainedToggle">{{ lang._('Show which addresses those are') }}</a>
+            </p>
+            <table id="lensUnexplained" class="table table-condensed table-striped"
+                   style="display: none;">
+                <thead>
+                    <tr>
+                        <th style="width: 9em;">{{ lang._('Bytes') }}</th>
+                        <th>{{ lang._('Address') }}</th>
+                        <th>{{ lang._('Interface') }}</th>
+                        <th>{{ lang._('Why') }}</th>
+                        <th>{{ lang._('Seen in') }}</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <p class="text-muted">
+                {{ lang._('The heaviest twenty-five, biggest first. One repeated subnet here usually means a network routed through this firewall rather than attached to it - those addresses have no MAC on any of its segments and never will.') }}
+            </p>
+        </div>
     </div>
 </div>
 

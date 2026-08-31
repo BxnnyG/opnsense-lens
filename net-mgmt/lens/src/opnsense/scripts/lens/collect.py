@@ -201,7 +201,7 @@ def traffic(store, now, hours):
     since = now - hours * 3600
     status = store.status()
     rows = store.traffic_rows(since)
-    per_mac, unattributed = attribute.classify(
+    per_mac, unattributed, worst = attribute.classify(
         rows, store.device_interfaces(), status['first_observation']
     )
 
@@ -210,6 +210,7 @@ def traffic(store, now, hours):
         'hours': hours,
         'devices': per_mac,
         'unattributed': unattributed,
+        'unexplained': worst,
         'first_bucket': status['first_bucket'],
         'watching_since': status['first_observation'],
     }
