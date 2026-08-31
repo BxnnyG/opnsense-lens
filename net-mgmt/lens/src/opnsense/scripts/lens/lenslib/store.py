@@ -105,6 +105,34 @@ MIGRATIONS = {
 }
 
 
+# One definition of "who held this address in this hour", used by the list and
+# by the detail view. Written once because a detail total that disagrees with
+# the row it was opened from destroys the credibility of both, and two copies of
+# a join drift the first time one of them is corrected.
+#
+# The window test is an overlap, not containment: an observation opened at 14:32
+# covers the 14:00 bucket, because the device was there for part of the hour the
+# bucket measures. `macs` counts how many distinct devices the overlap found --
+# more than one means the bucket cannot be attributed at all, and both readers
+# refuse it rather than picking one.
+#
+# Grouping is on traffic_hour's own primary key, so the join can never multiply
+# the octets it is counting. Parameters, in order: bucket_seconds, since.
+ATTRIBUTION_SQL = """
+    SELECT t.bucket AS bucket, t.interface AS interface, t.address AS address,
+           t.direction AS direction, t.octets AS octets, t.packets AS packets,
+           count(DISTINCT o.mac) AS macs, min(o.mac) AS mac
+    FROM traffic_hour t
+    LEFT JOIN address_observation o
+      ON o.address = t.address
+     AND o.interface = t.interface
+     AND o.first_seen < t.bucket + ?
+     AND o.last_seen >= t.bucket
+    WHERE t.bucket >= ?
+    GROUP BY t.bucket, t.interface, t.address, t.direction
+"""
+
+
 class Store:
     def __init__(self, path):
         self.path = path
@@ -324,20 +352,37 @@ class Store:
         Grouping is on traffic_hour's own primary key, so the join can never
         multiply the octets it is counting.
         """
+        return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since))
+
+    def device_traffic(self, mac, since, bucket_seconds=3600):
+        """
+        One device's hourly totals, by direction.
+
+        Wrapped around the *same* attribution query the list uses, filtered to
+        the rows that resolved to this device alone. Sharing the query is the
+        point: a detail view whose total disagrees with the row that opened it
+        is worse than no detail view, and two copies of a join drift.
+        """
         return self.db.execute(
-            """SELECT t.bucket, t.interface, t.address, t.direction,
-                      t.octets, t.packets,
-                      count(DISTINCT o.mac) AS macs, min(o.mac) AS mac
-               FROM traffic_hour t
-               LEFT JOIN address_observation o
-                 ON o.address = t.address
-                AND o.interface = t.interface
-                AND o.first_seen < t.bucket + ?
-                AND o.last_seen >= t.bucket
-               WHERE t.bucket >= ?
-               GROUP BY t.bucket, t.interface, t.address, t.direction""",
-            (bucket_seconds, since),
+            """SELECT bucket, direction,
+                      sum(octets) AS octets, sum(packets) AS packets
+               FROM (%s)
+               WHERE macs = 1 AND mac = ?
+               GROUP BY bucket, direction
+               ORDER BY bucket""" % ATTRIBUTION_SQL,
+            (bucket_seconds, since, mac),
         )
+
+    def device_interfaces_of(self, mac):
+        """:return: interfaces this device has held an address on, most recent first"""
+        return [
+            row['interface']
+            for row in self.db.execute(
+                """SELECT interface, max(last_seen) AS seen FROM address_observation
+                   WHERE mac = ? GROUP BY interface ORDER BY seen DESC""",
+                (mac,),
+            )
+        ]
 
     def log_run(self, duty, at, ok, took_ms, detail):
         self.db.execute(

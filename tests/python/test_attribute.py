@@ -232,5 +232,83 @@ class JoinTest(unittest.TestCase):
         self.assertEqual(100, rows[0]['octets'])
 
 
+class DetailAgreesWithTheListTest(unittest.TestCase):
+    """
+    A detail view whose total disagrees with the row that opened it is worse
+    than no detail view: it makes both numbers unusable, and there is no way for
+    the reader to tell which one lied. Both go through one query
+    (`store.ATTRIBUTION_SQL`) and this test is why.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, 'lens.sqlite'))
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def observe(self, mac, address, interface, first_seen, last_seen):
+        self.store.db.execute(
+            """INSERT INTO address_observation
+               (mac, address, interface, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)""",
+            (mac, address, interface, first_seen, last_seen),
+        )
+
+    def build(self):
+        """one device on two segments, one hour it shared, and some far end"""
+        base = 1788080400
+        self.store.store_buckets('p', [
+            (base, 'em0', '10.0.0.5', 'in', 100, 1),
+            (base, 'em0', '10.0.0.5', 'out', 400, 1),
+            (base, 'em1', '10.0.9.5', 'in', 50, 1),
+            (base + 3600, 'em0', '10.0.0.5', 'in', 700, 1),
+            (base + 7200, 'em0', '10.0.0.9', 'in', 999, 1),
+            (base, 'pppoe0', '1.1.1.1', 'out', 5000, 1),
+        ])
+        self.observe('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', base - 3600, base + 9000)
+        self.observe('aa:bb:cc:dd:ee:01', '10.0.9.5', 'em1', base - 3600, base + 9000)
+        # the shared hour: two devices on 10.0.0.9, so neither may claim it
+        self.observe('aa:bb:cc:dd:ee:01', '10.0.0.9', 'em0', base + 7200, base + 9000)
+        self.observe('aa:bb:cc:dd:ee:02', '10.0.0.9', 'em0', base + 7200, base + 9000)
+        self.store.commit()
+        return base
+
+    def test_the_detail_total_equals_what_the_list_shows_for_that_device(self):
+        self.build()
+        interfaces = self.store.device_interfaces()
+
+        per_mac, _, _ = attribute.classify(self.store.traffic_rows(0), interfaces, 0)
+        listed = per_mac['aa:bb:cc:dd:ee:01']
+
+        detail = {'in': 0, 'out': 0}
+        for row in self.store.device_traffic('aa:bb:cc:dd:ee:01', 0):
+            detail[row['direction']] += row['octets']
+
+        self.assertEqual(listed['in']['octets'], detail['in'])
+        self.assertEqual(listed['out']['octets'], detail['out'])
+        self.assertEqual(1250, detail['in'] + detail['out'],
+                         'the shared hour and the far end are both left out')
+
+    def test_the_shared_hour_is_absent_from_the_detail_exactly_as_from_the_list(self):
+        base = self.build()
+
+        buckets = {row['bucket'] for row in
+                   self.store.device_traffic('aa:bb:cc:dd:ee:01', 0)}
+
+        self.assertNotIn(base + 7200, buckets)
+
+    def test_the_far_end_never_reaches_a_devices_detail(self):
+        self.build()
+
+        addresses = self.store.device_traffic('aa:bb:cc:dd:ee:01', 0)
+
+        self.assertNotIn(5000, [row['octets'] for row in addresses])
+
+    def test_a_device_with_no_attributed_hours_gets_an_empty_series_not_an_error(self):
+        self.build()
+
+        self.assertEqual([], list(self.store.device_traffic('ff:ff:ff:ff:ff:ff', 0)))
+
+
 if __name__ == '__main__':
     unittest.main()

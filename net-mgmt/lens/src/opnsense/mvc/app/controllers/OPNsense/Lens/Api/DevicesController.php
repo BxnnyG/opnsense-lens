@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceReport;
 
 /**
@@ -78,6 +79,30 @@ class DevicesController extends ApiControllerBase
         ];
 
         return $report;
+    }
+
+    /**
+     * One device's hourly history.
+     *
+     * @return array
+     */
+    public function historyAction()
+    {
+        $mac = (string)$this->request->get('mac', null, '');
+        if (!preg_match('/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/', $mac)) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+
+        $hours = (int)$this->request->get('hours', null, self::DEFAULT_HOURS);
+        $hours = $hours > 0 && $hours <= self::MAX_HOURS ? $hours : self::DEFAULT_HOURS;
+
+        $calls = [];
+        $raw = self::decode(new Backend(), 'lens device ' . $mac . ' ' . $hours, $calls);
+
+        $detail = DeviceDetail::describe($raw, time());
+        $detail['timing'] = ['calls' => $calls];
+
+        return $detail;
     }
 
     /**

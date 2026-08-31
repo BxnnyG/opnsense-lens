@@ -73,6 +73,18 @@
         padding: 0 6px; border: 1px solid #999; border-radius: 8px; font-size: 85%;
     }
     .lens-note { display: block; margin-left: 20px; font-size: 90%; color: #999; }
+    .lens-chart { width: 100%; height: 140px; display: block; }
+    .lens-chart-up { fill: #d94f00; }
+    .lens-chart-down { fill: #7a8b99; }
+    .lens-chart-empty { fill: #666; }
+    .lens-chart-legend { margin-top: 6px; }
+    .lens-key {
+        display: inline-block; width: 10px; height: 10px;
+        margin: 0 2px 0 8px; border-radius: 2px;
+    }
+    .lens-key.lens-chart-up { background: #d94f00; }
+    .lens-key.lens-chart-down { background: #7a8b99; }
+    a.lens-name { color: inherit; }
 </style>
 
 <script>
@@ -162,7 +174,12 @@
             $name.append($('<i/>')
                 .addClass('fa fa-fw lens-icon ' + device.kind.icon)
                 .attr('title', device.kind.type));
-            $name.append($('<span/>').addClass('lens-name').text(device.name));
+            $name.append($('<a/>').addClass('lens-name').attr('href', '#')
+                .text(device.name)
+                .on('click', function (event) {
+                    event.preventDefault();
+                    openDetail(device);
+                }));
             $name.append($('<a/>').addClass('lens-edit').attr('href', '#')
                 .attr('title', '{{ lang._("Give this device a name of your own") }}')
                 .append($('<i/>').addClass('fa fa-pencil'))
@@ -236,6 +253,114 @@
                 .append($presence)
                 .append(cell(device.known_for))
                 .append($named);
+        };
+
+        /*
+         * The chart is hand-drawn SVG rather than a charting library: it is
+         * twenty-four stacked bars, the page already ships no dependencies, and
+         * a library would decide the axis and the rounding for us. Sent below,
+         * received above, one bar per hour, scaled to the busiest hour shown.
+         */
+        const drawChart = (detail) => {
+            const svg = document.getElementById('lensChart');
+            while (svg.firstChild) {
+                svg.removeChild(svg.firstChild);
+            }
+
+            const points = detail.series;
+            if (!points.length) {
+                return;
+            }
+
+            const width = 640;
+            const height = 140;
+            const gap = points.length > 60 ? 0 : 1;
+            const step = width / points.length;
+            const peak = detail.peak || 1;
+
+            svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+
+            const bar = (x, y, w, h, klass, title) => {
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', x);
+                rect.setAttribute('y', y);
+                rect.setAttribute('width', Math.max(0.5, w));
+                rect.setAttribute('height', Math.max(0, h));
+                rect.setAttribute('class', klass);
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                label.textContent = title;
+                rect.appendChild(label);
+                svg.appendChild(rect);
+            };
+
+            points.forEach((point, index) => {
+                const x = index * step;
+                const w = step - gap;
+                const down = (point.received / peak) * height;
+                const up = (point.sent / peak) * height;
+                const when = new Date(point.bucket * 1000).toLocaleString();
+                const title = when + ' \u2014 ' + bytes(point.sent) + ' up, '
+                    + bytes(point.received) + ' down';
+
+                /* an hour with nothing in it still gets a mark, so a quiet hour
+                   cannot be mistaken for an hour Lens has no data for */
+                if (!point.total) {
+                    bar(x, height - 1, w, 1, 'lens-chart-empty', when + ' \u2014 nothing');
+                    return;
+                }
+                bar(x, height - down - up, w, down, 'lens-chart-down', title);
+                bar(x, height - up, w, up, 'lens-chart-up', title);
+            });
+        };
+
+        /* the same units as the table, without a second round trip to get them */
+        const bytes = (octets) => {
+            if (octets < 1024) {
+                return octets + ' B';
+            }
+            const units = ['KB', 'MB', 'GB', 'TB'];
+            let value = octets / 1024;
+            for (let i = 0; i < units.length; i++) {
+                if (value < 1024 || i === units.length - 1) {
+                    return (value < 10 ? value.toFixed(1) : Math.round(value)) + ' ' + units[i];
+                }
+                value /= 1024;
+            }
+        };
+
+        const openDetail = (device) => {
+            $('#lensDetailName').text(device.name);
+            $('#lensDetailMac').text(device.mac);
+            $('#lensDetailNote').hide();
+            $('#lensDetailBody').hide();
+            $('#lensDetailLoading').show();
+            $('#lensDetail').modal('show');
+
+            ajaxGet('/api/lens/devices/history',
+                    { mac: device.mac, hours: 24 }, (detail, detailStatus) => {
+                $('#lensDetailLoading').hide();
+
+                if (detailStatus !== 'success' || !detail || !detail.series) {
+                    $('#lensDetailNote').text('{{ lang._("No history came back.") }}').show();
+                    return;
+                }
+
+                $('#lensDetailTotal').text(detail.total);
+                $('#lensDetailSent').text(detail.sent);
+                $('#lensDetailReceived').text(detail.received);
+                $('#lensDetailPeak').text(detail.busiest
+                    ? detail.busiest.what + ' {{ lang._("at") }} '
+                      + new Date(detail.busiest.bucket * 1000).toLocaleString()
+                    : '{{ lang._("nothing measured in this window") }}');
+                $('#lensDetailIfs').text(detail.interfaces.join(', ') || '\u2014');
+
+                if (detail.note) {
+                    $('#lensDetailNote').text(detail.note).show();
+                }
+
+                drawChart(detail);
+                $('#lensDetailBody').show();
+            });
         };
 
         const openEditor = (device) => {
@@ -490,6 +615,63 @@
         {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
         {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
     </p>
+
+    <div class="modal" id="lensDetail" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">
+                        <span id="lensDetailName"></span>
+                        <span id="lensDetailMac" class="lens-mac"></span>
+                    </h4>
+                </div>
+                <div class="modal-body">
+                    <div id="lensDetailLoading">
+                        <i class="fa fa-spinner fa-spin"></i>
+                        {{ lang._('Reading this device out of the store...') }}
+                    </div>
+                    <div id="lensDetailNote" class="alert alert-info" style="display: none;"></div>
+                    <div id="lensDetailBody" style="display: none;">
+                        <svg id="lensChart" class="lens-chart"
+                             preserveAspectRatio="none"></svg>
+                        <p class="text-muted lens-chart-legend">
+                            {{ lang._('One bar per hour, newest on the right.') }}
+                            <span class="lens-key lens-chart-up"></span> {{ lang._('sent') }}
+                            <span class="lens-key lens-chart-down"></span> {{ lang._('received') }}
+                            &mdash; {{ lang._('an hour with nothing in it keeps a thin line, so quiet cannot be mistaken for missing.') }}
+                        </p>
+                        <table class="table table-condensed">
+                            <tbody>
+                                <tr>
+                                    <td style="width: 14em;">{{ lang._('In the last 24 hours') }}</td>
+                                    <td>
+                                        <span id="lensDetailTotal"></span>
+                                        (<span id="lensDetailSent"></span> {{ lang._('up') }},
+                                        <span id="lensDetailReceived"></span> {{ lang._('down') }})
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>{{ lang._('Busiest hour') }}</td>
+                                    <td id="lensDetailPeak"></td>
+                                </tr>
+                                <tr>
+                                    <td>{{ lang._('Seen on') }}</td>
+                                    <td id="lensDetailIfs"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p class="text-muted">
+                            {{ lang._('Only hours this device could be identified in are counted. An hour it shared an address with another device is left out of both, and appears in the accounting below the list.') }}
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-dismiss="modal">{{ lang._('Close') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="modal" id="lensEditor" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">

@@ -11,6 +11,7 @@ Two duties, one command each:
     collect.py devices    every device and its address windows, as JSON
     collect.py traffic    traffic joined onto devices at bucket time, as JSON
     collect.py label      store what the operator calls one device
+    collect.py device     one device's hourly history, as JSON
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -156,6 +157,52 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+def device(store, now, mac, hours):
+    """
+    One device's hourly history: what it sent and received, hour by hour.
+
+    Zero hours are filled in. A gap in a chart reads as "no data" and a zero
+    reads as "nothing happened", and those are different statements -- the
+    series says which by starting where the store's history starts, not where
+    the requested window starts.
+    """
+    mac = parse.normalise_mac(mac or '')
+    since = now - hours * 3600
+    since -= since % 3600
+
+    totals = {}
+    for row in store.device_traffic(mac, since):
+        bucket = totals.setdefault(row['bucket'], {'sent': 0, 'received': 0})
+        # 'in' entered the interface, so the device sent it (DESIGN 1.4)
+        bucket['sent' if row['direction'] == 'in' else 'received'] += row['octets']
+
+    status = store.status()
+    first = status['first_bucket']
+    start = max(since, first) if first else since
+
+    series = []
+    bucket = start - (start % 3600)
+    while bucket < now:
+        totals_at = totals.get(bucket, {'sent': 0, 'received': 0})
+        series.append({
+            'bucket': bucket,
+            'sent': totals_at['sent'],
+            'received': totals_at['received'],
+        })
+        bucket += 3600
+
+    return {
+        'mac': mac,
+        'hours': hours,
+        'since': start,
+        'series': series,
+        'sent': sum(point['sent'] for point in series),
+        'received': sum(point['received'] for point in series),
+        'interfaces': store.device_interfaces_of(mac),
+        'history_starts': first,
+    }
 
 
 def label(mac, encoded):
@@ -304,8 +351,8 @@ def main():
     parser = argparse.ArgumentParser(description='Lens collector')
     parser.add_argument(
         'duty',
-        choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'label',
-                 'prune', 'purge'],
+        choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
+                 'label', 'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--fields', help='base64url of a JSON object of label fields')
@@ -317,6 +364,10 @@ def main():
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'device':
+        print(json.dumps(device(Store(DB_PATH), int(time.time()), args.mac, args.hours)))
         return 0
 
     if args.duty == 'label':

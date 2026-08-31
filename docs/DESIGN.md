@@ -1037,3 +1037,20 @@ read off the list, not argued from here.
 **Consequences:** the `unknown` wording now names that third possibility beside
 the two it already named. If the list confirms it, routed networks become their
 own attributed class rather than a residue.
+
+### §4.32 — Two views of one number share one query (2026-08-30)
+**Question:** the device list totals traffic per device. The detail view totals
+the same traffic per hour for one device. Two readers, same underlying join —
+write it twice, or share it?
+**Decision:** one SQL string, `store.ATTRIBUTION_SQL`, wrapped by both.
+**Rationale:** a detail view whose total disagrees with the row that opened it
+is worse than no detail view. It does not merely fail to inform; it makes *both*
+numbers unusable, because the reader has no way to tell which of them lied. And
+the disagreement would not arrive on day one — it arrives the first time one
+copy of the join is corrected, in a commit about something else, months later.
+That is the same failure as §4.21 (a change landing in one of two places) turned
+into a rule about queries rather than about classes.
+**Consequences:** a test compares the two paths on the same fixture, including
+an hour two devices shared, which must be absent from both. Any future reader of
+per-device traffic — the wallboard, a widget, an export — wraps that constant or
+does not ship.
