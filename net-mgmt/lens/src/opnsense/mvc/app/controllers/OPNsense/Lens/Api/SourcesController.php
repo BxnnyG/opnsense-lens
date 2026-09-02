@@ -31,6 +31,7 @@ namespace OPNsense\Lens\Api;
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
+use OPNsense\Lens\NetflowFix;
 use OPNsense\Lens\SourceFacts;
 use OPNsense\Lens\SourceProbe;
 use OPNsense\Lens\SourceReport;
@@ -76,10 +77,12 @@ class SourcesController extends ApiControllerBase
         };
 
         $raw = $this->collect($run);
+        $facts = SourceFacts::assemble($raw);
 
         return [
             'version' => SourceProbe::version(),
-            'sources' => SourceReport::assess(SourceFacts::assemble($raw)),
+            'sources' => SourceReport::assess($facts),
+            'fix' => NetflowFix::plan($facts['netflow'] ?? []),
             'retention' => SourceReport::retention(),
             'timing' => [
                 'total_ms' => (int)round((microtime(true) - $started) * 1000),
@@ -139,6 +142,60 @@ class SourcesController extends ApiControllerBase
         }
 
         return $raw;
+    }
+
+    /**
+     * Switch on the one class of source Lens is allowed to switch on (§4.5).
+     *
+     * The browser sends no interface list and no setting value -- only "do the
+     * thing you offered". The plan is worked out again here from the box's own
+     * state, so this endpoint cannot be talked into an arbitrary NetFlow
+     * configuration by anyone who can reach it (§4.35).
+     *
+     * @return array
+     */
+    public function applyFixAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'message' => gettext('POST only')];
+        }
+
+        $backend = new Backend();
+        $raw = $this->collect(function ($name) use ($backend) {
+            return (string)$backend->configdRun(SourceProbe::command($name));
+        });
+
+        $facts = SourceFacts::assemble($raw);
+        $plan = NetflowFix::plan($facts['netflow'] ?? []);
+
+        if ($plan === null) {
+            return ['status' => 'ok', 'result' => gettext('Nothing to change.')];
+        }
+
+        $config = Config::getInstance()->object();
+        if (!isset($config->OPNsense->Netflow)) {
+            return ['status' => 'failed', 'message' => gettext(
+                'NetFlow has never been configured on this box. Open Reporting: '
+                . 'NetFlow once, so OPNsense creates its settings, then come back.'
+            )];
+        }
+
+        $netflow = $config->OPNsense->Netflow;
+        $captured = array_values(array_filter(explode(',', (string)$netflow->capture->interfaces)));
+        $netflow->capture->interfaces = implode(',', array_unique(array_merge($captured, $plan['adds'])));
+
+        if ($plan['enables_collection']) {
+            $netflow->collect->enable = '1';
+        }
+
+        Config::getInstance()->save();
+        $backend->configdRun('netflow restart');
+
+        return [
+            'status' => 'ok',
+            'result' => $plan['title'],
+            'interfaces' => (string)$netflow->capture->interfaces,
+        ];
     }
 
     /**

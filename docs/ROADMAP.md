@@ -24,7 +24,7 @@ this one inherits, and 23 stages of experience with it.
 | 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.5_2`; isc-dhcp names, icons, search and labels all confirmed on both boxes |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | **The device, hour by hour** — click a name for its own chart ([plan](plans/stage-08-device-detail.md)) | S5 | 🔨 built 2026-08-30 · with grouping (BACKLOG #19, §4.33) · **awaiting router test** |
-| 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 · **awaiting router test** |
+| 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 |
 | 10 | Dashboard widgets | S7 | ⏳ |
 | 11 | DNS view | S12 | ⏳ |
 | 12 | Baseline, learning period visible, then verdicts | S8 | ⏳ |
@@ -56,7 +56,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 7 | Traffic on identity — the sentence the plugin was built for | S4 | ✅ router-tested 2026-08-30 |
 | 6 | The operator's own labels — the promise §4.29 made | S1 | 🔨 built 2026-08-30 |
 | 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | ✅ router-tested 2026-08-30 |
-| — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
+| — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | 🔨 built 2026-08-30 (§4.35) · **awaiting router test** |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | 🔨 built 2026-08-30 (§4.33) |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
@@ -187,3 +187,19 @@ on any segment and never will. If the list shows one or two repeated subnets,
 that becomes its own attributed class instead of a residue. If it shows the
 firewall's own VLAN addresses, it is something else entirely, and the guess was
 wrong.
+
+### The DNS view is blocked, and it is my inventory's fault (2026-08-30)
+
+`configctl unbound qstats clients` answers **`Execute error`** on both boxes.
+That call is written in DESIGN §1 under "verified mechanics" and dated
+2026-08-29. It was read out of an actions file and never executed — a guess with
+a citation, which is worse than an admitted gap, and it sat there for a day
+looking checked.
+
+Corrected in place. Stage 11 (the DNS view, S12) does not get designed until the
+real call and its output shape have been seen on a box. Unbound is now recording
+on both firewalls, so the data exists; what is missing is how to read it.
+
+    cat /usr/local/opnsense/service/conf/actions.d/actions_unbound.conf
+
+is the same one command that settled NetFlow.

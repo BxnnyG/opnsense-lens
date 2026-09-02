@@ -41,6 +41,8 @@
 
 <script>
     $(document).ready(() => {
+        let plan = null;
+
         /*
          * Layout only. What a source IS -- ready, degraded, absent -- is decided
          * once in PHP (SourceReport), so that the next surface to show a source
@@ -102,6 +104,20 @@
                 $('#lensCoverage').show();
             }
 
+            /*
+             * The only thing on any Lens page that writes to the firewall's own
+             * configuration, and it lives here rather than on the Reporting page
+             * on purpose (§4.12): the views stay read-only, the Services page is
+             * where you connect things.
+             */
+            if (report.fix) {
+                plan = report.fix;
+                $('#lensFixTitle').text(plan.title);
+                $('#lensFix').show();
+            } else {
+                $('#lensFix').hide();
+            }
+
             const $ret = $('#lensRetention > tbody').empty();
             for (const row of (report.retention || [])) {
                 $ret.append($('<tr/>').append(cell(row.what)).append(cell(row.detail)));
@@ -118,6 +134,50 @@
         });
 
         /* what Lens itself has kept -- the only thing on this page that is ours */
+        $('#lensFixOpen').on('click', (event) => {
+            event.preventDefault();
+            if (!plan) {
+                return;
+            }
+
+            $('#lensFixWhat').text(plan.title);
+            $('#lensFixSetting').text(plan.setting);
+            $('#lensFixBefore').text(plan.before);
+            $('#lensFixAfter').text(plan.after);
+
+            const $costs = $('#lensFixCosts').empty();
+            for (const cost of plan.costs) {
+                $costs.append($('<li/>').text(cost));
+            }
+
+            $('#lensFixError').hide();
+            $('#lensFixDone').hide();
+            $('#lensFixApply').show().prop('disabled', false);
+            $('#lensFixDialog').modal('show');
+        });
+
+        $('#lensFixApply').on('click', function () {
+            $(this).prop('disabled', true);
+
+            /* no interfaces are sent: the server works out again what it
+               offered, so this cannot become a general NetFlow write */
+            ajaxCall('/api/lens/sources/applyFix', {}, (reply, fixStatus) => {
+                if (fixStatus !== 'success' || !reply || reply.status !== 'ok') {
+                    $('#lensFixError')
+                        .text((reply && reply.message) || '{{ lang._("Nothing was changed.") }}')
+                        .show();
+                    $('#lensFixApply').prop('disabled', false);
+                    return;
+                }
+
+                $('#lensFixApply').hide();
+                $('#lensFixDone').text(
+                    reply.result + ' \u2014 '
+                    + '{{ lang._("NetFlow has been restarted. Reload this page to see it.") }}'
+                ).show();
+            });
+        });
+
         ajaxGet('/api/lens/store/status', {}, (store, storeStatus) => {
             if (storeStatus !== 'success' || !store) {
                 return;
@@ -162,6 +222,53 @@
         </thead>
         <tbody></tbody>
     </table>
+
+    <div id="lensFix" class="alert alert-warning lens-block" style="display: none;">
+        <b id="lensFixTitle"></b>
+        &mdash; <a href="#" id="lensFixOpen">{{ lang._('see exactly what would change') }}</a>
+    </div>
+
+    <div class="modal" id="lensFixDialog" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title" id="lensFixWhat"></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="lensFixError" class="alert alert-danger" style="display: none;"></div>
+                    <div id="lensFixDone" class="alert alert-success" style="display: none;"></div>
+
+                    <p>{{ lang._('One setting changes:') }} <b id="lensFixSetting"></b></p>
+                    <table class="table table-condensed">
+                        <tbody>
+                            <tr>
+                                <td style="width: 6em;">{{ lang._('now') }}</td>
+                                <td id="lensFixBefore"></td>
+                            </tr>
+                            <tr>
+                                <td>{{ lang._('after') }}</td>
+                                <td id="lensFixAfter"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p>{{ lang._('What that costs:') }}</p>
+                    <ul id="lensFixCosts"></ul>
+
+                    <p class="text-muted">
+                        {{ lang._('Nothing else is touched, and the same page that owns this setting can undo it.') }}
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" data-dismiss="modal">{{ lang._('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" id="lensFixApply">
+                        {{ lang._('Change it') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="lensCoverage" class="lens-block" style="display: none;">
         <h3>{{ lang._('Traffic capture coverage') }}</h3>

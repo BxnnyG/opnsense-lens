@@ -345,8 +345,23 @@ operator did not press (§4.5).
 `configctl netflow {status,collect.*,aggregate.*,cache.stats,flush}`; aggregate
 databases live in `/var/netflow`, raw flows in `/var/log/flowd.log`. Unbound
 reporting is `//OPNsense/unboundplus/general/stats`, its store is
-`/var/unbound/data/unbound.duckdb` (DuckDB, not SQLite), read through
-`configctl unbound qstats {rolling,clients,totals,details,query}`.
+`/var/unbound/data/unbound.duckdb` (DuckDB, not SQLite).
+~~read through `configctl unbound qstats {rolling,clients,totals,details,query}`~~
+— **corrected 2026-08-30: that line was read out of an actions file and never
+executed. `configctl unbound qstats clients` answers `Execute error` on both of
+the operator's boxes.** The DNS view (S12) does not get designed until the real
+call and its output shape have been seen. An inventory entry that was never run
+is a guess with a citation, which is worse than an admitted gap — this one sat
+in the document for a day looking verified.
+
+**NetFlow service control, verified 2026-08-30 by reading
+`actions_netflow.conf` on both boxes:** `netflow {start,stop,restart,status}`
+drive `/usr/local/etc/rc.d/netflow`; `collect.*` drive `flowd`; `aggregate.*`
+drive `flowd_aggregate`, plus `aggregate.repair`. Two readers Lens does not use
+yet are worth remembering: `aggregate.top` runs `get_top_usage.py` with
+`--key_fields --value_field --filter --max_hits`, and `aggregate.export` runs
+`export_details.py`. `aggregate.fetch` takes a sixth argument, `--sample`, which
+Lens's own call omits and which is evidently optional.
 **Open — and sharper than it first looked:** which interfaces to propose for
 NetFlow capture. The operator's own box (confirmed 2026-08-30) has **nine
 routed segments** — MGNT, IPMI, HOME, IOT, GUEST, SERVER, NAS and LAB as VLANs
@@ -1097,3 +1112,32 @@ that can never go green — applied to a figure that is always alarming at first
 **Consequences:** every derived figure in S6 and S8 states the window it needed
 and declines outside it. The baseline in S8 already does (21 days); this is the
 same rule at a smaller scale, and the two should read alike.
+
+### §4.35 — The browser asks for the offer, not for the change (2026-08-30)
+**Question:** the operator asked for a one-click fix beside each "needs
+attention", with a dialogue naming what would change. That is §4.5's permitted
+class of write, arrived at from the other end — not a setup wizard, a button
+next to the finding that provoked it. How is it built so it stays that narrow?
+**Decision:** three properties, in order of importance.
+1. **The plan is recomputed server-side at apply time, and the request carries
+   no values at all.** The browser posts an empty body meaning "do the thing you
+   offered". If it posted the interface list, the endpoint would not be a fix
+   button; it would be an unlabelled NetFlow configuration API reachable by
+   anyone who can open the page.
+2. **The preview names the setting in the words of the page that owns it** —
+   "Reporting: NetFlow, under Listening interfaces" — with the value before and
+   after, and every cost stated before the button, not after. The operator has
+   to be able to find it again and undo it there.
+3. **It lives on Services: Lens, not on the Reporting page** (§4.12). The views
+   stay read-only; the Services page is where things get connected.
+**Rationale:** the risk §4.5 named was "a reporting tool that reconfigures a
+firewall behind someone's back". A button is exactly where that creep would
+start, and the three properties above are what make it a button rather than a
+door.
+**Found while building it:** the plan offered "start keeping what is captured"
+on a box where nothing was captured. Pressing it would have changed a setting,
+reported success, and left the page exactly as wrong as before — the worst
+outcome a fix button has. It now declines when the change would produce no data.
+**Consequences:** every future fix follows the same shape: a pure planner that
+can be tested without a firewall, a preview built from it, and an apply that
+re-derives the plan and accepts nothing from the caller.
