@@ -23,7 +23,7 @@ this one inherits, and 23 stages of experience with it.
 | 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
 | 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.5_2`; isc-dhcp names, icons, search and labels all confirmed on both boxes |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
-| 8 | **The device, hour by hour** — click a name for its own chart ([plan](plans/stage-08-device-detail.md)) | S5 | 🔨 built 2026-08-30 · **awaiting router test** |
+| 8 | **The device, hour by hour** — click a name for its own chart ([plan](plans/stage-08-device-detail.md)) | S5 | 🔨 built 2026-08-30 · with grouping (BACKLOG #19, §4.33) · **awaiting router test** |
 | 9 | Reporting overview, first version | S6 | ⏳ |
 | 10 | Dashboard widgets | S7 | ⏳ |
 | 11 | DNS view | S12 | ⏳ |
@@ -57,7 +57,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 6 | The operator's own labels — the promise §4.29 made | S1 | 🔨 built 2026-08-30 |
 | 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | ✅ router-tested 2026-08-30 |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | ⏳ |
-| — | Group the hypervisor's guests (BACKLOG #19) | S1 | ⏳ |
+| — | Group the hypervisor's guests (BACKLOG #19) | S1 | 🔨 built 2026-08-30 (§4.33) |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |

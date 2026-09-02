@@ -119,7 +119,9 @@ Filtern."* Recorded as given, ordered by my judgement.
   is the wizard from §4.13 and stage 3, but arrived at from the other end: not a
   setup flow, a fix button next to the finding that provoked it. Crosses the
   read-only line (§4.9), so it is an explicit, per-action, confirmed write.
-- **#19 — Group the hypervisor.** Box 2 shows ~30 `Proxmox Server Solutions
+- **#19 — Group the hypervisor.** ✅ built 2026-08-30 in `0.6_2` (§4.33); the
+  treemap remains parked.
+  <br>Original: Box 2 shows ~30 `Proxmox Server Solutions
   GmbH` guests in a flat list. They are one machine's worth of virtual NICs and
   should collapse into a group that can be expanded, either by vendor OUI or by
   a tag the operator sets. A treemap was suggested and is the right shape for

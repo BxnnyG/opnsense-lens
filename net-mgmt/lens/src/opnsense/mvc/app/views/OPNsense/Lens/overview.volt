@@ -85,6 +85,7 @@
     .lens-key.lens-chart-up { background: #d94f00; }
     .lens-key.lens-chart-down { background: #7a8b99; }
     a.lens-name { color: inherit; }
+    tr.lens-group > td { background: rgba(128, 128, 128, 0.08); }
 </style>
 
 <script>
@@ -133,7 +134,9 @@
         let devices = [];
         let segments = new Set();
         let kinds = {};
+        let groups = [];
         let editing = null;
+        let opened = new Set();
 
         const render = () => {
             const needle = ($('#lensSearch').val() || '').toLowerCase().trim();
@@ -154,11 +157,44 @@
 
             /* the bar is relative to what is on screen, so filtering to one
                segment rescales it instead of leaving every bar a sliver */
-            const largest = shown.reduce((max, d) => Math.max(max, d.octets), 0);
+            let largest = shown.reduce((max, d) => Math.max(max, d.octets), 0);
+
+            /*
+             * Grouping is off while a search is running. Search exists to find
+             * one device; a group that hides the match would undo the thing the
+             * box is for. Filtering by segment is different -- it narrows, it
+             * does not look for something -- so groups survive it.
+             */
+            const grouping = $('#lensGroup').is(':checked') && !needle;
+            const collapsed = new Map();
+            if (grouping) {
+                for (const group of groups) {
+                    if (!opened.has(group.key)) {
+                        collapsed.set(group.key, group);
+                    }
+                }
+            }
+
+            for (const group of collapsed.values()) {
+                const total = shown
+                    .filter(device => device.group === group.key)
+                    .reduce((sum, device) => sum + device.octets, 0);
+                largest = Math.max(largest, total);
+            }
 
             const $body = $('#lensDevices > tbody').empty();
+            const drawn = new Set();
+
             for (const device of shown) {
-                $body.append(deviceRow(device, largest));
+                const group = collapsed.get(device.group);
+                if (!group) {
+                    $body.append(deviceRow(device, largest));
+                    continue;
+                }
+                if (!drawn.has(group.key)) {
+                    drawn.add(group.key);
+                    $body.append(groupRow(group, largest, shown));
+                }
             }
 
             $('#lensShowing').text(
@@ -167,6 +203,46 @@
                     : shown.length + ' {{ lang._("of") }} ' + devices.length
             );
             $('#lensEmpty').toggle(shown.length === 0 && devices.length > 0);
+        };
+
+        const groupRow = (group, largest, shown) => {
+            /* what is in this group *after* filtering, not what the report
+               counted: a segment filter must not leave a group claiming
+               members that are no longer on screen */
+            const members = shown.filter(device => device.group === group.key);
+            const octets = members.reduce((sum, device) => sum + device.octets, 0);
+            const here = members.filter(device => device.here).length;
+
+            const $name = $('<td/>');
+            $name.append($('<i/>').addClass('fa fa-fw lens-icon fa-caret-right'));
+            $name.append($('<a/>').addClass('lens-name').attr('href', '#')
+                .text(group.label)
+                .on('click', function (event) {
+                    event.preventDefault();
+                    opened.add(group.key);
+                    render();
+                }));
+            $name.append($('<span/>').addClass('lens-mac').text(
+                members.length + ' {{ lang._("devices, grouped by") }} ' + group.by
+            ));
+
+            const $traffic = $('<td/>').addClass('lens-traffic');
+            if (octets) {
+                $traffic.append($('<span/>').addClass('lens-bar').css(
+                    'width', largest ? Math.max(2, (octets / largest) * 100) + '%' : 0
+                ));
+                $traffic.append($('<span/>').addClass('lens-bytes').text(bytes(octets)));
+            }
+
+            return $('<tr/>').addClass('lens-group')
+                .append($name)
+                .append($traffic)
+                .append($('<td/>'))
+                .append($('<td/>').append($('<span/>').addClass(here ? 'lens-here' : '')
+                    .text(here + ' {{ lang._("here now") }}')))
+                .append($('<td/>'))
+                .append($('<td/>').addClass('lens-cause')
+                    .text('{{ lang._("Click the name to open this group.") }}'));
         };
 
         const deviceRow = (device, largest) => {
@@ -452,6 +528,8 @@
 
             devices = report.devices;
             kinds = report.kinds || {};
+            groups = report.groups || [];
+            $('#lensGroupWrap').toggle(groups.length > 0);
             $('#lensDevicesHeadline').text(report.headline || '');
 
             if (report.note) {
@@ -502,6 +580,7 @@
         });
         $('#lensSearch').on('input', render);
         $('#lensOnlyTraffic').on('change', render);
+        $('#lensGroup').on('change', render);
         $('#lensEditSave').on('click', saveLabel);
 
         ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
@@ -589,6 +668,9 @@
                placeholder="{{ lang._('Search a name, address, MAC or vendor') }}">
         <label style="font-weight: normal; margin: 0 0 0 10px;">
             <input type="checkbox" id="lensOnlyTraffic"> {{ lang._('only devices with traffic') }}
+        </label>
+        <label id="lensGroupWrap" style="font-weight: normal; margin: 0 0 0 10px; display: none;">
+            <input type="checkbox" id="lensGroup" checked> {{ lang._('group similar devices') }}
         </label>
         <span id="lensShowing"></span>
         <div id="lensSegments"></div>

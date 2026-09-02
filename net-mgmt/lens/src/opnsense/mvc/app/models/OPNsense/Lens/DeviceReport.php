@@ -102,6 +102,7 @@ class DeviceReport
             'note' => self::note($observedAt, $now),
             'accounting' => self::accounting($traffic, $measured),
             'kinds' => DeviceType::choices(),
+            'groups' => self::groups($rows),
         ];
     }
 
@@ -243,6 +244,7 @@ class DeviceReport
             'is_local' => !empty($device['is_local']),
             'kind' => ($chosenKind !== '' ? DeviceType::chosen($chosenKind) : null)
                 ?? DeviceType::of($vendor, $hostname, !empty($device['is_local'])),
+            'group' => self::groupKey($tags, $vendor, !empty($device['is_local'])),
             /* everything a search box should match, assembled once here rather
                than reassembled in the browser on every keystroke */
             'haystack' => strtolower(implode(' ', array_merge(
@@ -371,6 +373,81 @@ class DeviceReport
         }
 
         return null;
+    }
+
+    /** below this, collapsing a set costs a click and saves nothing */
+    public const GROUP_FROM = 3;
+
+    /**
+     * What this device would be filed under, if anything.
+     *
+     * The operator's first tag wins, because a tag is a statement of intent and
+     * a vendor string is an accident of procurement. Failing that, the hardware
+     * vendor — box 2 lists thirty rows reading `Proxmox Server Solutions GmbH`,
+     * which is one hypervisor's worth of virtual NICs and reads as thirty
+     * machines. The firewall is never grouped: it is one machine and it is
+     * already labelled as itself.
+     */
+    private static function groupKey(array $tags, ?string $vendor, bool $isLocal): ?string
+    {
+        if ($isLocal) {
+            return null;
+        }
+
+        if ($tags !== []) {
+            return 'tag:' . $tags[0];
+        }
+
+        return $vendor !== null && $vendor !== '' ? 'vendor:' . $vendor : null;
+    }
+
+    /**
+     * The groups worth offering, with what each is worth.
+     *
+     * A group of one or two is not a group. Offering it would trade a row the
+     * reader can see for a row they have to open, which is the opposite of what
+     * this is for.
+     */
+    private static function groups(array $rows): array
+    {
+        $groups = [];
+        foreach ($rows as $row) {
+            if ($row['group'] === null) {
+                continue;
+            }
+
+            if (!isset($groups[$row['group']])) {
+                list($kind, $label) = explode(':', $row['group'], 2);
+                $groups[$row['group']] = [
+                    'key' => $row['group'],
+                    'label' => $label,
+                    'by' => $kind === 'tag' ? gettext('your tag') : gettext('hardware vendor'),
+                    'icon' => $row['kind']['icon'],
+                    'count' => 0,
+                    'here' => 0,
+                    'octets' => 0,
+                ];
+            }
+
+            $groups[$row['group']]['count']++;
+            $groups[$row['group']]['here'] += $row['here'] ? 1 : 0;
+            $groups[$row['group']]['octets'] += $row['octets'];
+        }
+
+        $offered = [];
+        foreach ($groups as $group) {
+            if ($group['count'] < self::GROUP_FROM) {
+                continue;
+            }
+            $group['traffic'] = $group['octets'] > 0 ? Bytes::human($group['octets']) : null;
+            $offered[] = $group;
+        }
+
+        usort($offered, function ($left, $right) {
+            return $right['octets'] <=> $left['octets'];
+        });
+
+        return $offered;
     }
 
     /**

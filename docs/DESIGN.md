@@ -1054,3 +1054,27 @@ into a rule about queries rather than about classes.
 an hour two devices shared, which must be absent from both. Any future reader of
 per-device traffic — the wallboard, a widget, an export — wraps that constant or
 does not ship.
+
+### §4.33 — Grouping narrows; search finds. They do not mix (2026-08-30)
+**Question:** thirty rows reading `Proxmox Server Solutions GmbH` are one
+hypervisor's worth of virtual NICs presented as thirty machines, and they push
+everything else off box 2's screen. Collapsing them is obviously right. What is
+not obvious is what happens when the reader then types into the search box.
+**Decision:** **grouping is switched off entirely while a search is running.**
+Segment chips keep it — they *narrow* a list, which is compatible with folding
+it — but search *looks for one thing*, and a group that hides the match would
+undo the feature it sits next to.
+**Also decided, and smaller:** a set of fewer than three is not a group; an
+operator's first tag beats the vendor, because a tag is a statement of intent and
+a vendor string is an accident of procurement; the firewall is never grouped
+under its chip vendor; and a collapsed group's total is recomputed from the
+members still *on screen*, so a segment filter cannot leave a group claiming
+devices that are no longer shown.
+**Rationale:** every one of these is the same principle in a different place —
+a surface must not assert something the data behind it no longer supports. A
+group counting filtered-out members, or hiding a searched-for device, is exactly
+that, and it is the kind of wrongness a reader never catches because the screen
+looks orderly.
+**Consequences:** the group totals are computed in the view because they depend
+on the filter state, which lives there; what may be grouped at all, and under
+which label, is decided in `DeviceReport` where it can be tested.

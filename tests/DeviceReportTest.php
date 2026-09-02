@@ -414,6 +414,112 @@ class DeviceReportTest extends TestCase
         $this->assertSame('something_later', $accounting['unexplained'][0]['reason']);
     }
 
+    // ----------------------------------------------------- grouping the herd
+
+    private function herd(int $count, string $mac_prefix = 'bc:24:11:00:00:'): array
+    {
+        $devices = [];
+        for ($index = 1; $index <= $count; $index++) {
+            $devices[] = $this->given([
+                'mac' => $mac_prefix . sprintf('%02x', $index),
+                'addresses' => [['address' => '10.0.25.' . $index, 'interface' => 'SERVER',
+                                 'first_seen' => 0, 'last_seen' => self::OBSERVED]],
+            ]);
+        }
+
+        return $devices;
+    }
+
+    public function testThirtyRowsOfOneVendorBecomeOneGroup()
+    {
+        /* box 2 lists thirty "Proxmox Server Solutions GmbH" -- one hypervisor's
+           worth of virtual NICs, reading as thirty machines */
+        $report = DeviceReport::describe(
+            $this->herd(30), ['BC2411' => 'Proxmox Server Solutions GmbH'], [],
+            self::OBSERVED, self::NOW
+        );
+
+        $this->assertCount(1, $report['groups']);
+        $this->assertSame('Proxmox Server Solutions GmbH', $report['groups'][0]['label']);
+        $this->assertSame(30, $report['groups'][0]['count']);
+        $this->assertSame('hardware vendor', $report['groups'][0]['by']);
+    }
+
+    public function testTwoOfAKindIsNotAGroup()
+    {
+        /* collapsing it trades a row you can see for a row you have to open */
+        $report = DeviceReport::describe(
+            $this->herd(2), ['BC2411' => 'Proxmox Server Solutions GmbH'], [],
+            self::OBSERVED, self::NOW
+        );
+
+        $this->assertSame([], $report['groups']);
+    }
+
+    public function testATagTheOperatorSetBeatsTheVendorItCameWith()
+    {
+        /* a tag is a statement of intent; a vendor string is an accident of
+           procurement */
+        $devices = $this->herd(3);
+        foreach ($devices as $index => $device) {
+            $devices[$index]['label'] = ['tags' => 'hypervisor, production'];
+        }
+
+        $report = DeviceReport::describe(
+            $devices, ['BC2411' => 'Proxmox Server Solutions GmbH'], [],
+            self::OBSERVED, self::NOW
+        );
+
+        $this->assertSame('hypervisor', $report['groups'][0]['label']);
+        $this->assertSame('your tag', $report['groups'][0]['by']);
+    }
+
+    public function testTheFirewallIsNeverFiledUnderItsChipVendor()
+    {
+        $devices = $this->herd(3);
+        $devices[0]['is_local'] = true;
+
+        $report = DeviceReport::describe(
+            $devices, ['BC2411' => 'Proxmox Server Solutions GmbH'], [],
+            self::OBSERVED, self::NOW
+        );
+
+        $ungrouped = array_values(array_filter($report['devices'], function ($device) {
+            return $device['group'] === null;
+        }));
+
+        $this->assertCount(1, $ungrouped);
+        $this->assertTrue($ungrouped[0]['is_local']);
+        $this->assertSame([], $report['groups'], 'and the remaining two are not a group');
+    }
+
+    public function testADeviceWithNoVendorAndNoTagStaysOnItsOwn()
+    {
+        $report = $this->describe($this->herd(3, 'ff:ee:dd:00:00:'));
+
+        $this->assertSame([], $report['groups']);
+        foreach ($report['devices'] as $device) {
+            $this->assertNull($device['group']);
+        }
+    }
+
+    public function testGroupsAreOfferedHeaviestFirst()
+    {
+        $devices = array_merge(
+            $this->herd(3, 'bc:24:11:00:00:'),
+            $this->herd(3, '2c:bc:bb:00:00:')
+        );
+
+        $report = DeviceReport::describe($devices, [
+            'BC2411' => 'Proxmox Server Solutions GmbH',
+            '2CBCBB' => 'Espressif Inc.',
+        ], [
+            'devices' => ['2c:bc:bb:00:00:01' => ['in' => ['octets' => 9999]]],
+        ], self::OBSERVED, self::NOW);
+
+        $this->assertSame('Espressif Inc.', $report['groups'][0]['label']);
+    }
+
     // ----------------------------------------------------- order and robustness
 
     public function testDevicesThatAreHereComeFirst()
