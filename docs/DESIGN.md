@@ -1078,3 +1078,22 @@ looks orderly.
 **Consequences:** the group totals are computed in the view because they depend
 on the filter state, which lives there; what may be grouped at all, and under
 which label, is decided in `DeviceReport` where it can be tested.
+
+### §4.34 — "New" is a claim about the network, not about the install (2026-08-30)
+**Question:** the overview strip should say how many devices appeared for the
+first time in the last 24 hours. That is the one line on the page with real
+security value — a device nobody put there is exactly what an operator wants to
+be told about. On a firewall where Lens was installed an hour ago, the answer is
+*all of them*.
+**Decision:** the count is withheld until Lens has been watching for at least
+**two days**, and until then the strip says how long it *has* been watching
+instead. Two days is the first point at which "appeared yesterday" compares a
+window against a history longer than itself.
+**Rationale:** a figure that is technically correct and practically meaningless
+does more damage than a missing one, because it looks like the real thing. The
+first week of "12 new devices!" teaches the reader that the number is noise, and
+the week it finally matters they will not look. This is §4.20's rule — a warning
+that can never go green — applied to a figure that is always alarming at first.
+**Consequences:** every derived figure in S6 and S8 states the window it needed
+and declines outside it. The baseline in S8 already does (21 days); this is the
+same rule at a smaller scale, and the two should read alike.

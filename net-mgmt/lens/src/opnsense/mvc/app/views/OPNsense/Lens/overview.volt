@@ -86,6 +86,10 @@
     .lens-key.lens-chart-down { background: #7a8b99; }
     a.lens-name { color: inherit; }
     tr.lens-group > td { background: rgba(128, 128, 128, 0.08); }
+    #lensSummary { display: flex; flex-wrap: wrap; gap: 26px; margin: 14px 0 4px 0; }
+    .lens-stat { min-width: 9em; }
+    .lens-figure { font-size: 22px; font-weight: 600; line-height: 1.1; }
+    .lens-caption { color: #999; font-size: 90%; max-width: 22em; }
 </style>
 
 <script>
@@ -493,6 +497,56 @@
             });
         };
 
+        const drawSummary = (summary) => {
+            if (!summary.known) {
+                return;
+            }
+
+            const cell = (figure, caption, warn) => $('<div/>').addClass('lens-stat')
+                .append($('<div/>').addClass('lens-figure' + (warn ? ' lens-degraded' : ''))
+                    .text(figure))
+                .append($('<div/>').addClass('lens-caption').text(caption));
+
+            const $strip = $('#lensSummary').empty();
+
+            $strip.append(cell(
+                summary.here + ' / ' + summary.known,
+                '{{ lang._("devices here now, of all Lens knows") }}'));
+
+            $strip.append(cell(
+                summary.moved,
+                '{{ lang._("attributed to a device in 24 hours") }}'));
+
+            if (summary.busiest) {
+                $strip.append(cell(summary.busiest.what, summary.busiest.name));
+            }
+
+            /* "new" is only a statement about the network once Lens has been
+               watching longer than the window it is comparing against */
+            if (!summary.new_yet) {
+                $strip.append(cell(
+                    summary.watching_for,
+                    '{{ lang._("watching so far - too short to call anything new") }}'));
+            } else if (summary.new.length) {
+                $strip.append(cell(
+                    summary.new.length,
+                    '{{ lang._("seen for the first time in 24 hours") }}: '
+                        + summary.new.slice(0, 3).join(', ')
+                        + (summary.new.length > 3 ? ', ...' : ''),
+                    true));
+            } else {
+                $strip.append(cell(
+                    '0', '{{ lang._("devices new in the last 24 hours") }}'));
+            }
+
+            if (summary.away) {
+                $strip.append(cell(
+                    summary.away, '{{ lang._("not seen for over a day") }}'));
+            }
+
+            $strip.show();
+        };
+
         const drawSegments = () => {
             const counts = new Map();
             for (const device of devices) {
@@ -528,6 +582,7 @@
 
             devices = report.devices;
             kinds = report.kinds || {};
+            drawSummary(report.summary || {});
             groups = report.groups || [];
             $('#lensGroupWrap').toggle(groups.length > 0);
             $('#lensDevicesHeadline').text(report.headline || '');
@@ -573,8 +628,8 @@
         load();
         $('#lensUnexplainedToggle').on('click', function (event) {
             event.preventDefault();
-            $('#lensUnexplained').toggle();
-            $(this).text($('#lensUnexplained').is(':visible')
+            $('#lensUnexplainedList').toggle();
+            $(this).text($('#lensUnexplainedList').is(':visible')
                 ? '{{ lang._("Hide the addresses") }}'
                 : '{{ lang._("Show which addresses those are") }}');
         });
@@ -660,6 +715,8 @@
 <div id="lensDevicesBlock" style="display: none;">
     <h3>{{ lang._('Devices') }}</h3>
     <p id="lensDevicesHeadline"></p>
+    <div id="lensSummary" style="display: none;"></div>
+
     <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
 
     <div id="lensControls" style="display: none;">
@@ -811,8 +868,8 @@
             <p>
                 <a href="#" id="lensUnexplainedToggle">{{ lang._('Show which addresses those are') }}</a>
             </p>
-            <table id="lensUnexplained" class="table table-condensed table-striped"
-                   style="display: none;">
+            <div id="lensUnexplainedList" style="display: none;">
+            <table id="lensUnexplained" class="table table-condensed table-striped">
                 <thead>
                     <tr>
                         <th style="width: 9em;">{{ lang._('Bytes') }}</th>
@@ -827,6 +884,7 @@
             <p class="text-muted">
                 {{ lang._('The heaviest twenty-five, biggest first. One repeated subnet here usually means a network routed through this firewall rather than attached to it - those addresses have no MAC on any of its segments and never will.') }}
             </p>
+            </div>
         </div>
     </div>
 </div>

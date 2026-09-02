@@ -103,6 +103,7 @@ class DeviceReport
             'accounting' => self::accounting($traffic, $measured),
             'kinds' => DeviceType::choices(),
             'groups' => self::groups($rows),
+            'summary' => self::summary($rows, $measured, $now),
         ];
     }
 
@@ -373,6 +374,67 @@ class DeviceReport
         }
 
         return null;
+    }
+
+    /** a day's absence is the shortest gap worth calling one */
+    public const AWAY_AFTER = 86400;
+
+    /**
+     * How long Lens must have been watching before "new" means anything.
+     *
+     * On a box installed an hour ago every device is new, which is true and
+     * useless. Two days is the first point at which "appeared yesterday" is a
+     * statement about the network rather than about the install date.
+     */
+    public const NEW_NEEDS = 2 * 86400;
+
+    /**
+     * The four sentences worth reading before the table.
+     *
+     * Every figure here comes from the rows below it, so the strip and the list
+     * cannot disagree -- the same reason §4.32 gave for sharing one query.
+     */
+    private static function summary(array $rows, int $measured, int $now): array
+    {
+        if ($rows === []) {
+            return ['known' => 0, 'watching_for' => null, 'new' => [], 'away' => 0];
+        }
+
+        $earliest = $now;
+        $new = [];
+        $away = 0;
+
+        foreach ($rows as $row) {
+            $earliest = min($earliest, $row['first_seen'] ?: $now);
+
+            if ($row['first_seen'] > 0 && $now - $row['first_seen'] < self::AWAY_AFTER) {
+                $new[] = $row['name'];
+            }
+            if ($row['last_seen'] > 0 && $now - $row['last_seen'] >= self::AWAY_AFTER) {
+                $away++;
+            }
+        }
+
+        $watchingFor = $now - $earliest;
+        $heaviest = $rows[0]['octets'] > 0 ? $rows[0] : null;
+
+        return [
+            'known' => count($rows),
+            'here' => count(array_filter($rows, function ($row) {
+                return $row['here'];
+            })),
+            'watching_for' => Duration::span($watchingFor),
+            /* below the threshold the answer is "everything", which says
+               something about the install and nothing about the network */
+            'new' => $watchingFor >= self::NEW_NEEDS ? $new : [],
+            'new_yet' => $watchingFor >= self::NEW_NEEDS,
+            'away' => $away,
+            'moved' => Bytes::human($measured),
+            'busiest' => $heaviest === null ? null : [
+                'name' => $heaviest['name'],
+                'what' => Bytes::human($heaviest['octets']),
+            ],
+        ];
     }
 
     /** below this, collapsing a set costs a click and saves nothing */

@@ -414,6 +414,72 @@ class DeviceReportTest extends TestCase
         $this->assertSame('something_later', $accounting['unexplained'][0]['reason']);
     }
 
+    // ----------------------------------------------------- the four sentences
+
+    public function testANewDeviceIsOnlyNewOnceLensHasWatchedLongerThanADay()
+    {
+        /*
+         * On a box installed an hour ago every device appeared today. True, and
+         * useless -- it is a statement about the install, not about the network.
+         */
+        $fresh = $this->describe([$this->given(['first_seen' => self::NOW - 3600])]);
+
+        $this->assertFalse($fresh['summary']['new_yet']);
+        $this->assertSame([], $fresh['summary']['new']);
+        $this->assertNotNull($fresh['summary']['watching_for']);
+    }
+
+    public function testOnceItHasWatchedLongEnoughANewDeviceIsNamed()
+    {
+        $report = $this->describe([
+            $this->given(['mac' => 'aa:aa:aa:00:00:01', 'first_seen' => self::NOW - 10 * 86400]),
+            $this->given(['mac' => 'aa:aa:aa:00:00:02', 'first_seen' => self::NOW - 3600,
+                          'label' => ['name' => 'Unknown laptop']]),
+        ]);
+
+        $this->assertTrue($report['summary']['new_yet']);
+        $this->assertSame(['Unknown laptop'], $report['summary']['new']);
+    }
+
+    public function testADeviceGoneForOverADayIsCounted()
+    {
+        $report = $this->describe([
+            $this->given(['first_seen' => self::NOW - 10 * 86400,
+                          'last_seen' => self::NOW - 3 * 86400]),
+        ]);
+
+        $this->assertSame(1, $report['summary']['away']);
+    }
+
+    public function testTheBusiestDeviceInTheStripIsTheTopRowOfTheTable()
+    {
+        /* the strip is computed from the rows below it, so the two cannot
+           disagree -- the same reason 4.32 gave for sharing one query */
+        $report = $this->describe([
+            $this->given(['mac' => 'aa:aa:aa:00:00:01']),
+            $this->given(['mac' => '42:c5:38:e1:54:c7']),
+        ], self::OBSERVED, self::TRAFFIC);
+
+        $this->assertSame($report['devices'][0]['name'], $report['summary']['busiest']['name']);
+        $this->assertSame('10 MB', $report['summary']['busiest']['what']);
+    }
+
+    public function testAQuietNetworkHasNoBusiestDeviceRatherThanAnArbitraryOne()
+    {
+        $report = $this->describe([$this->given()]);
+
+        $this->assertNull($report['summary']['busiest']);
+        $this->assertSame('0 B', $report['summary']['moved']);
+    }
+
+    public function testAnEmptyStoreProducesASummaryAndNotAnError()
+    {
+        $summary = $this->describe([])['summary'];
+
+        $this->assertSame(0, $summary['known']);
+        $this->assertNull($summary['watching_for']);
+    }
+
     // ----------------------------------------------------- grouping the herd
 
     private function herd(int $count, string $mac_prefix = 'bc:24:11:00:00:'): array

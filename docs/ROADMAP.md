@@ -24,7 +24,7 @@ this one inherits, and 23 stages of experience with it.
 | 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.5_2`; isc-dhcp names, icons, search and labels all confirmed on both boxes |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | **The device, hour by hour** — click a name for its own chart ([plan](plans/stage-08-device-detail.md)) | S5 | 🔨 built 2026-08-30 · with grouping (BACKLOG #19, §4.33) · **awaiting router test** |
-| 9 | Reporting overview, first version | S6 | ⏳ |
+| 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 · **awaiting router test** |
 | 10 | Dashboard widgets | S7 | ⏳ |
 | 11 | DNS view | S12 | ⏳ |
 | 12 | Baseline, learning period visible, then verdicts | S8 | ⏳ |
