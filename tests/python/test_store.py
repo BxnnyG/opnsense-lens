@@ -148,6 +148,61 @@ class StoreTest(unittest.TestCase):
 
         self.assertEqual('NAS', self.store.devices()[0]['label']['name'])
 
+    def observation(self, mac, address, interface, first_seen, last_seen):
+        self.store.db.execute(
+            """INSERT INTO address_observation
+               (mac, address, interface, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)""",
+            (mac, address, interface, first_seen, last_seen),
+        )
+
+    def test_two_devices_holding_one_address_at_once_is_counted_as_an_overlap(self):
+        """the measurement that would overturn keying identity on the MAC"""
+        self.observation('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', 1000, 5000)
+        self.observation('aa:bb:cc:dd:ee:02', '10.0.0.5', 'em0', 4000, 9000)
+        self.store.commit()
+
+        self.assertEqual(1, self.store.identity_health(9000)['overlaps'])
+
+    def test_an_address_handed_on_cleanly_is_reuse_but_not_an_overlap(self):
+        """a lease that moved is normal; two devices holding it at once is not"""
+        self.observation('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', 1000, 5000)
+        self.observation('aa:bb:cc:dd:ee:02', '10.0.0.5', 'em0', 6000, 9000)
+        self.store.commit()
+
+        health = self.store.identity_health(9000)
+
+        self.assertEqual(0, health['overlaps'])
+        self.assertEqual(1, health['reused'])
+
+    def test_the_same_address_on_two_segments_is_neither(self):
+        self.observation('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', 1000, 9000)
+        self.observation('aa:bb:cc:dd:ee:02', '10.0.0.5', 'em1', 1000, 9000)
+        self.store.commit()
+
+        health = self.store.identity_health(9000)
+
+        self.assertEqual(0, health['overlaps'])
+        self.assertEqual(0, health['reused'])
+
+    def test_a_device_seen_briefly_is_counted_as_fleeting(self):
+        self.store.see_device('aa:bb:cc:dd:ee:01', 1000, randomised=True, is_local=False)
+        self.store.see_device('aa:bb:cc:dd:ee:02', 1000, randomised=False, is_local=False)
+        self.store.see_device('aa:bb:cc:dd:ee:02', 90000, randomised=False, is_local=False)
+        self.store.commit()
+
+        health = self.store.identity_health(90000)
+
+        self.assertEqual(2, health['devices'])
+        self.assertEqual(1, health['randomised'])
+        self.assertEqual(1, health['fleeting'])
+
+    def test_identity_health_on_an_empty_store_answers_zeroes_not_nulls(self):
+        health = self.store.identity_health(1000)
+
+        self.assertEqual(0, health['devices'])
+        self.assertEqual(0, health['overlaps'])
+        self.assertIsNone(health['watching_since'])
+
     def test_buckets_are_stored_once_and_the_watermark_only_moves_forward(self):
         rows = [(1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3),
                 (1787994000, 'vtnet1_vlan20', '10.10.20.115', 'in', 300, 5)]

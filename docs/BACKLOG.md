@@ -77,7 +77,8 @@ Nothing. There is no code.
 - **#3 — ~~Decide identity against real observations~~ ✅ decided 2026-08-30
   (§4.17): keyed on MAC.** Ten hours of data: 13 MACs, 2 randomised, zero
   address reuse, zero fragmentation. Provisional — **re-read the observation log
-  on 2026-09-06** before S1's UI is built. A quiet Saturday night is not a week.
+  continuously** — done 2026-09-10 as `IdentityHealth` (§4.36), because a date
+  in a roadmap fires when convenient and this one was read four days late.
 - **#4 — Confirm or correct the two marked assumptions in
   [VISION.md](VISION.md)** — that the non-technical household member never opens
   the interface, and that multi-site is out of scope. Both shape priorities;

@@ -300,6 +300,57 @@ class Store:
         )
         return 'saved'
 
+    def identity_health(self, now):
+        """
+        Whether keying identity on the MAC address is still holding (§4.17).
+
+        Four measurements, and the third is the one that decides it:
+
+        - how many devices, and how many present a randomised MAC
+        - how long there has been anything to measure
+        - **overlaps**: an (address, interface) two devices held at the same
+          time. Non-zero means an address genuinely changed hands mid-window,
+          which the attribution refuses to split and which is the failure
+          MAC-keying was chosen to avoid
+        - **fleeting**: devices seen for under an hour in total. Randomisation
+          fragmenting one phone into many looks exactly like this, arriving in a
+          steady trickle of short-lived randomised entries
+        """
+        def one(sql, args=()):
+            row = self.db.execute(sql, args).fetchone()
+            return (row[0] if row else 0) or 0
+
+        week = now - 7 * 86400
+        earliest = one("SELECT min(first_seen) FROM device")
+
+        return {
+            'devices': one("SELECT count(*) FROM device"),
+            'randomised': one("SELECT count(*) FROM device WHERE randomised = 1"),
+            'watching_since': earliest or None,
+            'appeared_this_week': one(
+                "SELECT count(*) FROM device WHERE first_seen >= ?", (week,)),
+            'appeared_this_week_randomised': one(
+                "SELECT count(*) FROM device WHERE first_seen >= ? AND randomised = 1",
+                (week,)),
+            'fleeting': one(
+                "SELECT count(*) FROM device WHERE last_seen - first_seen < 3600"),
+            'overlaps': one(
+                """SELECT count(*) FROM (
+                       SELECT DISTINCT a.address, a.interface
+                       FROM address_observation a
+                       JOIN address_observation b
+                         ON a.address = b.address AND a.interface = b.interface
+                        AND a.mac < b.mac
+                        AND a.first_seen <= b.last_seen
+                        AND b.first_seen <= a.last_seen
+                   )"""),
+            'reused': one(
+                """SELECT count(*) FROM (
+                       SELECT address, interface FROM address_observation
+                       GROUP BY address, interface HAVING count(DISTINCT mac) > 1
+                   )"""),
+        }
+
     # ----------------------------------------------------------- traffic
 
     def last_bucket(self, provider):

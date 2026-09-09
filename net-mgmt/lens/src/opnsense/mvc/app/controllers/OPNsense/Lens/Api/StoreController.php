@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\IdentityHealth;
 use OPNsense\Lens\StoreReport;
 
 /**
@@ -45,14 +46,29 @@ class StoreController extends ApiControllerBase
     /**
      * @return array what Lens has collected so far
      */
+    /**
+     * @param Backend $backend
+     * @param string $command
+     * @return array
+     */
+    private static function decode(Backend $backend, string $command): array
+    {
+        $decoded = json_decode(trim((string)$backend->configdRun($command)), true);
+
+        return json_last_error() === JSON_ERROR_NONE && is_array($decoded) ? $decoded : [];
+    }
+
     public function statusAction()
     {
-        $raw = (string)(new Backend())->configdRun('lens status');
-        $status = json_decode(trim($raw), true);
+        $backend = new Backend();
+        $status = self::decode($backend, 'lens status');
 
-        return StoreReport::describe(
-            json_last_error() === JSON_ERROR_NONE && is_array($status) ? $status : [],
+        $report = StoreReport::describe($status, time());
+        $report['identity'] = IdentityHealth::assess(
+            self::decode($backend, 'lens identity'),
             time()
         );
+
+        return $report;
     }
 }

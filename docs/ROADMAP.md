@@ -48,7 +48,7 @@ against observations from the operator's own network, which stage 4 produces.
 | # | Intent | System | Status |
 |---|---|---|---|
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
-| 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17), provisional, re-check 2026-09-06 |
+| 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |
 | 2 | Preflight as a page, with verdicts instead of pings | S3 | 🔨 built 2026-08-30 |
 | 4 | Collect, before more of the hourly detail is deleted | S2 | ✅ router-tested 2026-08-30 |
@@ -90,7 +90,7 @@ against observations from the operator's own network, which stage 4 produces.
 | NetFlow capture interfaces | all eleven · `egress_only=wan` | fixed 2026-08-30; flowd + flowd_aggregate both running |
 | Per-client volume depth | 5 min → 1 h · hourly → 1 day · daily → 1 year | fixed in core, DESIGN §1.4 — drives S2's harvest duty |
 | Per-client detail depth | **daily only, 62 days** — no sub-daily resolution exists | corrected 2026-08-30 against live metadata |
-| Identity verdict | MAC-keyed (§4.17) · 13 MACs, 2 randomised, 0 address reuse in 10 h | provisional — **re-read the log 2026-09-06** |
+| Identity verdict | MAC-keyed (§4.17) · 13 MACs, 2 randomised, 0 address reuse in 10 h | now measured continuously and shown on Services: Lens (§4.36) |
 | Devices that cannot name themselves | 6 of 13 — 3 static hosts with no lease, 3 leasing `wlan0`/`*` | BACKLOG #15 |
 | Core DNS data | dnsmasq — **no query statistics exist** | Unbound config says enabled but is not the resolver (§4.15) |
 | DHCP server in use | **dnsmasq**, leases at `/var/db/dnsmasq.leases` | confirmed 2026-08-30; Kea/BIND a possible future |

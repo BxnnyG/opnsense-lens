@@ -12,6 +12,7 @@ Two duties, one command each:
     collect.py traffic    traffic joined onto devices at bucket time, as JSON
     collect.py label      store what the operator calls one device
     collect.py device     one device's hourly history, as JSON
+    collect.py identity   whether MAC-keyed identity is holding, as JSON
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -352,7 +353,7 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'label', 'prune', 'purge'],
+                 'identity', 'label', 'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--fields', help='base64url of a JSON object of label fields')
@@ -364,6 +365,10 @@ def main():
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'identity':
+        print(json.dumps(Store(DB_PATH).identity_health(int(time.time()))))
         return 0
 
     if args.duty == 'device':

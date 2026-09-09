@@ -192,6 +192,33 @@
                     .append($('<td/>').addClass(row.wrong ? 'lens-degraded' : '').text(row.detail)));
             }
 
+            const identity = store.identity;
+            if (identity && identity.devices !== undefined) {
+                const WORD = {
+                    holding: '{{ lang._("holding") }}',
+                    watch: '{{ lang._("worth watching") }}',
+                    fragmenting: '{{ lang._("fragmenting") }}',
+                    too_early: '{{ lang._("too early to say") }}'
+                };
+                const CLASS = {
+                    holding: 'lens-ready',
+                    watch: 'lens-degraded',
+                    fragmenting: 'lens-degraded',
+                    too_early: 'lens-absent'
+                };
+
+                $('#lensIdentityVerdict')
+                    .attr('class', 'lens-verdict ' + (CLASS[identity.verdict] || ''))
+                    .text(WORD[identity.verdict] || identity.verdict);
+
+                const $says = $('#lensIdentitySays').empty();
+                for (const line of identity.says) {
+                    $says.append($('<p/>').text(line));
+                }
+
+                $('#lensIdentityBlock').show();
+            }
+
             $('#lensStoreBlock').show();
         });
 
@@ -268,6 +295,18 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div id="lensIdentityBlock" class="lens-block" style="display: none;">
+        <h3>{{ lang._('Whether identity is holding') }}</h3>
+        <p>
+            {{ lang._('Lens files every device under its MAC address. That choice was made on ten hours of one quiet evening, so it is measured continuously rather than trusted:') }}
+            <span id="lensIdentityVerdict"></span>
+        </p>
+        <div id="lensIdentitySays"></div>
+        <p class="text-muted">
+            {{ lang._('What would overturn it: an address held by two devices at the same time, or a device list that keeps growing by entries that are randomised and gone within the hour. Both are counted above.') }}
+        </p>
     </div>
 
     <div id="lensCoverage" class="lens-block" style="display: none;">

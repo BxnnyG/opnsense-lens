@@ -108,3 +108,10 @@ for weeks.
 
 **Still open, and now the loudest thing on the page:** the observe job is not
 firing. Both boxes needed a hand-run `configctl lens observe` to fill the list.
+
+## 9. Postscript (2026-09-10)
+
+"§4.17 is provisional until the observation log is re-read on 2026-09-06" —
+the date passed unread. Replaced by a continuous measurement (§4.36). Randomised
+MACs are still labelled rather than merged, which was the right call for the
+same reason: a label can be withdrawn.

@@ -250,3 +250,10 @@ answering "database is locked".
 The lesson is not "add a timeout". It is that **the failure mode a plan calls out
 by name is exactly the one to write a test for first** — this one shipped
 because the requirement was written down and then implemented from memory.
+
+## 11. Postscript (2026-09-10)
+
+The risk table above says §4.17 is "re-read 2026-09-06". It was not — the date
+came and went. That is now §4.36: the re-check is a measurement the plugin takes
+continuously (`IdentityHealth`) rather than a date somebody has to remember. The
+line above stays as written, because it is what was planned.

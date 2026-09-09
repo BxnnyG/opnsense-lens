@@ -285,7 +285,9 @@ the observed ones and are never overwritten by an observation.
 ✅ **Decided (§4.17, 2026-08-30):** keyed on MAC. Ten hours of observation on
 the operator's network produced zero address collisions and zero fragmentation.
 Provisional — a quiet Saturday night hides what a week of rejoining devices
-shows — and re-checked 2026-09-06.
+shows. **Since 2026-09-10 that re-check is continuous rather than a date:
+`IdentityHealth` counts what would overturn it and says so on Services: Lens
+(§4.36).**
 
 **The original concern, kept because it is still the failure mode:** MAC
 randomisation. Modern phones present a
@@ -763,7 +765,7 @@ asleep, guests absent — the GUEST VLAN recorded literally zero packets.
 Randomisation shows itself when a device *rejoins* a network, which happens over
 days. Thirteen MACs is a household, not a proof.
 **Consequences:** S1 proceeds on MAC. The observation log keeps running for a
-week and is re-read on **2026-09-06**; if the randomised count climbs or address
+week and is re-measured continuously (§4.36); if the randomised count climbs or address
 reuse appears, this decision is revisited before S1's UI is built, not after.
 The store must therefore keep the raw observation history, not just the derived
 device — a merge, if ever needed, has to be reconstructible.
@@ -1141,3 +1143,27 @@ outcome a fix button has. It now declines when the change would produce no data.
 **Consequences:** every future fix follows the same shape: a pure planner that
 can be tested without a firewall, a preview built from it, and an apply that
 re-derives the plan and accepts nothing from the caller.
+
+### §4.36 — A date in a roadmap is not a plan to check something (2026-09-10)
+**Question:** §4.17 keyed identity on the MAC address after ten hours of
+observation on one quiet Saturday, called it provisional, and wrote **re-check
+2026-09-06** into the roadmap in three places. Today is 2026-09-10 and it had not
+been read.
+**Decision:** the re-check becomes a measurement the plugin takes continuously
+and states on Services: Lens — `IdentityHealth`, four numbers and a verdict in
+words. The diary entry is discharged and not replaced with another one.
+**Rationale:** the date was not ignored through carelessness; it was written by
+the same process that then had eleven days of other work to do, and a reminder
+that depends on somebody re-reading a document is a reminder that fires when
+convenient. It also aged badly in a second way: by the time it came due, the
+store held eleven days of better evidence than the log the note pointed at, so
+following the instruction literally would have consulted the worse source.
+**The verdict itself refuses to be a score.** It prints what was measured, in the
+order that decides it, so a reader who disagrees can see where. Two things
+overturn the choice: an address held by two devices *at the same time*, and a
+list growing by entries that are randomised and gone within the hour — the
+operator's own "grows by ten entries a week and quietly lies". Both are counted;
+neither is inferred.
+**Consequences:** every remaining "re-check on <date>" in the documents is a
+defect until it is either measured by the plugin or deleted. The 21-day baseline
+in S8 already works this way, which is where the shape came from.
