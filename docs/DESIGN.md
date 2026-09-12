@@ -1202,3 +1202,39 @@ make the join checkable rather than asking people to remember it.
 **Consequences:** core's own `dashboard-acl.sh` does this and needs a core
 checkout; this is the subset that applies here, and the gate now says so instead
 of listing it under "not run".
+
+### §4.39 — The setup wizard is closed, not built (2026-09-12)
+**Question:** stage 3 has been on the roadmap since 2026-08-29 — a wizard that
+switches the missing sources on, one screen each, cost stated (§4.5, §4.13). It
+was deferred behind stage 4 (§4.19) and has sat there since. Is it still wanted?
+**Decision:** closed as superseded by §4.35's fix button, and deliberately not
+rebuilt as a flow.
+**Rationale:** §4.13's requirement was never "there must be a wizard" — it was
+*anyone installs this and it works, not just an operator who already configured
+NetFlow*. Services: Lens already lists every source, says what each one makes
+possible, and offers the one change that would fix it with the cost stated
+first. A wizard would be the same information with a "next" button and a
+beginning, which is worse in the case that actually happens: a box where three
+sources are fine and one is not. Arriving at the fix from the finding that
+provoked it is the better shape, and it is the one the operator asked for.
+**What stays open from stage 3:** nothing structural. If a second fixable source
+appears — Unbound reporting is the obvious candidate once §1's DNS call is
+known — it becomes a second `NetflowFix`-shaped planner beside the first, not a
+screen in a sequence.
+
+### §4.40 — A wall display is the surface least able to survive a lie (2026-09-12)
+**Question:** the wallboard shows the same figures as the Reporting page, larger
+and with no controls. What is different about it?
+**Decision:** it refreshes itself every minute, it renders the staleness note
+prominently rather than as a footnote, and it says outright "Lens did not
+answer. This screen is not current." when the request fails.
+**Rationale:** every other surface has someone looking at it who came with a
+question and will notice a page that stopped updating. **A wall display has
+nobody standing at it.** It is the one surface where being wrong is silent for
+hours, so the failure states get more room here than anywhere else, not less.
+This is §4.22 taken to its end: presence is measured against the last
+observation, and when that observation is old the screen has to say so louder
+than it says anything else.
+**Consequences:** the wallboard computes nothing. It calls the same endpoint as
+the page and the widget, and `slice(0, 8)` is the whole of its arithmetic — the
+third surface under §4.37.

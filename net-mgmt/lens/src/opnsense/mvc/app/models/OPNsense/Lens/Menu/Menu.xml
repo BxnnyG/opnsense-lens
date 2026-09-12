@@ -5,6 +5,9 @@
         </Lens>
     </Services>
     <Reporting>
-        <Lens order="40" cssClass="fa fa-eye fa-fw" url="/ui/lens/overview"/>
+        <Lens order="40" cssClass="fa fa-eye fa-fw">
+            <Devices order="10" VisibleName="Devices" url="/ui/lens/overview"/>
+            <Wallboard order="20" VisibleName="Wallboard" url="/ui/lens/wall"/>
+        </Lens>
     </Reporting>
 </menu>

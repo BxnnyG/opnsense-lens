@@ -11,6 +11,7 @@
         <name>Reporting: Lens</name>
         <patterns>
             <pattern>ui/lens/overview*</pattern>
+            <pattern>ui/lens/wall*</pattern>
             <pattern>api/lens/sources/*</pattern>
             <pattern>api/lens/store/*</pattern>
             <!--

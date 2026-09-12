@@ -19,7 +19,7 @@ this one inherits, and 23 stages of experience with it.
 | 1 | Walking skeleton: `os-lens`, two menu roots, a source liveness check ([plan](plans/stage-01-walking-skeleton.md)) | S0 | ✅ 2026-08-30 · installed as `os-lens-0.1_1`, page renders, 2 s to load |
 | 2 | Preflight — three verdicts, capture coverage, retention, timing ([plan](plans/stage-02-preflight.md)) | S3 | ✅ 2026-08-30 · router-tested as `os-lens-0.1_3`; both menu roots confirmed |
 | 4 | **Store & collector** — identity over time, and the hourly harvest ([plan](plans/stage-04-store-and-collector.md)) | S2 | ✅ 2026-08-30 · router-tested as `os-lens-0.2_3` on both boxes; 463 buckets in 1 chunk on router-01, the second box's hang gone |
-| 3 | Setup wizard — switch the missing sources on, one screen each, cost stated (§4.5, §4.13) | S3 | ⏳ deferred behind stage 4 (§4.19) |
+| 3 | ~~Setup wizard~~ | S3 | ⛔ closed 2026-09-12 — superseded by the fix button beside each finding (§4.39) |
 | 5 | **Identity** — devices instead of addresses, presence that cannot lie ([plan](plans/stage-05-devices.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.3_1` on both boxes; the duplicate-address defect it exposed is fixed in `0.3_2` (§4.24) |
 | 6 | **Names, kinds, tags and notes** — the operator's own labels ([plan](plans/stage-06-operator-labels.md)) | S1 | ✅ 2026-08-30 · router-tested as `0.5_2`; isc-dhcp names, icons, search and labels all confirmed on both boxes |
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
@@ -29,7 +29,7 @@ this one inherits, and 23 stages of experience with it.
 | 11 | DNS view | S12 | ⏳ |
 | 12 | Baseline, learning period visible, then verdicts | S8 | ⏳ |
 | 13 | Correlation timeline | S9 | ⏳ |
-| 14 | Wallboard / kiosk | S10 | ⏳ |
+| 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |
 | 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | 🔨 built 2026-08-30 · runs before 8 and 9 (§4.29) |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
@@ -60,7 +60,7 @@ against observations from the operator's own network, which stage 4 produces.
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | 🔨 built 2026-08-30 (§4.33) |
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | ⏳ not yet designed |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
-| 3 | Setup wizard — for boxes that are not this one | S3 | ⏳ |
+| 3 | ~~Setup wizard~~ | S3 | ⛔ closed 2026-09-12 (§4.39) |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
 

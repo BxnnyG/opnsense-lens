@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Every API action and every widget endpoint is reachable by some privilege.
+Every page, every API action and every widget endpoint is reachable by some
+privilege.
 
 Core ships Scripts/dashboard-acl.sh, which this repository has no checkout of.
 This is the part of that check that matters here, and it exists because the ACL
@@ -52,6 +53,17 @@ def wanted(plugin):
                     'api/%s/%s/%s' % (namespace, controller, action.lower()),
                     '%s::%sAction' % (name, action),
                 ))
+
+    ui = os.path.join(plugin, 'src/opnsense/mvc/app/controllers')
+    for root, _, files in os.walk(ui):
+        if os.path.basename(root) == 'Api':
+            continue
+        namespace = os.path.basename(root).lower()
+        for name in files:
+            if not name.endswith('Controller.php'):
+                continue
+            page = name[: -len('Controller.php')].lower()
+            out.append(('ui/%s/%s' % (namespace, page), 'page %s' % name))
 
     widgets = os.path.join(plugin, 'src/opnsense/www/js/widgets/Metadata')
     if os.path.isdir(widgets):
