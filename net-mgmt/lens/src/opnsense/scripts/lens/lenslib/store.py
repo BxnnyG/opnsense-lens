@@ -435,6 +435,29 @@ class Store:
             )
         ]
 
+    def interface_traffic(self, since, bucket_seconds=3600):
+        """
+        Traffic per interface, split by whether Lens could name a device for it.
+
+        Core's Insight already totals bytes per interface. The column this adds
+        is the second one: how much of each segment Lens can account for. A
+        segment that is 95% unattributed is not a busy segment, it is a segment
+        whose devices are not on it -- traffic routed through rather than from
+        machines attached -- and that distinction is invisible in a plain total.
+
+        Built on the same attribution query as everything else (§4.32).
+        """
+        return self.db.execute(
+            """SELECT interface, direction,
+                      sum(octets) AS octets, sum(packets) AS packets,
+                      sum(CASE WHEN macs = 1 THEN octets ELSE 0 END) AS named,
+                      count(DISTINCT bucket) AS hours,
+                      count(DISTINCT address) AS addresses
+               FROM (%s)
+               GROUP BY interface, direction""" % ATTRIBUTION_SQL,
+            (bucket_seconds, since),
+        )
+
     def log_run(self, duty, at, ok, took_ms, detail):
         self.db.execute(
             "INSERT OR REPLACE INTO run_log (duty, at, ok, took_ms, detail) VALUES (?, ?, ?, ?, ?)",

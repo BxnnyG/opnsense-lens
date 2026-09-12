@@ -310,5 +310,55 @@ class DetailAgreesWithTheListTest(unittest.TestCase):
         self.assertEqual([], list(self.store.device_traffic('ff:ff:ff:ff:ff:ff', 0)))
 
 
+class InterfaceTrafficTest(unittest.TestCase):
+    """per-segment totals, on the same attribution query as everything else"""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, 'lens.sqlite'))
+        base = 1788080400
+        self.store.store_buckets('p', [
+            (base, 'em0', '10.0.0.5', 'in', 100, 1),
+            (base, 'em0', '10.0.0.9', 'in', 300, 1),
+            (base, 'pppoe0', '1.1.1.1', 'out', 900, 1),
+        ])
+        self.store.db.execute(
+            """INSERT INTO address_observation
+               (mac, address, interface, first_seen, last_seen)
+               VALUES ('aa:bb:cc:dd:ee:01', '10.0.0.5', 'em0', ?, ?)""",
+            (base, base + 7200),
+        )
+        self.store.commit()
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def rows(self):
+        return {(r['interface'], r['direction']): r
+                for r in self.store.interface_traffic(0)}
+
+    def test_a_segment_reports_what_it_carried_and_what_had_a_device(self):
+        row = self.rows()[('em0', 'in')]
+
+        self.assertEqual(400, row['octets'])
+        self.assertEqual(100, row['named'], 'only 10.0.0.5 was ever observed')
+
+    def test_the_far_side_carries_traffic_and_names_none_of_it(self):
+        row = self.rows()[('pppoe0', 'out')]
+
+        self.assertEqual(900, row['octets'])
+        self.assertEqual(0, row['named'])
+
+    def test_the_totals_match_what_the_device_list_attributes(self):
+        """the segment page and the device page are the same bytes (§4.32)"""
+        per_mac, _, _ = attribute.classify(
+            self.store.traffic_rows(0), self.store.device_interfaces(), 0)
+
+        named = sum(row['named'] for row in self.store.interface_traffic(0))
+        listed = sum(d['octets'] for device in per_mac.values() for d in device.values())
+
+        self.assertEqual(listed, named)
+
+
 if __name__ == '__main__':
     unittest.main()

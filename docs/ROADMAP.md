@@ -32,6 +32,7 @@ this one inherits, and 23 stages of experience with it.
 | 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |
 | 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | 🔨 built 2026-08-30 · runs before 8 and 9 (§4.29) |
+| 17 | **Networks** — traffic per segment, and how much of it has a device (§4.41) | S6 | 🔨 built 2026-09-12 · **awaiting router test** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

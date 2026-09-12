@@ -13,6 +13,7 @@ Two duties, one command each:
     collect.py label      store what the operator calls one device
     collect.py device     one device's hourly history, as JSON
     collect.py identity   whether MAC-keyed identity is holding, as JSON
+    collect.py segments   traffic per interface, and how much of it is named
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -158,6 +159,32 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+def segments(store, now, hours):
+    """Traffic per interface over the window, and how much of it has a device."""
+    since = now - hours * 3600
+    rows = {}
+
+    for row in store.interface_traffic(since):
+        entry = rows.setdefault(row['interface'], {
+            'interface': row['interface'],
+            'sent': 0, 'received': 0, 'named': 0, 'octets': 0,
+            'addresses': 0, 'hours': 0,
+        })
+        # 'in' entered the interface: for a device network that is upload
+        entry['sent' if row['direction'] == 'in' else 'received'] += row['octets']
+        entry['named'] += row['named']
+        entry['octets'] += row['octets']
+        entry['addresses'] = max(entry['addresses'], row['addresses'])
+        entry['hours'] = max(entry['hours'], row['hours'])
+
+    return {
+        'hours': hours,
+        'since': since,
+        'segments': sorted(rows.values(), key=lambda r: r['octets'], reverse=True),
+        'device_interfaces': sorted(store.device_interfaces()),
+    }
 
 
 def device(store, now, mac, hours):
@@ -353,7 +380,7 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'label', 'prune', 'purge'],
+                 'identity', 'segments', 'label', 'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--fields', help='base64url of a JSON object of label fields')
@@ -365,6 +392,10 @@ def main():
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'segments':
+        print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'identity':

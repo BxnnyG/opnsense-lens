@@ -7,7 +7,8 @@
     <Reporting>
         <Lens order="40" cssClass="fa fa-eye fa-fw">
             <Devices order="10" VisibleName="Devices" url="/ui/lens/overview"/>
-            <Wallboard order="20" VisibleName="Wallboard" url="/ui/lens/wall"/>
+            <Segments order="20" VisibleName="Networks" url="/ui/lens/segments"/>
+            <Wallboard order="30" VisibleName="Wallboard" url="/ui/lens/wall"/>
         </Lens>
     </Reporting>
 </menu>

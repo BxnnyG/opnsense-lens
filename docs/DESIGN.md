@@ -351,7 +351,24 @@ reporting is `//OPNsense/unboundplus/general/stats`, its store is
 ~~read through `configctl unbound qstats {rolling,clients,totals,details,query}`~~
 — **corrected 2026-08-30: that line was read out of an actions file and never
 executed. `configctl unbound qstats clients` answers `Execute error` on both of
-the operator's boxes.** The DNS view (S12) does not get designed until the real
+the operator's boxes.**
+
+**Why, established 2026-09-12 from `actions_unbound.conf`:** every `qstats`
+action takes parameters, and configd refuses the call without them. The real
+forms, all of them `/usr/local/opnsense/scripts/unbound/stats.py`:
+
+| action | arguments | gives |
+|---|---|---|
+| `qstats rolling` | `--interval --timeperiod` | queries over time |
+| `qstats clients` | `--interval --timeperiod --clients` | the same, per client |
+| `qstats totals` | `--max` | top queried domains |
+| `qstats details` | `--limit` | recent individual queries |
+| `qstats query` | `--client --start --end` | one client's queries in a window |
+
+`qstats details --limit` and `qstats query --client` are what a per-device DNS
+view needs; `qstats totals` answers "what is looked up most" and, with the DNSBL
+tables, what was blocked. **The output shape of each is still unseen** — the
+next thing to run is `configctl unbound qstats totals 10`. The DNS view (S12) does not get designed until the real
 call and its output shape have been seen. An inventory entry that was never run
 is a guess with a citation, which is worse than an admitted gap — this one sat
 in the document for a day looking verified.
@@ -1238,3 +1255,37 @@ than it says anything else.
 **Consequences:** the wallboard computes nothing. It calls the same endpoint as
 the page and the widget, and `slice(0, 8)` is the whole of its arithmetic — the
 third surface under §4.37.
+
+### §4.41 — A byte total per interface is not the interesting number (2026-09-12)
+**Question:** the operator asked for "how much traffic through which networks".
+Core's Insight already shows bytes per interface. What does Lens add?
+**Decision:** a second column — how much of each segment's traffic Lens can put a
+device on — shown as one bar whose *length* is what the segment carried and
+whose *filled part* is what has a name.
+**Rationale:** the operator's second firewall reports 103 GB that Lens was
+watching for and still could not attribute. On a plain per-interface total that
+mass is invisible; it just looks like a busy VLAN. With the second column it is
+immediately legible as what it probably is: **a segment whose traffic belongs to
+machines that are not attached to it** — routed through the firewall rather than
+sitting on it. A busy segment and a transit segment produce the same byte count
+and mean entirely different things, and no total can tell them apart.
+**Consequences:** the same page also settles the open question from §4.31 without
+a special diagnostic — whichever segment carries the unattributed mass names
+itself. `lo0` and the unplaced `'0'` interface get their own sentence each rather
+than a shared footnote, because the answer is different for each.
+
+### §4.42 — Reporting: Lens is three pages, and none of them computes (2026-09-12)
+**Question:** the operator asked for more than one page, "like UniFi, or tiles".
+**Decision:** Devices, Networks, Wallboard — plus the dashboard widget. All four
+read from `DeviceReport` or `SegmentReport`; none of them decides a name, a unit,
+an ordering or a threshold.
+**Rationale:** this is the point at which §4.32 stops being a rule and starts
+being the reason the plugin can grow. A fourth surface cost a controller, a view
+and no new arithmetic, and it cannot contradict the other three. Had the first
+page computed its own totals, each new page would have been a new chance to
+disagree with the last.
+**Still missing from what the operator asked for, and why:** WAN latency and
+packet loss (BACKLOG #20) needs a data source Lens has never read — `dpinger` for
+the gateway, and something new for public targets. "Who was blocked most" needs
+`configctl unbound qstats totals`, whose output shape is still unseen (§1). Both
+are named here so the gap is deliberate rather than forgotten.
