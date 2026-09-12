@@ -1,0 +1,19 @@
+<metadata>
+    <lens>
+        <filename>Lens.js</filename>
+        <endpoints>
+            <endpoint>/api/lens/devices/list</endpoint>
+        </endpoints>
+        <translations>
+            <title>Lens: who is using the line</title>
+            <nothing>Lens has collected nothing yet.</nothing>
+            <unreachable>Lens did not answer.</unreachable>
+            <here>here now</here>
+            <devices>devices</devices>
+            <new>new today</new>
+            <away>away over a day</away>
+            <stale>The collector has not run recently, so this is what was true then.</stale>
+            <learning>watching so far</learning>
+        </translations>
+    </lens>
+</metadata>

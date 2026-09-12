@@ -1167,3 +1167,38 @@ neither is inferred.
 **Consequences:** every remaining "re-check on <date>" in the documents is a
 defect until it is either measured by the plugin or deleted. The 21-day baseline
 in S8 already works this way, which is where the shape came from.
+
+### §4.37 — A second surface for the same numbers decides nothing of its own (2026-09-12)
+**Question:** the dashboard widget shows the top five devices and a summary
+line. It could compute its own ordering, format its own byte counts, and decide
+for itself when to warn about a stale collector. Should it?
+**Decision:** no. It calls `/api/lens/devices/list` — the endpoint the Reporting
+page calls — and renders the top of the list it is handed. Names, units,
+ordering, the "new today" threshold and the staleness warning are all settled in
+`DeviceReport`.
+**Rationale:** a dashboard and a report that disagree by one place in the
+ordering, or by a rounding, are worse than either alone, and nobody can tell
+which is right. This is §4.32 a third time — first two queries, then a strip and
+a table, now a page and a widget. At some point it stops being a rule about code
+and becomes the shape of the plugin: **one place decides, every surface draws.**
+**Consequences:** the widget is a hundred lines with no arithmetic in it beyond
+`slice(0, 5)`.
+
+### §4.38 — An ACL that was never extended is a page that works only for root (2026-09-12)
+**What happened:** the ACL was written in stage 1 for two pages. Stage 5 added
+`DevicesController`, stage 8 added `historyAction`, stage 6 added `labelAction`,
+and none of them added a pattern. Everything worked for five stages, on two
+firewalls, because the operator is root and root matches everything. A user
+holding exactly the `Reporting: Lens` privilege would have been shown a page
+that loaded, called three endpoints, received nothing, and explained nothing.
+**Decision:** `tests/gates/lint_acl.py` derives the endpoint of every
+`*Action()` in every API controller, plus every endpoint a widget declares, and
+fails the build when no pattern reaches one. Run against the previous commit it
+names all four.
+**Rationale:** the defect is invisible to every test and to every person who
+develops as an administrator, which is everyone. It is the same shape as §4.21 —
+a change that landed in one of the two places it needed to — and the same answer:
+make the join checkable rather than asking people to remember it.
+**Consequences:** core's own `dashboard-acl.sh` does this and needs a core
+checkout; this is the subset that applies here, and the gate now says so instead
+of listing it under "not run".

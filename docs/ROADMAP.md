@@ -25,7 +25,7 @@ this one inherits, and 23 stages of experience with it.
 | 7 | **Traffic attribution** — flow history joined onto identity, at the time of the bucket ([plan](plans/stage-07-traffic-attribution.md)) | S4 | ✅ 2026-08-30 · router-tested as `0.4_1`; directions confirmed, two defects it exposed fixed in `0.4_2` (§4.27, §4.28) |
 | 8 | **The device, hour by hour** — click a name for its own chart ([plan](plans/stage-08-device-detail.md)) | S5 | 🔨 built 2026-08-30 · with grouping (BACKLOG #19, §4.33) · **awaiting router test** |
 | 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 |
-| 10 | Dashboard widgets | S7 | ⏳ |
+| 10 | **Dashboard widget** — the top five, on the dashboard (§4.37) | S7 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 11 | DNS view | S12 | ⏳ |
 | 12 | Baseline, learning period visible, then verdicts | S8 | ⏳ |
 | 13 | Correlation timeline | S9 | ⏳ |
@@ -203,3 +203,19 @@ on both firewalls, so the data exists; what is missing is how to read it.
     cat /usr/local/opnsense/service/conf/actions.d/actions_unbound.conf
 
 is the same one command that settled NetFlow.
+
+### Deploying (2026-09-12)
+
+`tools/lens-deploy.sh` replaces the four commands this took by hand: pull, copy
+to each firewall, build, install, and print `lens status` from each. One box:
+`tools/lens-deploy.sh router-01`.
+
+It opens one SSH connection per box and reuses it (ControlMaster), so each box
+asks for a password once instead of twice; a key removes the rest. The copy runs
+with `--delete` on purpose — without it a file removed from the repository stays
+on the box and is packaged into the next build, which is a class that no longer
+exists still being installed and loaded.
+
+Boxes are two lines at the bottom of the script. It is deliberately not a loop
+over a list: `while read` in a pipeline runs in a subshell, and the failure it
+recorded would never come back out.

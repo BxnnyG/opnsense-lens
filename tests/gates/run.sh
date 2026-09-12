@@ -143,6 +143,36 @@ else
 fi
 
 # ---------------------------------------------------------------- not run
+# ---------------------------------------------------------------- lint-acl
+# core: Scripts/dashboard-acl.sh, which needs a core checkout. This is the part
+# of it that applies here, and it exists because the ACL was written for two
+# pages and not extended when a third controller arrived.
+head_ "lint-acl"
+if python3 "${HERE}/lint_acl.py" "${PLUGIN}"; then
+	:
+else
+	errors=$((errors + 1))
+fi
+
+# ---------------------------------------------------------------- lint-js
+# dashboard widgets are ES modules; node reads a .js as CommonJS, where `export`
+# is a syntax error, so the check runs over a copy named .mjs
+head_ "lint-js"
+je=0
+jn=0
+if command -v node > /dev/null 2>&1; then
+	for f in $(find "${PLUGIN}/src/opnsense/www/js" -name '*.js' -type f 2>/dev/null); do
+		jn=$((jn + 1))
+		cp "${f}" "${TOOLS}/.check.mjs"
+		node --check "${TOOLS}/.check.mjs" || je=$((je + 1))
+	done
+	rm -f "${TOOLS}/.check.mjs"
+	say "widget scripts checked: ${jn}, errors: ${je}"
+	errors=$((errors + je))
+else
+	say "node is not installed here - widget scripts unchecked"
+fi
+
 # ---------------------------------------------------------------- lint-shell
 # the two package scripts that write the crontab; they run as root at install
 head_ "lint-shell"
@@ -155,7 +185,6 @@ errors=$((errors + she))
 
 head_ "not run here, and why"
 say "lint-plist    - needs bmake; this plugin ships no plist"
-say "lint-acl      - needs opnsense/core's Scripts/dashboard-acl.sh"
 say "lint-class    - needs opnsense/core's Scripts/class-filename.sh"
 say "lint-import   - needs opnsense/core's Scripts/class-import.sh"
 

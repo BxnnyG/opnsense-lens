@@ -13,6 +13,20 @@
             <pattern>ui/lens/overview*</pattern>
             <pattern>api/lens/sources/*</pattern>
             <pattern>api/lens/store/*</pattern>
+            <!--
+                Added 2026-09-12, five stages late. The device list, the detail
+                view, the dashboard widget and the label editor were all reachable
+                only because the operator is root: no pattern here matched them, so
+                a user holding exactly this privilege got an empty page and no
+                explanation. tests/gates/lint_acl.py now fails the build instead.
+
+                The label editor writes, and it belongs here rather than under
+                Services because it writes Lens's own notes about a device, not
+                the firewall's configuration. The §4.5 boundary is about the
+                latter, and §4.35's fix button is still the only thing that
+                crosses it.
+            -->
+            <pattern>api/lens/devices/*</pattern>
         </patterns>
     </page-reporting-lens>
 </acl>
