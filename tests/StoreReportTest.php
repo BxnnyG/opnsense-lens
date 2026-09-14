@@ -173,4 +173,73 @@ class StoreReportTest extends TestCase
         $this->assertStringContainsString('500 MB', $detail);
         $this->assertStringContainsString('365 days', $detail);
     }
+
+    // ----------------------------------------------------- the ceiling and the year
+
+    private function diskRow(array $overrides): array
+    {
+        foreach (StoreReport::describe($this->given($overrides), self::NOW)['rows'] as $row) {
+            if ($row['what'] === 'Database') {
+                return $row;
+            }
+        }
+
+        return [];
+    }
+
+    public function testAReachableCeilingIsNotWorthMentioning()
+    {
+        $row = $this->diskRow([
+            'size_mb' => 3.2,
+            'ceiling_mb' => 500,
+            'retention_days' => 365,
+            'first_bucket' => self::NOW - 4 * 86400,
+        ]);
+
+        $this->assertStringNotContainsString('ceiling arrives', $row['detail']);
+        $this->assertArrayNotHasKey('wrong', $row);
+    }
+
+    public function testACeilingThatArrivesBeforeTheRetentionSettingIsSaidOutLoud()
+    {
+        /*
+         * Shipped on the operator's second firewall: 26.3 MB over 4.1 days
+         * against a 500 MB ceiling and a one-year retention. The collector
+         * stops writing at the ceiling -- correctly and quietly -- while this
+         * row promises a year. Nothing compared the two settings.
+         */
+        $row = $this->diskRow([
+            'size_mb' => 26.3,
+            'ceiling_mb' => 500,
+            'retention_days' => 365,
+            'first_bucket' => self::NOW - 4 * 86400,
+        ]);
+
+        $this->assertStringContainsString('ceiling arrives', $row['detail']);
+        $this->assertTrue($row['wrong']);
+    }
+
+    public function testAFreshStoreDoesNotExtrapolateFromAnHourOfData()
+    {
+        $row = $this->diskRow([
+            'size_mb' => 6.0,
+            'ceiling_mb' => 500,
+            'retention_days' => 365,
+            'first_bucket' => self::NOW - 3600,
+        ]);
+
+        $this->assertStringNotContainsString('ceiling arrives', $row['detail']);
+    }
+
+    public function testAnEmptyStoreDoesNotDivideByZero()
+    {
+        $row = $this->diskRow([
+            'size_mb' => 0,
+            'ceiling_mb' => 0,
+            'retention_days' => 365,
+            'first_bucket' => null,
+        ]);
+
+        $this->assertNotEmpty($row['detail']);
+    }
 }

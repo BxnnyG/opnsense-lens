@@ -82,15 +82,7 @@ class StoreReport
                         'what' => gettext('Hourly traffic buckets'),
                         'detail' => self::buckets($status, $days),
                     ],
-                    [
-                        'what' => gettext('Database'),
-                        'detail' => sprintf(
-                            gettext('%s MB of a %d MB ceiling, kept for %d days'),
-                            $status['size_mb'],
-                            $status['ceiling_mb'],
-                            $status['retention_days']
-                        ),
-                    ],
+                    self::disk($status, $days),
                 ],
                 self::runs($status, $now)
             ),
@@ -200,6 +192,65 @@ class StoreReport
         }
 
         return $rows;
+    }
+
+    /**
+     * Size, the ceiling, and whether the retention setting is reachable.
+     *
+     * Two settings that contradict each other were shipped together: retention
+     * defaults to a year and the ceiling to 500 MB, and nothing compared them.
+     * On the operator's second firewall the store grows about 6 MB a day
+     * (232474 buckets over 4.1 days, nineteen interfaces), so the ceiling
+     * arrives in roughly eleven weeks -- at which point the collector stops
+     * writing, correctly and quietly, while this very row still promises a
+     * year. The projection is stated wherever it falls short.
+     */
+    private static function disk(array $status, ?float $days): array
+    {
+        $size = (float)($status['size_mb'] ?? 0);
+        $ceiling = (int)($status['ceiling_mb'] ?? 0);
+        $retention = (int)($status['retention_days'] ?? 0);
+
+        $detail = sprintf(
+            gettext('%s MB of a %d MB ceiling, kept for %d days'),
+            $status['size_mb'],
+            $ceiling,
+            $retention
+        );
+
+        $reach = self::daysToCeiling($size, $ceiling, $days);
+
+        if ($reach === null || $reach >= $retention) {
+            return ['what' => gettext('Database'), 'detail' => $detail];
+        }
+
+        return [
+            'what' => gettext('Database'),
+            'detail' => $detail . ' - ' . sprintf(
+                gettext(
+                    'but at the rate it is growing the ceiling arrives in about %d days, '
+                    . 'and collection stops there. Raise the ceiling or shorten the retention '
+                    . 'so the two agree.'
+                ),
+                $reach
+            ),
+            'wrong' => true,
+        ];
+    }
+
+    /**
+     * @return int|null days until the ceiling, null while there is nothing to
+     *                  extrapolate from
+     */
+    private static function daysToCeiling(float $size, int $ceiling, ?float $days): ?int
+    {
+        if ($ceiling <= 0 || $days === null || $days < 1.0 || $size <= 0) {
+            return null;
+        }
+
+        $perDay = $size / $days;
+
+        return $perDay <= 0 ? null : (int)floor(max(0, $ceiling - $size) / $perDay);
     }
 
     private static function daysOfHistory(array $status, int $now): ?float

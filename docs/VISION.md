@@ -113,3 +113,77 @@ number. The three that shape everything:
 | Date | What changed | Why |
 |---|---|---|
 | 2026-08-29 | Created | — |
+
+## The neighbour: Zenarmor (2026-09-14)
+
+Zenarmor is the closest thing to this target picture that already exists, and it
+is largely commercial. Worth being precise about what it is, because the answer
+decides what is worth copying.
+
+### It is a different machine, not a better version of this one
+
+Zenarmor is an **inline deep-packet-inspection engine**. It takes raw Ethernet
+frames through FreeBSD's `netmap(4)`, classifies them by application, domain and
+web category, and can **block**. Lens reads what OPNsense already recorded and
+writes nothing to the network at all.
+
+That single difference explains almost every other one:
+
+| | Zenarmor | Lens |
+|---|---|---|
+| sees | applications, domains, TLS SNI, categories | flows: address, port, bytes, and who held the address |
+| can act | block, shape, per-user policy | nothing — reporting only (§4.9) |
+| costs | 1 GB RAM and a dual-core minimum; **8 GB recommended** for the reporting database; ~5 MB of disk *per hour per Mbit/s* — about 6 GB a day on a 100 Mbit line | one SQLite file, ~0.8 MB/day on router-01 and ~6 MB/day on the 19-interface box |
+| needs | netmap-capable NICs, Intel `em`/`igb` preferred | nothing beyond what OPNsense ships |
+| free tier | non-commercial use, one policy that cannot be edited | all of it |
+
+The disk figure is the one to sit with: Zenarmor's own documentation budgets
+**per hour per megabit per second**, because it keeps a record of sessions. Lens
+budgets per *device per hour*, which is three orders of magnitude smaller and is
+the whole reason a year of history fits in a file on the firewall.
+
+### Where Lens already wins, and it is not an accident
+
+**Retention of attributed history is exactly what the paid tiers sell.** The
+free edition's reporting is bounded, and longer retention is a licensing
+question; on OPNsense itself, per-device hourly detail is deleted after 24 hours
+(§1.4). Lens exists because of that deletion — and it keeps identity *at the time
+of the bucket*, so a year-old number still names the right machine. Zenarmor
+names the device too, but the history behind that name is the thing behind the
+paywall.
+
+**It runs on the operator's actual hardware.** A 2-core box with an
+`8 GB recommended` reporting stack is not a deployment, it is a purchase.
+
+**It explains itself.** Every number Lens shows says what it could not account
+for (§4.26, §4.31, §4.41). That is a choice available to a free tool with
+nothing to upsell.
+
+### What is worth taking
+
+Priority order, all recorded in [BACKLOG.md](BACKLOG.md):
+
+1. **A time-range picker.** Everything is hard-wired to 24 hours. Zenarmor's
+   reports let you pick the window, and the store already holds far more than
+   any page offers to show.
+2. **Drill-down as the primary gesture.** Their reports are built so every row
+   opens into a narrower version of itself. Lens does this once (a device opens
+   its own chart) and should do it everywhere: a segment opens its devices, an
+   hour opens its addresses.
+3. **Top domains, and what was blocked.** `qstats totals` and the DNSBL tables,
+   once their output shape is known (§1).
+4. **Scheduled/exported reports.** A weekly PDF or CSV. Already in the idea
+   store; Zenarmor's version confirms people want it.
+5. **A per-*person* view, not only per-device.** Their AD integration groups
+   devices under a user. Lens has tags (stage 6), which are the same idea
+   without a directory — grouping by tag is already there and could be the
+   default view rather than an option.
+
+### What is deliberately not worth taking
+
+- **Inline inspection and blocking.** It crosses §4.9, it needs netmap-capable
+  hardware, and OPNsense already ships Suricata for the security half.
+- **A cloud account.** Lens's data never leaves the box; that is a feature.
+- **An Elasticsearch-shaped appetite.** The 500 MB ceiling is a design
+  statement, not a limitation to grow out of.
+- **Tiering itself.** There is nothing to withhold.

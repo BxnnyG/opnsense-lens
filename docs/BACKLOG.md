@@ -134,6 +134,25 @@ Filtern."* Recorded as given, ordered by my judgement.
   system entry and its own decision about writing traffic, however small, from a
   reporting plugin. Sketched, not yet designed.
 
+### From looking at Zenarmor, 2026-09-14 (see [VISION.md](VISION.md))
+
+- **#21 — A time range picker.** Every page is hard-wired to 24 hours while the
+  store holds a year. The cheapest large improvement on this list: the API
+  already takes `hours`, so it is a control and a decision about sensible
+  defaults, not new plumbing.
+- **#22 — Drill-down everywhere.** A device already opens its own chart. A
+  segment should open the devices on it; an hour on that chart should open the
+  addresses inside it. Zenarmor's reports are built this way throughout and it
+  is why they feel navigable rather than merely complete.
+- **#23 — Top domains and what was blocked.** Needs `configctl unbound qstats
+  totals` and the DNSBL tables. Blocked on seeing one output (§1).
+- **#24 — A weekly report worth reading, exported.** CSV or a printable page.
+  Already in the idea store; a commercial product selling it is evidence people
+  want it.
+- **#25 — Group by tag as the default view.** Zenarmor groups devices under a
+  directory user. Stage 6's tags are the same idea without needing a directory,
+  and the grouping is already built (§4.33) — this is a default, not a feature.
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages
