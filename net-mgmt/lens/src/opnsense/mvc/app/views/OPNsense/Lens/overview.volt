@@ -1013,7 +1013,8 @@
                 <tbody></tbody>
             </table>
             <p class="text-muted">
-                {{ lang._('The heaviest twenty-five, biggest first. One repeated subnet here usually means a network routed through this firewall rather than attached to it - those addresses have no MAC on any of its segments and never will.') }}
+                {{ lang._('The heaviest twenty-five on your own segments, biggest first. One repeated subnet here usually means a network routed through this firewall rather than attached to it - those addresses have no MAC on any of its segments and never will.') }}
+                {{ lang._('The far end is not listed address by address: those are the internet\'s, there is nothing to do about any of them, and its total is on the line above.') }}
             </p>
             </div>
         </div>

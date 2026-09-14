@@ -67,7 +67,15 @@ def classify(rows, device_interfaces, watching_since=None):
             continue
 
         _add(unattributed[reason], octets, packets)
-        _add(examples.setdefault((reason, interface, address), _counter()), octets, packets)
+
+        # The far end is not listed by address. On the operator's router it is
+        # 25 rows all reading `pppoe0 / far end` -- one sentence repeated until
+        # the table stops being read (§4.47) -- and there is nothing to do about
+        # any of them: they are the internet's addresses. Its total is on the
+        # line above, which is the whole of what that class has to say.
+        if reason != 'far_end':
+            _add(examples.setdefault((reason, interface, address), _counter()),
+                 octets, packets)
 
     return per_mac, unattributed, _worst(examples)
 

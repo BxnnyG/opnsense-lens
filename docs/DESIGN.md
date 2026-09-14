@@ -1417,3 +1417,21 @@ arriving from the other side.
 second rule for what a group is, so the board and the list cannot disagree
 (§4.37). The row count is measured from the rendered height, not chosen at the
 desk.
+
+### §4.49 — §4.47 applied to itself (2026-09-14)
+**What it caught:** the unattributed-address list on router-01 was twenty-five
+rows, every one of them reading `pppoe0 / far end`. That is the rule written one
+commit earlier — prose identical on most rows belongs to the column, not the row
+— failing on the page that rule was written for.
+**Decision:** the far end is totalled and never listed address by address. The
+list shows only what is on the operator's own segments, which is the only part
+anybody can act on.
+**Rationale:** listing them answered nothing. They are the internet's addresses;
+there is no device to find and no setting to change, and the class's total is
+already on the line above with its explanation. Meanwhile they buried the four
+rows that *are* actionable — the ones on a device segment that nothing was seen
+holding, which are how the 103 GB question gets answered.
+**What was given up, and why that is fine:** "which internet address ate 2.9 GB"
+is a real question and this removes the accidental answer to it. It is a
+different feature — top destinations, BACKLOG #23's neighbour — and it deserves
+to be built deliberately rather than survive as a side effect of a diagnostic.

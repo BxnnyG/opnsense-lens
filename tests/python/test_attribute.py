@@ -120,15 +120,30 @@ class BreakdownTest(unittest.TestCase):
         rows = [
             row('vtnet1_vlan10', '10.10.10.77', 'in', 100, 0, None),
             row('vtnet1_vlan10', '10.10.10.99', 'in', 900, 0, None),
-            row('pppoe0', '1.1.1.1', 'out', 500, 0, None),
         ]
 
         listed = worst(rows)
 
-        self.assertEqual(['10.10.10.99', '1.1.1.1', '10.10.10.77'],
+        self.assertEqual(['10.10.10.99', '10.10.10.77'],
                          [entry['address'] for entry in listed])
         self.assertEqual('unknown', listed[0]['reason'])
-        self.assertEqual('far_end', listed[1]['reason'])
+
+    def test_the_far_end_is_totalled_but_never_listed_address_by_address(self):
+        """
+        Twenty-five rows reading `pppoe0 / far end` were the whole list on the
+        operator's router: one sentence repeated until nobody reads the table,
+        and nothing anyone can act on -- they are the internet's addresses. The
+        class keeps its total on the line above (§4.47).
+        """
+        rows = [row('pppoe0', '203.0.113.%d' % n, 'out', n * 100, 0, None)
+                for n in range(1, 40)]
+        rows.append(row('vtnet1_vlan10', '10.10.10.77', 'in', 5, 0, None))
+
+        _, unattributed = classify(rows)
+        listed = worst(rows)
+
+        self.assertGreater(unattributed['far_end']['octets'], 0)
+        self.assertEqual(['10.10.10.77'], [entry['address'] for entry in listed])
 
     def test_the_same_address_over_many_hours_is_one_line_with_the_hours_counted(self):
         """what a person needs to see is one subnet, not four hundred rows of it"""
@@ -158,14 +173,15 @@ class BreakdownTest(unittest.TestCase):
 
         self.assertEqual([], worst(rows))
 
-    def test_the_list_is_capped_so_the_far_end_cannot_flood_it(self):
-        """tens of thousands of internet addresses answer nothing"""
-        rows = [row('pppoe0', '203.0.113.%d' % n, 'out', n, 0, None) for n in range(1, 200)]
+    def test_the_list_is_still_capped_for_the_classes_that_are_listed(self):
+        """a device segment can hold a whole routed subnet's worth of addresses"""
+        rows = [row('vtnet1_vlan10', '10.10.10.%d' % n, 'in', n, 0, None)
+                for n in range(1, 200)]
 
         listed = worst(rows)
 
         self.assertEqual(25, len(listed))
-        self.assertEqual('203.0.113.199', listed[0]['address'])
+        self.assertEqual('10.10.10.199', listed[0]['address'])
 
 
 class JoinTest(unittest.TestCase):
