@@ -82,6 +82,25 @@
 
         const pct = (share) => Math.round(share * 100) + '%';
 
+        /* same rule as the device list: the file is what the page shows */
+        const download = (rows, name) => {
+            const quote = (value) => '"' + String(value === undefined || value === null
+                ? '' : value).replace(/"/g, '""') + '"';
+            const blob = new Blob(
+                ['\ufeff' + rows.map(row => row.map(quote).join(',')).join('\r\n')],
+                { type: 'text/csv;charset=utf-8' }
+            );
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
         ajaxGet('/api/lens/segments/list', { hours: chosenHours() }, (report, status) => {
             $('#segLoading').hide();
 
@@ -143,6 +162,28 @@
                     .append($('<td/>').addClass('seg-num').text(segment.addresses || '')));
             }
 
+            $('#segExport').on('click', (event) => {
+                event.preventDefault();
+
+                const rows = [[
+                    '{{ lang._("Network") }}', '{{ lang._("Interface") }}',
+                    '{{ lang._("Bytes") }}', '{{ lang._("Bytes with a device") }}',
+                    '{{ lang._("Share named") }}', '{{ lang._("Addresses") }}',
+                    '{{ lang._("Is one of your networks") }}'
+                ]];
+
+                for (const segment of report.segments) {
+                    rows.push([
+                        segment.name, segment.interface, segment.octets, segment.named,
+                        pct(segment.named_share), segment.addresses,
+                        segment.is_network ? 'yes' : 'no'
+                    ]);
+                }
+
+                const stamp = new Date().toISOString().slice(0, 10);
+                download(rows, 'lens-networks-' + stamp + '-' + chosenHours() + 'h.csv');
+            }).show();
+
             $('#segReport').show();
         });
     });
@@ -150,6 +191,9 @@
 
     <div id="lensRangeWrap">
         <span id="lensRange" style="display: none;"></span>
+        <a href="#" id="segExport" style="display: none; margin-left: 10px;">
+            <i class="fa fa-download"></i> {{ lang._('CSV') }}
+        </a>
         <span id="lensRangeNote" class="text-muted" style="display: none;"></span>
     </div>
 

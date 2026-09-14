@@ -1331,3 +1331,26 @@ all on one query. The segment drill-down needed no query at all — the Devices
 page already filters by interface, so a segment "opens" by linking to it with
 the filter applied, which also means the two pages cannot disagree about what is
 on a segment.
+
+### §4.45 — The export is of the screen, not of the database (2026-09-14)
+**Question:** BACKLOG #24 asked for a report worth reading, exported. The
+obvious build is an endpoint that re-queries the store and streams a file.
+**Decision:** the CSV is built in the browser from the rows already rendered —
+same range, same filters, same order, same numbers — and never re-queries.
+**Rationale:** a file that disagrees with the page it came from is the one
+discrepancy nobody ever catches, because by the time anyone reads the file the
+page is closed. Re-querying would reintroduce every divergence this plugin has
+spent six decisions eliminating (§4.32, §4.44): a different default window, a
+filter the endpoint does not know about, an ordering tie broken the other way.
+Building from what is on screen makes "the export matches the view" true by
+construction rather than by care.
+**What this is not, stated so it is not mistaken for done:** it is not a
+scheduled report, not email, not a PDF, and not a summary with prose. It is the
+table you are looking at, in a file. Bytes are exported as raw numbers rather
+than "10 MB" because the destination is a spreadsheet; a UTF-8 BOM is written
+because the destination is usually Excel and device names here have umlauts in
+them.
+**Consequences:** no new endpoint, no new ACL pattern, and nothing to keep in
+step. If a scheduled report is ever wanted it is a different feature with a
+server side, and it will have to solve this problem properly rather than
+inherit it.

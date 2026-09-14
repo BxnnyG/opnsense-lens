@@ -66,6 +66,7 @@
     }
     .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
     #lensShowing { margin-left: 8px; color: #999; }
+    .lens-chip-label { color: #999; font-size: 90%; margin-right: 4px; }
     .lens-edit { margin-left: 6px; opacity: 0.35; }
     tr:hover .lens-edit { opacity: 1; }
     .lens-tag {
@@ -174,6 +175,8 @@
         /* arriving from the Networks page with one segment already chosen */
         const asked = new URLSearchParams(location.search).get('segment');
         let segments = new Set(asked ? [asked] : []);
+        let tags = new Set();
+        let lastShown = [];
         let kinds = {};
         let groups = [];
         let editing = null;
@@ -191,6 +194,11 @@
                     return false;
                 }
                 if (segments.size && !device.interfaces.some(i => segments.has(i))) {
+                    return false;
+                }
+                /* two dimensions, and they narrow together: any of the chosen
+                   segments, and any of the chosen tags */
+                if (tags.size && !device.tags.some(t => tags.has(t))) {
                     return false;
                 }
                 return true;
@@ -238,6 +246,8 @@
                 }
             }
 
+            lastShown = shown;
+            $('#lensExport').toggle(shown.length > 0);
             $('#lensShowing').text(
                 shown.length === devices.length
                     ? ''
@@ -626,31 +636,98 @@
             $strip.show();
         };
 
-        const drawSegments = () => {
-            const counts = new Map();
-            for (const device of devices) {
-                for (const name of device.interfaces) {
-                    counts.set(name, (counts.get(name) || 0) + 1);
-                }
+        /*
+         * The export is of what is on the screen, not a second query: same
+         * filters, same range, same order, same numbers (§4.45). A file that
+         * disagrees with the page it came from is the one discrepancy nobody
+         * ever catches, because by then the page is closed.
+         */
+        const download = (rows, name) => {
+            const quote = (value) => '"' + String(value === undefined || value === null
+                ? '' : value).replace(/"/g, '""') + '"';
+            const csv = rows.map(row => row.map(quote).join(',')).join('\r\n');
+
+            /* a BOM, because this is opened in a spreadsheet more often than
+               not and umlauts in device names are the common case here */
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
+        const exportShown = () => {
+            const rows = [[
+                '{{ lang._("Device") }}', 'MAC', '{{ lang._("Kind") }}',
+                '{{ lang._("Tags") }}', '{{ lang._("Addresses") }}',
+                '{{ lang._("Segments") }}', '{{ lang._("Presence") }}',
+                '{{ lang._("Known for") }}',
+                '{{ lang._("Bytes sent") }}', '{{ lang._("Bytes received") }}',
+                '{{ lang._("How Lens names it") }}'
+            ]];
+
+            for (const device of lastShown) {
+                rows.push([
+                    device.name, device.mac, device.kind.type,
+                    device.tags.join(' '),
+                    device.addresses.map(a => a.address).join(' '),
+                    device.interfaces.join(' '),
+                    device.presence, device.known_for,
+                    device.sent, device.received,
+                    device.named_by
+                ]);
             }
 
-            const $bar = $('#lensSegments').empty();
+            const stamp = new Date().toISOString().slice(0, 10);
+            download(rows, 'lens-devices-' + stamp + '-' + chosenHours() + 'h.csv');
+        };
+
+        const drawChips = ($bar, counts, chosen) => {
+            $bar.empty();
             for (const [name, count] of [...counts.entries()].sort()) {
                 $('<a/>').addClass('lens-chip').attr('href', '#')
-                    .toggleClass('lens-chip-on', segments.has(name))
+                    .toggleClass('lens-chip-on', chosen.has(name))
                     .text(name + ' (' + count + ')')
                     .on('click', function (event) {
                         event.preventDefault();
-                        if (segments.has(name)) {
-                            segments.delete(name);
+                        if (chosen.has(name)) {
+                            chosen.delete(name);
                         } else {
-                            segments.add(name);
+                            chosen.add(name);
                         }
-                        $(this).toggleClass('lens-chip-on', segments.has(name));
+                        $(this).toggleClass('lens-chip-on', chosen.has(name));
                         render();
                     })
                     .appendTo($bar);
             }
+            return counts.size;
+        };
+
+        const countBy = (pick) => {
+            const counts = new Map();
+            for (const device of devices) {
+                for (const key of pick(device)) {
+                    counts.set(key, (counts.get(key) || 0) + 1);
+                }
+            }
+            return counts;
+        };
+
+        const drawTags = () => {
+            /* a tag is what the operator said this device is for; Zenarmor
+               groups devices under a directory user, and this is the same idea
+               without needing a directory (BACKLOG #25) */
+            const counts = countBy(device => device.tags);
+            $('#lensTagWrap').toggle(drawChips($('#lensTags'), counts, tags) > 0);
+        };
+
+        const drawSegments = () => {
+            drawChips($('#lensSegments'), countBy(device => device.interfaces), segments);
         };
 
         const load = () => ajaxGet('/api/lens/devices/list', { hours: chosenHours() },
@@ -673,6 +750,7 @@
             }
 
             drawSegments();
+            drawTags();
             render();
 
             $('#lensControls').toggle(devices.length > 0);
@@ -717,6 +795,10 @@
         $('#lensSearch').on('input', render);
         $('#lensOnlyTraffic').on('change', render);
         $('#lensGroup').on('change', render);
+        $('#lensExport').on('click', (event) => {
+            event.preventDefault();
+            exportShown();
+        });
         $('#lensEditSave').on('click', saveLabel);
 
         ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
@@ -816,7 +898,14 @@
             <input type="checkbox" id="lensGroup" checked> {{ lang._('group similar devices') }}
         </label>
         <span id="lensShowing"></span>
+        <a href="#" id="lensExport" style="display: none; margin-left: 10px;">
+            <i class="fa fa-download"></i> {{ lang._('CSV of what is shown') }}
+        </a>
         <div id="lensSegments"></div>
+        <div id="lensTagWrap" style="display: none;">
+            <span class="lens-chip-label">{{ lang._('your tags') }}</span>
+            <span id="lensTags"></span>
+        </div>
     </div>
 
     <div id="lensEmpty" class="alert alert-info" style="display: none;">
