@@ -24,10 +24,16 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<p>
-    {{ lang._('Every device Lens has seen, and which addresses it held. OPNsense knows this only in the present tense; Lens keeps it.') }}
-    <a href="/ui/lens/preflight">{{ lang._('Data sources are configured under Services: Lens.') }}</a>
-</p>
+<div class="lens-page-head">
+    <div class="lens-page-intro">
+        {{ lang._('Every device Lens has seen, and which addresses it held. OPNsense knows this only in the present tense; Lens keeps it.') }}
+        <a href="/ui/lens/preflight">{{ lang._('Sources and health are under Services: Lens.') }}</a>
+    </div>
+    <div class="lens-page-range">
+        <span id="lensRange" style="display: none;"></span>
+    </div>
+</div>
+<div id="lensRangeNote" class="text-muted lens-range-note" style="display: none;"></div>
 
 <style>
     .lens-verdict { font-weight: 600; white-space: nowrap; }
@@ -56,7 +62,11 @@
     }
     .lens-bytes { font-size: 95%; }
     .lens-addr-toggle { display: block; font-size: 90%; }
-    #lensControls { margin: 10px 0 14px 0; }
+    #lensControls { margin: 0 0 12px 0; }
+    #lensControls > .lens-tools { display: flex; flex-wrap: wrap;
+                                  align-items: center; gap: 14px; }
+    #lensControls label { margin: 0; }
+    .lens-filters { margin-top: 8px; }
     #lensSearch { width: 22em; max-width: 100%; }
     #lensSegments { display: inline-block; margin-left: 6px; }
     .lens-chip {
@@ -87,11 +97,19 @@
     .lens-key.lens-chart-down { background: #7a8b99; }
     a.lens-name { color: inherit; }
     tr.lens-group > td { background: rgba(128, 128, 128, 0.08); }
-    #lensRangeWrap { margin-top: 10px; }
-    #lensRangeNote { margin-left: 10px; }
-    #lensSummary { display: flex; flex-wrap: wrap; gap: 26px; margin: 14px 0 4px 0; }
+    /* the page is a stack of boxes, and each box answers one question */
+    .lens-page-head { display: flex; flex-wrap: wrap; gap: 16px;
+                      align-items: baseline; justify-content: space-between;
+                      margin-bottom: 4px; }
+    .lens-page-intro { max-width: 60em; }
+    .lens-range-note { margin-bottom: 8px; display: block; }
+    .lens-box { padding: 14px 16px; margin-bottom: 14px; }
+    .lens-box-head { margin: 0 0 10px 0; font-size: 15px; font-weight: 600; }
+    .lens-box-foot { margin: 10px 0 0 0; color: #999; font-size: 90%; }
+
+    #lensSummary { display: flex; flex-wrap: wrap; gap: 32px; }
     .lens-stat { min-width: 9em; }
-    .lens-figure { font-size: 22px; font-weight: 600; line-height: 1.1; }
+    .lens-figure { font-size: 26px; font-weight: 600; line-height: 1.1; }
     .lens-caption { color: #999; font-size: 90%; max-width: 22em; }
 </style>
 
@@ -102,27 +120,7 @@
          * once in PHP (SourceReport), so that the next surface to show a source
          * cannot decide it differently.
          */
-        const WORDS = {
-            ready:    '{{ lang._("ready") }}',
-            degraded: '{{ lang._("needs attention") }}',
-            absent:   '{{ lang._("unavailable") }}'
-        };
-
         const cell = (value) => $('<td/>').text(value === undefined || value === null ? '' : value);
-
-        const verdictCell = (verdict) => $('<td/>').append(
-            $('<span/>').addClass('lens-verdict lens-' + verdict).text(WORDS[verdict] || verdict)
-        );
-
-        const causeCell = (source) => {
-            const $td = $('<td/>').addClass('lens-cause').text(source.cause || '');
-            if (source.action) {
-                $td.append($('<em/>').addClass('lens-action').text(source.action));
-            }
-            return $td;
-        };
-
-        const list = (names) => names && names.length ? names.join(', ') : '{{ lang._("none") }}';
 
         /*
          * Devices first: this is the answer the page exists to give. It is
@@ -728,6 +726,7 @@
 
         const drawSegments = () => {
             drawChips($('#lensSegments'), countBy(device => device.interfaces), segments);
+            $('#lensSegments').show();
         };
 
         const load = () => ajaxGet('/api/lens/devices/list', { hours: chosenHours() },
@@ -800,74 +799,6 @@
             exportShown();
         });
         $('#lensEditSave').on('click', saveLabel);
-
-        ajaxGet('/api/lens/sources/report', {}, (report, requestStatus) => {
-            $('#lensLoading').hide();
-
-            if (requestStatus !== 'success' || !report || !report.sources) {
-                $('#lensError').show();
-                return;
-            }
-
-            $('#lensVersion').text(report.version || '{{ lang._("unknown") }}');
-
-            const ready = report.sources.filter(s => s.verdict === 'ready').length;
-            $('#lensHeadline').text(
-                ready + ' {{ lang._("of") }} ' + report.sources.length
-                + ' {{ lang._("data sources are ready.") }}'
-            );
-
-            const $body = $('#lensSources > tbody').empty();
-            for (const source of report.sources) {
-                $body.append($('<tr/>')
-                    .append(cell(source.label))
-                    .append(verdictCell(source.verdict))
-                    .append(cell(source.headline))
-                    .append(causeCell(source))
-                    .append(cell(source.enables)));
-            }
-
-            /* coverage: the check that would have caught this box a week earlier */
-            const netflow = report.sources.find(s => s.id === 'netflow');
-            if (netflow) {
-                $('#lensCaptured').text(list(netflow.captured));
-                $('#lensMissing').text(list(netflow.missing));
-                $('#lensCoverage').show();
-            }
-
-            const $ret = $('#lensRetention > tbody').empty();
-            for (const row of (report.retention || [])) {
-                $ret.append($('<tr/>').append(cell(row.what)).append(cell(row.detail)));
-            }
-
-            const calls = Object.entries(report.timing.calls || {})
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, ms]) => name + ' ' + ms + ' ms')
-                .join(' · ');
-            $('#lensTimingTotal').text(report.timing.total_ms);
-            $('#lensTimingCalls').text(calls);
-
-            $('#lensReport').show();
-        });
-
-        /* what Lens itself has kept -- the only thing on this page that is ours */
-        ajaxGet('/api/lens/store/status', {}, (store, storeStatus) => {
-            if (storeStatus !== 'success' || !store) {
-                return;
-            }
-
-            $('#lensStoreHeadline').text(store.headline);
-
-            const $body = $('#lensStore > tbody').empty();
-            for (const row of (store.rows || [])) {
-                $body.append($('<tr/>')
-                    .append(cell(row.what))
-                    .append($('<td/>').addClass(row.wrong ? 'lens-degraded' : '').text(row.detail)));
-            }
-
-            $('#lensStoreBlock').show();
-        });
-
     });
 </script>
 
@@ -876,33 +807,36 @@
 </div>
 
 <div id="lensDevicesBlock" style="display: none;">
-    <h3>{{ lang._('Devices') }}</h3>
-    <p id="lensDevicesHeadline"></p>
-    <div id="lensRangeWrap">
-        <span id="lensRange" style="display: none;"></span>
-        <span id="lensRangeNote" class="text-muted" style="display: none;"></span>
+    <div class="content-box lens-box">
+        <div id="lensSummary"></div>
+        <div id="lensDevicesHeadline" class="lens-box-foot"></div>
     </div>
-
-    <div id="lensSummary" style="display: none;"></div>
 
     <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
 
+    <div class="content-box lens-box">
+
     <div id="lensControls" style="display: none;">
-        <input type="text" id="lensSearch" class="form-control input-sm"
-               style="display: inline-block;"
-               placeholder="{{ lang._('Search a name, address, MAC or vendor') }}">
-        <label style="font-weight: normal; margin: 0 0 0 10px;">
-            <input type="checkbox" id="lensOnlyTraffic"> {{ lang._('only devices with traffic') }}
-        </label>
-        <label id="lensGroupWrap" style="font-weight: normal; margin: 0 0 0 10px; display: none;">
-            <input type="checkbox" id="lensGroup" checked> {{ lang._('group similar devices') }}
-        </label>
-        <span id="lensShowing"></span>
-        <a href="#" id="lensExport" style="display: none; margin-left: 10px;">
-            <i class="fa fa-download"></i> {{ lang._('CSV of what is shown') }}
-        </a>
-        <div id="lensSegments"></div>
-        <div id="lensTagWrap" style="display: none;">
+        <div class="lens-tools">
+            <input type="text" id="lensSearch" class="form-control input-sm"
+                   placeholder="{{ lang._('Search a name, address, MAC or vendor') }}">
+            <label style="font-weight: normal;">
+                <input type="checkbox" id="lensOnlyTraffic">
+                {{ lang._('only with traffic') }}
+            </label>
+            <label id="lensGroupWrap" style="font-weight: normal; display: none;">
+                <input type="checkbox" id="lensGroup" checked> {{ lang._('group similar') }}
+            </label>
+            <span id="lensShowing"></span>
+            <a href="#" id="lensExport" style="display: none;">
+                <i class="fa fa-download"></i> {{ lang._('CSV') }}
+            </a>
+        </div>
+        <div class="lens-filters">
+            <span class="lens-chip-label">{{ lang._('segments') }}</span>
+            <span id="lensSegments"></span>
+        </div>
+        <div id="lensTagWrap" class="lens-filters" style="display: none;">
             <span class="lens-chip-label">{{ lang._('your tags') }}</span>
             <span id="lensTags"></span>
         </div>
@@ -925,10 +859,11 @@
         </thead>
         <tbody></tbody>
     </table>
-    <p class="text-muted">
-        {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
-        {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
-    </p>
+        <p class="text-muted lens-box-foot">
+            {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
+            {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
+        </p>
+    </div>
 
     <div class="modal" id="lensDetail" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
@@ -1040,8 +975,8 @@
         </div>
     </div>
 
-    <div id="lensAccountingBlock" class="lens-block" style="display: none;">
-        <h3>{{ lang._('What the traffic above does not cover') }}</h3>
+    <div id="lensAccountingBlock" class="content-box lens-box" style="display: none;">
+        <h4 class="lens-box-head">{{ lang._('What the traffic above does not cover') }}</h4>
         <p>
             <span id="lensAttributed"></span>
             {{ lang._('was attributed to a device over the last') }}
@@ -1076,78 +1011,3 @@
     </div>
 </div>
 
-<div id="lensLoading">
-    <i class="fa fa-spinner fa-spin"></i>
-    {{ lang._('Asking the box what it can tell Lens...') }}
-</div>
-
-<div id="lensError" class="alert alert-danger" style="display: none;">
-    {{ lang._('The report did not come back. Lens is installed, but something between this page and configd is not working.') }}
-</div>
-
-<div id="lensReport" style="display: none;">
-    <p id="lensHeadline"></p>
-
-    <table id="lensSources" class="table table-condensed table-striped">
-        <thead>
-            <tr>
-                <th>{{ lang._('Source') }}</th>
-                <th>{{ lang._('State') }}</th>
-                <th>{{ lang._('Now') }}</th>
-                <th>{{ lang._('Why, and what would change it') }}</th>
-                <th>{{ lang._('What it makes possible') }}</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <div id="lensCoverage" class="lens-block" style="display: none;">
-        <h3>{{ lang._('Traffic capture coverage') }}</h3>
-        <p>{{ lang._('A device on an interface that is not captured produces no traffic history at all, and no other page will mention it.') }}</p>
-        <table class="table table-condensed">
-            <tbody>
-                <tr>
-                    <td style="width: 12em;">{{ lang._('Captured') }}</td>
-                    <td id="lensCaptured"></td>
-                </tr>
-                <tr>
-                    <td>{{ lang._('Not captured') }}</td>
-                    <td id="lensMissing"></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-
-    <div id="lensStoreBlock" class="lens-block" style="display: none;">
-        <h3>{{ lang._('What Lens has kept') }}</h3>
-        <p id="lensStoreHeadline"></p>
-        <table id="lensStore" class="table table-condensed">
-            <tbody></tbody>
-        </table>
-        <p class="text-muted">
-            {{ lang._('Hourly traffic per device exists in OPNsense for 24 hours. Everything above that line was copied out before it was deleted, and cannot be recovered any other way.') }}
-        </p>
-    </div>
-
-    <div class="lens-block">
-        <h3>{{ lang._('How far back the data goes') }}</h3>
-        <p>{{ lang._('These limits are fixed in OPNsense itself, not a setting. Actual depth is also bounded by when capture was switched on, which is the earlier of the two.') }}</p>
-        <table id="lensRetention" class="table table-condensed">
-            <thead>
-                <tr>
-                    <th style="width: 24em;">{{ lang._('What is kept') }}</th>
-                    <th>{{ lang._('For how long') }}</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <p id="lensTiming" class="text-muted">
-        {{ lang._('Lens version') }} <span id="lensVersion"></span>.
-        {{ lang._('This report took') }} <span id="lensTimingTotal"></span> ms
-        &mdash; <span id="lensTimingCalls"></span>.
-        {{ lang._('It runs once when the page is opened, never on a timer.') }}
-    </p>
-</div>

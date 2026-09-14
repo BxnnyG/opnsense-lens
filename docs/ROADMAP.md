@@ -31,7 +31,7 @@ this one inherits, and 23 stages of experience with it.
 | 13 | Correlation timeline | S9 | ⏳ |
 | 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |
-| 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | 🔨 built 2026-08-30 · runs before 8 and 9 (§4.29) |
+| 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | ✅ 2026-08-30 · second pass 2026-09-14: boxes, one toolbar, and the Services blocks removed (§4.46) |
 | 17 | **Networks** — traffic per segment, and how much of it has a device (§4.41) | S6 | 🔨 built 2026-09-12 |
 | 18 | **Time range** — 24 hours, 7 days, 30 days, and what the store can actually cover (§4.43) | S6 | 🔨 built 2026-09-14 |
 | 19 | **Drill-down** — a segment opens its devices, an hour opens its addresses (§4.44) | S6 | 🔨 built 2026-09-14 |

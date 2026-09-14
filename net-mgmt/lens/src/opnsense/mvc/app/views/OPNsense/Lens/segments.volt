@@ -24,10 +24,19 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<p>
-    {{ lang._('How much each of your networks carried, and how much of it Lens can put a device to.') }}
-    <a href="/ui/lens/overview">{{ lang._('The devices themselves are one page over.') }}</a>
-</p>
+<div class="lens-page-head">
+    <div class="lens-page-intro">
+        {{ lang._('How much each of your networks carried, and how much of it Lens can put a device to.') }}
+        <a href="/ui/lens/overview">{{ lang._('The devices themselves are one page over.') }}</a>
+    </div>
+    <div class="lens-page-range">
+        <span id="lensRange" style="display: none;"></span>
+        <a href="#" id="segExport" style="display: none; margin-left: 10px;">
+            <i class="fa fa-download"></i> {{ lang._('CSV') }}
+        </a>
+    </div>
+</div>
+<div id="lensRangeNote" class="text-muted lens-range-note" style="display: none;"></div>
 
 <style>
     .seg-bar { display: block; height: 16px; background: rgba(128,128,128,0.2);
@@ -38,8 +47,14 @@
     .seg-note { display: block; color: #999; font-size: 90%; max-width: 34em; }
     .seg-thin { color: #f0ad4e; }
     .seg-num { text-align: right; white-space: nowrap; }
-    #lensRangeWrap { margin: 10px 0; }
-    #lensRangeNote { margin-left: 10px; }
+    .lens-page-head { display: flex; flex-wrap: wrap; gap: 16px;
+                      align-items: baseline; justify-content: space-between;
+                      margin-bottom: 4px; }
+    .lens-page-intro { max-width: 60em; }
+    .lens-range-note { margin-bottom: 8px; display: block; }
+    .lens-box { padding: 14px 16px; margin-bottom: 14px; }
+    .lens-box-head { margin: 0 0 10px 0; }
+    .lens-box-foot { margin: 10px 0 0 0; font-size: 90%; }
     .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
                  border: 1px solid #999; border-radius: 10px; font-size: 90%;
                  text-decoration: none; }
@@ -189,14 +204,6 @@
     });
 </script>
 
-    <div id="lensRangeWrap">
-        <span id="lensRange" style="display: none;"></span>
-        <a href="#" id="segExport" style="display: none; margin-left: 10px;">
-            <i class="fa fa-download"></i> {{ lang._('CSV') }}
-        </a>
-        <span id="lensRangeNote" class="text-muted" style="display: none;"></span>
-    </div>
-
 <div id="segLoading">
     <i class="fa fa-spinner fa-spin"></i> {{ lang._('Adding up the segments...') }}
 </div>
@@ -210,12 +217,13 @@
 </div>
 
 <div id="segReport" style="display: none;">
-    <p>
-        <b id="segTotal"></b> {{ lang._('over') }} <span id="segHours"></span>,
-        {{ lang._('across every interface NetFlow reported.') }}
-    </p>
+    <div class="content-box lens-box">
+        <p class="lens-box-head">
+            <b id="segTotal"></b> {{ lang._('over') }} <span id="segHours"></span>,
+            {{ lang._('across every interface NetFlow reported.') }}
+        </p>
 
-    <table id="segTable" class="table table-condensed table-striped">
+        <table id="segTable" class="table table-condensed table-striped">
         <thead>
             <tr>
                 <th>{{ lang._('Network') }}</th>
@@ -225,11 +233,12 @@
                 <th class="seg-num">{{ lang._('Addresses') }}</th>
             </tr>
         </thead>
-        <tbody></tbody>
-    </table>
+            <tbody></tbody>
+        </table>
 
-    <p class="text-muted">
-        {{ lang._('A network with devices on it opens them, filtered to that segment.') }}
-        {{ lang._('The bar length is what the segment carried; the filled part is what Lens could attribute to a device on it. A segment that is mostly unfilled is not a busy segment - it is one whose traffic belongs to machines that are not attached to it, and a plain byte total cannot tell those apart.') }}
-    </p>
+        <p class="text-muted lens-box-foot">
+            {{ lang._('A network with devices on it opens them, filtered to that segment.') }}
+            {{ lang._('The bar length is what the segment carried; the filled part is what Lens could attribute to a device on it. A segment that is mostly unfilled is not a busy segment - it is one whose traffic belongs to machines that are not attached to it, and a plain byte total cannot tell those apart.') }}
+        </p>
+    </div>
 </div>

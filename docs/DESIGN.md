@@ -1354,3 +1354,29 @@ them.
 step. If a scheduled report is ever wanted it is a different feature with a
 server side, and it will have to solve this problem properly rather than
 inherit it.
+
+### §4.46 — The Reporting page stopped repeating the Services page (2026-09-14)
+**Question:** the operator, for the second time: *"es sieht bisher sehr
+unübersichtlich aus."* Stage 16 answered the first complaint by making the table
+findable. The page has since grown a summary strip, a range picker, two rows of
+chips, an export, an accounting block and a drill-down — and it still carried,
+below all of that, the data-source table, the capture coverage, the store status
+and the retention table.
+**Decision:** those four blocks are removed from Reporting: Lens. They live on
+Services: Lens, which is where §4.12 put setup and health in the first place.
+The Reporting page keeps what it is for: the summary, the devices, and what the
+numbers could not cover.
+**Rationale:** the clutter was not too many features — it was one page answering
+two different questions for two different moments. *Is this thing set up
+properly* is asked once, at install; *who used the line* is asked every week.
+Duplicating the first onto the page that answers the second made both harder to
+read, and the duplication was a leftover from stage 2, when there was only one
+page to put anything on.
+**Measured consequence:** the Reporting page drops from nine configd calls to
+three, which is most of the second it took to load. 143 lines of view went with
+it, and the JavaScript that drew a table nobody needed twice.
+**And the rest is structure, not subtraction:** each block is now an OPNsense
+`content-box` — the platform's own panel, so it inherits the theme rather than
+inventing one — with the controls collapsed into a single toolbar line and the
+filters on the line beneath it. The range picker sits in a page header with the
+introduction, because it governs everything below it.

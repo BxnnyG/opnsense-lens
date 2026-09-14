@@ -64,3 +64,21 @@ The filtering is layout and lives in the view, which by the standing rule
   attribute naming the guess, and by stage 6 making it overridable.
 - **Client-side filtering has a ceiling.** Unknown where it is; the page reports
   its own timing and the answer will be visible before it is a problem.
+
+## 6. Second pass (2026-09-14)
+
+The same complaint, a second time: *"es sieht bisher sehr unübersichtlich aus."*
+Fair — the page had grown a summary strip, a range picker, two chip rows, an
+export, an accounting block and a drill-down since this plan was written.
+
+The largest fix was not visual. Reporting: Lens was still carrying the data
+source table, the capture coverage, the store status and the retention table —
+all four of which are on Services: Lens, where §4.12 put them. Removing them
+took 143 lines of view out and dropped the page from nine configd calls to
+three. §4.46.
+
+What remains is structured with OPNsense's own `content-box` rather than a
+stylesheet of my own: one box for the figures, one for the table, one for the
+accounting. Controls are a single toolbar line; segment and tag filters are the
+line beneath it; the range picker is in the page header, because it governs
+everything under it.
