@@ -110,6 +110,34 @@ class DeviceDetailTest extends TestCase
         $this->assertStringContainsString('only been collecting', $detail['note']);
     }
 
+    public function testALongRangeIsDrawnPerDayAndSaysSo()
+    {
+        /* 720 bars for a month is more than a screen has pixels */
+        $series = [];
+        for ($index = 0; $index < 30; $index++) {
+            $series[] = $this->point($index, 10, 10);
+        }
+
+        $detail = DeviceDetail::describe(
+            $this->raw($series, ['hours' => 720, 'step' => 86400]),
+            self::NOW
+        );
+
+        $this->assertSame(86400, $detail['step']);
+        $this->assertSame('day', $detail['step_name']);
+        $this->assertNull($detail['note'], 'thirty daily bars is a full month, not a short one');
+    }
+
+    public function testAShortHistoryIsStillDetectedWhenTheBarsAreDays()
+    {
+        $detail = DeviceDetail::describe(
+            $this->raw([$this->point(0, 10, 10)], ['hours' => 720, 'step' => 86400]),
+            self::NOW
+        );
+
+        $this->assertNotNull($detail['note']);
+    }
+
     public function testAFullWindowSaysNothing()
     {
         $series = [];

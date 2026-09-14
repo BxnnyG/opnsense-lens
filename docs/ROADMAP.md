@@ -32,7 +32,12 @@ this one inherits, and 23 stages of experience with it.
 | 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |
 | 16 | **Legibility** — search, segment filters, type icons, traffic bars ([plan](plans/stage-16-legibility.md)) | S6 | 🔨 built 2026-08-30 · runs before 8 and 9 (§4.29) |
-| 17 | **Networks** — traffic per segment, and how much of it has a device (§4.41) | S6 | 🔨 built 2026-09-12 · **awaiting router test** |
+| 17 | **Networks** — traffic per segment, and how much of it has a device (§4.41) | S6 | 🔨 built 2026-09-12 |
+| 18 | **Time range** — 24 hours, 7 days, 30 days, and what the store can actually cover (§4.43) | S6 | 🔨 built 2026-09-14 · **awaiting router test** |
+| 19 | Drill-down everywhere: a segment opens its devices, an hour opens its addresses (BACKLOG #22) | S6 | ⏳ |
+| 20 | Top domains, and what was blocked (BACKLOG #23) | S12 | ⏳ blocked on one `qstats` output (§1) |
+| 21 | A weekly report worth reading, exported (BACKLOG #24) | S6 | ⏳ |
+| 22 | Group by tag as the default view (BACKLOG #25) | S1 | ⏳ |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

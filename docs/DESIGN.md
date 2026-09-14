@@ -1289,3 +1289,25 @@ packet loss (BACKLOG #20) needs a data source Lens has never read — `dpinger` 
 the gateway, and something new for public targets. "Who was blocked most" needs
 `configctl unbound qstats totals`, whose output shape is still unseen (§1). Both
 are named here so the gap is deliberate rather than forgotten.
+
+### §4.43 — A range that the store cannot cover is answered, and said (2026-09-14)
+**Question:** every page was hard-wired to 24 hours while the store keeps a
+year, so the question never arose. With a range picker it does immediately:
+what happens when someone asks for thirty days on a box that has collected
+eleven?
+**Decision:** the range is honoured, the eleven days are shown, and the page
+says *"Lens has been collecting for 11 days, so this is that much rather than
+the 30 days asked for. Nothing is missing — it had not started yet."*
+**Rationale:** the three obvious alternatives are all worse. Refusing the range
+makes a correct question look like an error. Silently clamping it to what exists
+is the §4.22 family again — a chart that looks like a quiet month. Padding with
+zeros invents data. Only the fourth answers the question and stays true.
+**Two smaller calls inside it.** The list of ranges lives in `Window::CHOICES`
+and an unrecognised `hours` falls back rather than being honoured, so the query
+string cannot talk the API into an arbitrary window. And above **72 hours the
+device chart is drawn per day**, because 720 bars is more than a screen has
+pixels — with the bar's meaning printed beside it, since a chart whose bars
+silently change unit is worse than one that says so.
+**Consequences:** the range lives in the query string, so it survives a reload,
+can be linked to, and the back button behaves. The wallboard deliberately has no
+picker (§4.40): nobody is standing at it to choose.

@@ -86,6 +86,8 @@
     .lens-key.lens-chart-down { background: #7a8b99; }
     a.lens-name { color: inherit; }
     tr.lens-group > td { background: rgba(128, 128, 128, 0.08); }
+    #lensRangeWrap { margin-top: 10px; }
+    #lensRangeNote { margin-left: 10px; }
     #lensSummary { display: flex; flex-wrap: wrap; gap: 26px; margin: 14px 0 4px 0; }
     .lens-stat { min-width: 9em; }
     .lens-figure { font-size: 22px; font-weight: 600; line-height: 1.1; }
@@ -135,6 +137,38 @@
          * is not a dataset -- it is a list a person is trying to find one thing
          * in, and a round trip per keystroke would make that worse, not better.
          */
+        /*
+         * The chosen range lives in the query string rather than in a variable:
+         * it survives a reload, it can be linked to, and the back button does
+         * what a person expects. `Window` in PHP owns which ranges exist, so
+         * this cannot offer one the API would then refuse.
+         */
+        const LABELS = { 24: '{{ lang._("24 hours") }}',
+                         168: '{{ lang._("7 days") }}',
+                         720: '{{ lang._("30 days") }}' };
+
+        const chosenHours = () => {
+            const asked = parseInt(new URLSearchParams(location.search).get('hours'), 10);
+            return LABELS[asked] ? asked : 24;
+        };
+
+        const drawRange = (window_) => {
+            const $bar = $('#lensRange').empty();
+            for (const hours of (window_.choices || [])) {
+                const url = location.pathname + '?hours=' + hours;
+                $('<a/>').addClass('lens-chip')
+                    .toggleClass('lens-chip-on', hours === chosenHours())
+                    .attr('href', url)
+                    .text(LABELS[hours] || hours + ' h')
+                    .appendTo($bar);
+            }
+
+            /* asking for thirty days on a box that has eleven is not an error;
+               showing eleven under a heading that says thirty would be */
+            $('#lensRangeNote').toggle(!!window_.note).text(window_.note || '');
+            $bar.show();
+        };
+
         let devices = [];
         let segments = new Set();
         let kinds = {};
@@ -417,7 +451,7 @@
             $('#lensDetail').modal('show');
 
             ajaxGet('/api/lens/devices/history',
-                    { mac: device.mac, hours: 24 }, (detail, detailStatus) => {
+                    { mac: device.mac, hours: chosenHours() }, (detail, detailStatus) => {
                 $('#lensDetailLoading').hide();
 
                 if (detailStatus !== 'success' || !detail || !detail.series) {
@@ -425,6 +459,8 @@
                     return;
                 }
 
+                $('#lensDetailStep').text(detail.step_name);
+                $('#lensDetailWindow').text(LABELS[chosenHours()]);
                 $('#lensDetailTotal').text(detail.total);
                 $('#lensDetailSent').text(detail.sent);
                 $('#lensDetailReceived').text(detail.received);
@@ -574,7 +610,8 @@
             }
         };
 
-        const load = () => ajaxGet('/api/lens/devices/list', {}, (report, deviceStatus) => {
+        const load = () => ajaxGet('/api/lens/devices/list', { hours: chosenHours() },
+                                   (report, deviceStatus) => {
             if (deviceStatus !== 'success' || !report || !report.devices) {
                 $('#lensDevicesError').show();
                 return;
@@ -582,6 +619,7 @@
 
             devices = report.devices;
             kinds = report.kinds || {};
+            drawRange(report.window || {});
             drawSummary(report.summary || {});
             groups = report.groups || [];
             $('#lensGroupWrap').toggle(groups.length > 0);
@@ -715,6 +753,11 @@
 <div id="lensDevicesBlock" style="display: none;">
     <h3>{{ lang._('Devices') }}</h3>
     <p id="lensDevicesHeadline"></p>
+    <div id="lensRangeWrap">
+        <span id="lensRange" style="display: none;"></span>
+        <span id="lensRangeNote" class="text-muted" style="display: none;"></span>
+    </div>
+
     <div id="lensSummary" style="display: none;"></div>
 
     <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
@@ -775,7 +818,8 @@
                         <svg id="lensChart" class="lens-chart"
                              preserveAspectRatio="none"></svg>
                         <p class="text-muted lens-chart-legend">
-                            {{ lang._('One bar per hour, newest on the right.') }}
+                            {{ lang._('One bar per') }} <span id="lensDetailStep"></span>,
+                            {{ lang._('newest on the right.') }}
                             <span class="lens-key lens-chart-up"></span> {{ lang._('sent') }}
                             <span class="lens-key lens-chart-down"></span> {{ lang._('received') }}
                             &mdash; {{ lang._('an hour with nothing in it keeps a thin line, so quiet cannot be mistaken for missing.') }}
@@ -783,7 +827,9 @@
                         <table class="table table-condensed">
                             <tbody>
                                 <tr>
-                                    <td style="width: 14em;">{{ lang._('In the last 24 hours') }}</td>
+                                    <td style="width: 14em;">
+                                        {{ lang._('Over') }} <span id="lensDetailWindow"></span>
+                                    </td>
                                     <td>
                                         <span id="lensDetailTotal"></span>
                                         (<span id="lensDetailSent"></span> {{ lang._('up') }},

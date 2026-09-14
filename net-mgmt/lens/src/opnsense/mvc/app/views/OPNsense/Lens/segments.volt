@@ -38,13 +38,51 @@
     .seg-note { display: block; color: #999; font-size: 90%; max-width: 34em; }
     .seg-thin { color: #f0ad4e; }
     .seg-num { text-align: right; white-space: nowrap; }
+    #lensRangeWrap { margin: 10px 0; }
+    #lensRangeNote { margin-left: 10px; }
+    .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
+                 border: 1px solid #999; border-radius: 10px; font-size: 90%;
+                 text-decoration: none; }
+    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
 </style>
 
 <script>
     $(document).ready(() => {
+        /*
+         * The chosen range lives in the query string rather than in a variable:
+         * it survives a reload, it can be linked to, and the back button does
+         * what a person expects. `Window` in PHP owns which ranges exist, so
+         * this cannot offer one the API would then refuse.
+         */
+        const LABELS = { 24: '{{ lang._("24 hours") }}',
+                         168: '{{ lang._("7 days") }}',
+                         720: '{{ lang._("30 days") }}' };
+
+        const chosenHours = () => {
+            const asked = parseInt(new URLSearchParams(location.search).get('hours'), 10);
+            return LABELS[asked] ? asked : 24;
+        };
+
+        const drawRange = (window_) => {
+            const $bar = $('#lensRange').empty();
+            for (const hours of (window_.choices || [])) {
+                const url = location.pathname + '?hours=' + hours;
+                $('<a/>').addClass('lens-chip')
+                    .toggleClass('lens-chip-on', hours === chosenHours())
+                    .attr('href', url)
+                    .text(LABELS[hours] || hours + ' h')
+                    .appendTo($bar);
+            }
+
+            /* asking for thirty days on a box that has eleven is not an error;
+               showing eleven under a heading that says thirty would be */
+            $('#lensRangeNote').toggle(!!window_.note).text(window_.note || '');
+            $bar.show();
+        };
+
         const pct = (share) => Math.round(share * 100) + '%';
 
-        ajaxGet('/api/lens/segments/list', {}, (report, status) => {
+        ajaxGet('/api/lens/segments/list', { hours: chosenHours() }, (report, status) => {
             $('#segLoading').hide();
 
             if (status !== 'success' || !report || !report.segments) {
@@ -58,7 +96,8 @@
             }
 
             $('#segTotal').text(report.total);
-            $('#segHours').text(report.hours);
+            $('#segHours').text((report.window || {}).asked || '');
+            drawRange(report.window || {});
 
             const largest = report.segments.reduce((max, s) => Math.max(max, s.octets), 0);
             const $body = $('#segTable > tbody').empty();
@@ -100,6 +139,11 @@
     });
 </script>
 
+    <div id="lensRangeWrap">
+        <span id="lensRange" style="display: none;"></span>
+        <span id="lensRangeNote" class="text-muted" style="display: none;"></span>
+    </div>
+
 <div id="segLoading">
     <i class="fa fa-spinner fa-spin"></i> {{ lang._('Adding up the segments...') }}
 </div>
@@ -114,8 +158,8 @@
 
 <div id="segReport" style="display: none;">
     <p>
-        <b id="segTotal"></b> {{ lang._('over the last') }} <span id="segHours"></span>
-        {{ lang._('hours, across every interface NetFlow reported.') }}
+        <b id="segTotal"></b> {{ lang._('over') }} <span id="segHours"></span>,
+        {{ lang._('across every interface NetFlow reported.') }}
     </p>
 
     <table id="segTable" class="table table-condensed table-striped">

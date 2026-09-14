@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
 use OPNsense\Lens\SegmentReport;
+use OPNsense\Lens\Window;
 
 /**
  * Class SegmentsController
@@ -51,8 +52,7 @@ class SegmentsController extends ApiControllerBase
      */
     public function listAction()
     {
-        $hours = (int)$this->request->get('hours', null, self::DEFAULT_HOURS);
-        $hours = $hours > 0 && $hours <= self::MAX_HOURS ? $hours : self::DEFAULT_HOURS;
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
         $started = microtime(true);
         $raw = json_decode(trim((string)(new Backend())->configdRun('lens segments ' . $hours)), true);
@@ -60,6 +60,11 @@ class SegmentsController extends ApiControllerBase
         $report = SegmentReport::describe(
             json_last_error() === JSON_ERROR_NONE && is_array($raw) ? $raw : [],
             self::names()
+        );
+        $report['window'] = Window::describe(
+            $hours,
+            isset($raw['first_bucket']) ? (int)$raw['first_bucket'] : null,
+            time()
         );
         $report['timing'] = ['total_ms' => (int)round((microtime(true) - $started) * 1000)];
 

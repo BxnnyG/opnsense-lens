@@ -455,6 +455,29 @@ class CollectorSmokeTest(unittest.TestCase):
 
             self.assertEqual(1, result.returncode)
 
+    def test_a_long_range_is_bucketed_per_day_and_says_which(self):
+        """720 bars for a month is more than a screen has pixels"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'lens.sqlite')
+            env = dict(os.environ, LENS_DB=path)
+
+            def ask(hours):
+                result = subprocess.run(
+                    [sys.executable, os.path.join(SCRIPTS, 'collect.py'), 'device',
+                     '--mac', 'aa:bb:cc:dd:ee:01', '--hours', str(hours)],
+                    capture_output=True, text=True, env=env, timeout=30,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                return json.loads(result.stdout)
+
+            day = ask(24)
+            month = ask(720)
+
+            self.assertEqual(3600, day['step'])
+            self.assertEqual(86400, month['step'])
+            self.assertLess(len(month['series']), len(day['series']) * 2,
+                            'a month of daily bars is fewer than two days of hourly ones')
+
     def test_purge_on_an_empty_store_is_not_an_error(self):
         with tempfile.TemporaryDirectory() as directory:
             result = self.run_duty('purge', os.path.join(directory, 'lens.sqlite'))

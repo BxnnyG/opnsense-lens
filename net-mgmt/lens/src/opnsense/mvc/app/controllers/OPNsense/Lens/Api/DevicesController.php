@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceReport;
+use OPNsense\Lens\Window;
 
 /**
  * Class DevicesController
@@ -60,8 +61,7 @@ class DevicesController extends ApiControllerBase
         $started = microtime(true);
         $calls = [];
 
-        $hours = (int)$this->request->get('hours', null, self::DEFAULT_HOURS);
-        $hours = $hours > 0 && $hours <= self::MAX_HOURS ? $hours : self::DEFAULT_HOURS;
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
         $devices = self::decode($backend, 'lens devices', $calls);
         $status = self::decode($backend, 'lens status', $calls);
@@ -73,6 +73,11 @@ class DevicesController extends ApiControllerBase
             : null;
 
         $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+        $report['window'] = Window::describe(
+            $hours,
+            isset($traffic['first_bucket']) ? (int)$traffic['first_bucket'] : null,
+            time()
+        );
         $report['timing'] = [
             'total_ms' => (int)round((microtime(true) - $started) * 1000),
             'calls' => $calls,
@@ -93,8 +98,7 @@ class DevicesController extends ApiControllerBase
             return ['status' => 'failed', 'message' => gettext('not a MAC address')];
         }
 
-        $hours = (int)$this->request->get('hours', null, self::DEFAULT_HOURS);
-        $hours = $hours > 0 && $hours <= self::MAX_HOURS ? $hours : self::DEFAULT_HOURS;
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
         $calls = [];
         $raw = self::decode(new Backend(), 'lens device ' . $mac . ' ' . $hours, $calls);

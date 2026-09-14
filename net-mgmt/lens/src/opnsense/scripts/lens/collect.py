@@ -66,6 +66,9 @@ HARVEST_WINDOW = 23 * 3600
 # How far back the traffic view reaches when nothing else is asked for.
 DEFAULT_TRAFFIC_HOURS = 24
 
+# above this a per-hour chart has more bars than a screen has pixels
+DAILY_ABOVE = 72
+
 # ...but never in one request. get_timeseries.py fills every timeslice for every
 # dimension key it found, and on a box with nineteen interfaces that is a very
 # large object to build, hand over as JSON, and insert inside one transaction.
@@ -184,6 +187,7 @@ def segments(store, now, hours):
         'since': since,
         'segments': sorted(rows.values(), key=lambda r: r['octets'], reverse=True),
         'device_interfaces': sorted(store.device_interfaces()),
+        'first_bucket': store.status()['first_bucket'],
     }
 
 
@@ -197,12 +201,19 @@ def device(store, now, mac, hours):
     the requested window starts.
     """
     mac = parse.normalise_mac(mac or '')
+
+    # Beyond three days an hourly chart is more bars than a screen has pixels,
+    # so it is drawn per day instead. The step is reported, because a chart
+    # whose bars silently change meaning is worse than one that says so.
+    step = 86400 if hours > DAILY_ABOVE else 3600
+
     since = now - hours * 3600
-    since -= since % 3600
+    since -= since % step
 
     totals = {}
     for row in store.device_traffic(mac, since):
-        bucket = totals.setdefault(row['bucket'], {'sent': 0, 'received': 0})
+        at = row['bucket'] - (row['bucket'] % step)
+        bucket = totals.setdefault(at, {'sent': 0, 'received': 0})
         # 'in' entered the interface, so the device sent it (DESIGN 1.4)
         bucket['sent' if row['direction'] == 'in' else 'received'] += row['octets']
 
@@ -211,7 +222,7 @@ def device(store, now, mac, hours):
     start = max(since, first) if first else since
 
     series = []
-    bucket = start - (start % 3600)
+    bucket = start - (start % step)
     while bucket < now:
         totals_at = totals.get(bucket, {'sent': 0, 'received': 0})
         series.append({
@@ -219,7 +230,7 @@ def device(store, now, mac, hours):
             'sent': totals_at['sent'],
             'received': totals_at['received'],
         })
-        bucket += 3600
+        bucket += step
 
     return {
         'mac': mac,
@@ -230,6 +241,7 @@ def device(store, now, mac, hours):
         'received': sum(point['received'] for point in series),
         'interfaces': store.device_interfaces_of(mac),
         'history_starts': first,
+        'step': step,
     }
 
 

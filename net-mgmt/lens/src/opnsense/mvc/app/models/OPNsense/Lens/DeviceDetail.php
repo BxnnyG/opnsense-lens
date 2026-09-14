@@ -68,8 +68,12 @@ class DeviceDetail
         $sent = (int)($raw['sent'] ?? 0);
         $received = (int)($raw['received'] ?? 0);
 
+        $step = (int)($raw['step'] ?? 3600);
+
         return [
             'mac' => (string)($raw['mac'] ?? ''),
+            'step' => $step,
+            'step_name' => $step >= 86400 ? gettext('day') : gettext('hour'),
             'series' => $series,
             'peak' => $peak,
             'peak_text' => Bytes::human($peak),
@@ -118,16 +122,17 @@ class DeviceDetail
         }
 
         $asked = (int)($raw['hours'] ?? 0);
-        $have = count($series);
+        $step = (int)($raw['step'] ?? 3600);
+        $have = count($series) * $step;
 
-        if ($asked > 0 && $have < $asked - 1) {
+        if ($asked > 0 && $have < ($asked * 3600) - $step) {
             return sprintf(
                 gettext(
                     'Lens has only been collecting for %s, so the chart is that long '
-                    . 'rather than the %d hours asked for.'
+                    . 'rather than the %s asked for.'
                 ),
-                Duration::span($have * 3600),
-                $asked
+                Duration::span($have),
+                Duration::span($asked * 3600)
             );
         }
 
