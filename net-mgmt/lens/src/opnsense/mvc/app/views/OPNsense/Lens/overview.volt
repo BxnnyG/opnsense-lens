@@ -51,10 +51,13 @@
     .lens-if { color: #999; }
     .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
     .lens-role { display: block; font-size: 90%; color: #999; font-style: italic; }
-    .lens-traffic { white-space: nowrap; min-width: 14em; }
+    .lens-traffic { white-space: nowrap; min-width: 13em; }
+    #lensDevices > tbody > tr > td { padding-top: 5px; padding-bottom: 5px; }
+    .lens-evidence { white-space: nowrap; color: #999; font-size: 90%; }
+    .lens-warn { color: #f0ad4e; margin-left: 6px; }
     .lens-icon { margin-right: 6px; opacity: 0.75; }
     .lens-name { font-weight: 600; }
-    .lens-mac { display: block; margin-left: 20px; }
+    .lens-mac { display: block; margin-left: 20px; font-size: 85%; }
     .lens-role { margin-left: 20px; }
     .lens-bar {
         display: block; height: 4px; margin-bottom: 3px;
@@ -344,21 +347,21 @@
                 }
                 /* the firewall holds twelve addresses and drowned every other
                    row on the page; the rest are one click away */
-                if (index >= 3) {
+                if (index >= 2) {
                     $line.addClass('lens-addr-more').hide();
                 }
                 $addresses.append($line);
             });
-            if (device.addresses.length > 3) {
+            if (device.addresses.length > 2) {
+                const hidden = device.addresses.length - 2;
                 $addresses.append($('<a/>')
                     .addClass('lens-addr-toggle').attr('href', '#')
-                    .text('+ ' + (device.addresses.length - 3) + ' {{ lang._("more") }}')
+                    .text('+ ' + hidden)
                     .on('click', function (event) {
                         event.preventDefault();
                         $(this).siblings('.lens-addr-more').toggle();
                         $(this).text($(this).siblings('.lens-addr-more:visible').length
-                            ? '{{ lang._("show fewer") }}'
-                            : '+ ' + (device.addresses.length - 3) + ' {{ lang._("more") }}');
+                            ? '{{ lang._("fewer") }}' : '+ ' + hidden);
                     }));
             }
 
@@ -366,9 +369,15 @@
                 $('<span/>').addClass(device.here ? 'lens-here' : '').text(device.presence)
             );
 
-            const $named = $('<td/>').addClass('lens-cause').text(device.named_by);
+            const $named = $('<td/>').addClass('lens-evidence')
+                .append($('<span/>').attr('title', device.named_by).text(device.named_short));
             if (device.caveat) {
-                $named.append($('<em/>').addClass('lens-caveat').text(device.caveat));
+                /* a warning that is identical on every randomised device reads
+                   as wallpaper by the third row; the triangle keeps it visible
+                   and the sentence stays one hover away */
+                $named.append($('<i/>')
+                    .addClass('fa fa-exclamation-triangle lens-warn')
+                    .attr('title', device.caveat));
             }
 
             return $('<tr/>')
@@ -854,7 +863,7 @@
                 <th>{{ lang._('Addresses held') }}</th>
                 <th>{{ lang._('Presence') }}</th>
                 <th>{{ lang._('Known for') }}</th>
-                <th>{{ lang._('How Lens names it') }}</th>
+                <th>{{ lang._('Named by') }}</th>
             </tr>
         </thead>
         <tbody></tbody>

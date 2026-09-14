@@ -171,6 +171,23 @@ class DeviceReportTest extends TestCase
         $this->assertStringContainsString('dnsmasq', $device['named_by']);
     }
 
+    public function testTheEvidenceIsAlsoAvailableInOneWord()
+    {
+        /*
+         * The long sentence was printed on every row -- thirty times
+         * identically on the operator's second firewall -- and made a table of
+         * fifty devices unreadable. The column carries the word; the sentence
+         * is the tooltip.
+         */
+        $this->assertSame('dnsmasq',
+            $this->one(['hostname' => 'nas', 'hostname_source' => 'dnsmasq'])['named_short']);
+        $this->assertSame('vendor', $this->one()['named_short']);
+        $this->assertSame('nothing',
+            $this->one(['mac' => 'aa:bb:cc:dd:ee:ff'])['named_short']);
+        $this->assertSame('you',
+            $this->one(['label' => ['name' => 'Kitchen']])['named_short']);
+    }
+
     public function testWithoutAHostnameTheVendorAndTheMacTailAreUsed()
     {
         $device = $this->one();

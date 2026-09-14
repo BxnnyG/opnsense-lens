@@ -229,6 +229,12 @@ class DeviceReport
             'named_by' => $chosenName !== ''
                 ? gettext('you named it')
                 : self::namedBy($hostname, $device, $vendor),
+            /* the long sentence is true and it was printed on every row, thirty
+               times identically, which made a table of fifty devices unreadable.
+               It is the tooltip now; the column carries the evidence in a word. */
+            'named_short' => $chosenName !== ''
+                ? gettext('you')
+                : self::namedShort($hostname, $device, $vendor),
             'label' => [
                 'name' => $chosenName,
                 'kind' => $chosenKind,
@@ -359,6 +365,19 @@ class DeviceReport
         }
 
         return gettext('nothing announced, and the vendor is not in the database');
+    }
+
+    /**
+     * The same answer in one word: where the name came from.
+     */
+    private static function namedShort(string $hostname, array $device, ?string $vendor): string
+    {
+        if ($hostname !== '') {
+            $source = (string)($device['hostname_source'] ?? '');
+            return $source === '' ? gettext('announced') : $source;
+        }
+
+        return $vendor !== null ? gettext('vendor') : gettext('nothing');
     }
 
     /**

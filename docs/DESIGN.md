@@ -1380,3 +1380,40 @@ it, and the JavaScript that drew a table nobody needed twice.
 inventing one — with the controls collapsed into a single toolbar line and the
 filters on the line beneath it. The range picker sits in a page header with the
 introduction, because it governs everything below it.
+
+### §4.47 — A sentence printed on every row is not a sentence, it is texture (2026-09-14)
+**Question:** the device table carried "hardware vendor only - it announces no
+name" on thirty consecutive rows of the operator's second firewall. Each one is
+true, carefully worded, and was written to be helpful.
+**Decision:** the column shows the evidence in **one word** — `dnsmasq`,
+`isc-dhcp`, `vendor`, `you`, `nothing` — and the sentence becomes the `title`.
+The randomised-MAC caveat becomes a warning triangle with the same treatment.
+**Rationale:** a reader scanning fifty rows does not read the thirty-first copy
+of a sentence; they stop reading the column, and then the column beside it. The
+explanation still has to exist — this plugin's whole claim is that it says where
+its numbers come from — but repetition destroyed the thing repeating it. One
+word per row is scannable *and* comparable, which the sentence never was: you
+can see at a glance that four devices are named by dnsmasq and thirty by nobody.
+**Consequences:** the rule generalises — **if a piece of prose is identical on
+most rows, it belongs to the column, not to the row.** The per-row notes on the
+Networks page survive this test, because they differ by row and most rows have
+none.
+
+### §4.48 — A wall display that fills an eighth of the wall is broken (2026-09-14)
+**What the operator saw:** the wallboard rendering eight rows in the top fifth
+of the screen, with two thirds of it empty, and eight of those rows reading
+`Proxmox Server Solutions GmbH…` — the same truncated string.
+**Decision:** the board sizes itself to the height it is given, its type scales
+with the viewport, it shows as many rows as actually fit rather than a fixed
+eight, and it folds a herd into one row using the groups the Devices page
+already computed.
+**Rationale:** every other surface is read from a desk, at arm's length, by
+someone who came with a question. This one is read from across a room by someone
+who did not. At that distance "mostly empty" reads as *broken*, and eight
+identical truncated strings read as *nothing at all*. The failure mode of a wall
+display is not being wrong, it is being ignorable — which is §4.40's point
+arriving from the other side.
+**Consequences:** the folding reuses `report.groups` rather than inventing a
+second rule for what a group is, so the board and the list cannot disagree
+(§4.37). The row count is measured from the rendered height, not chosen at the
+desk.

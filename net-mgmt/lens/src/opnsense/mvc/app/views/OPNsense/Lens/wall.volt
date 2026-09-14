@@ -25,21 +25,38 @@
  #}
 
 <style>
-    #lensWall { padding: 10px 0; }
-    .wall-head { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-end; }
-    .wall-big { font-size: 52px; font-weight: 600; line-height: 1; }
-    .wall-label { color: #999; font-size: 14px; margin-top: 4px; }
-    .wall-row { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
-    .wall-name { width: 16em; font-size: 20px; overflow: hidden; text-overflow: ellipsis;
-                 white-space: nowrap; }
-    .wall-track { flex: 1; height: 18px; background: rgba(128,128,128,0.15); border-radius: 3px; }
-    .wall-fill { height: 18px; background: #d94f00; opacity: 0.75; border-radius: 3px; }
-    .wall-bytes { width: 8em; text-align: right; font-size: 18px; }
-    .wall-foot { margin-top: 30px; color: #999; }
+    /*
+     * The board fills the height it is given rather than sitting in the top
+     * eighth of it. A wall display that leaves two thirds of the screen empty
+     * reads as broken from across the room, which is the only distance that
+     * matters for this page.
+     */
+    #lensWallBoard { display: flex; flex-direction: column;
+                     min-height: calc(100vh - 190px); }
+    #lensWall { display: none; flex: 1; flex-direction: column; }
+    #lensWall.wall-on { display: flex; }
+
+    .wall-head { display: flex; flex-wrap: wrap; gap: 5vw; align-items: flex-end;
+                 margin-bottom: 2vh; }
+    .wall-big { font-size: clamp(38px, 5vw, 86px); font-weight: 600; line-height: 1; }
+    .wall-label { color: #999; font-size: clamp(12px, 1vw, 18px); margin-top: 4px; }
+
+    #wallRows { flex: 1; display: flex; flex-direction: column;
+                justify-content: space-evenly; gap: 4px; }
+    .wall-row { display: flex; align-items: center; gap: 1.5vw; }
+    .wall-name { width: 22%; min-width: 10em;
+                 font-size: clamp(14px, 1.5vw, 30px);
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wall-track { flex: 1; height: clamp(14px, 2.2vh, 34px);
+                  background: rgba(128, 128, 128, 0.15); border-radius: 3px; }
+    .wall-fill { height: 100%; background: #d94f00; opacity: 0.8; border-radius: 3px; }
+    .wall-bytes { width: 6em; text-align: right;
+                  font-size: clamp(14px, 1.4vw, 28px); font-variant-numeric: tabular-nums; }
+
+    .wall-foot { margin-top: 2vh; color: #999; }
     .wall-warn { color: #f0ad4e; font-weight: 600; }
-    #lensWallBoard:fullscreen { background: #1b1b1b; padding: 40px; }
-    #lensWallBoard:fullscreen .wall-big { font-size: 90px; }
-    #lensWallBoard:fullscreen .wall-name { font-size: 28px; }
+
+    #lensWallBoard:fullscreen { min-height: 100vh; padding: 3vh 3vw; }
 </style>
 
 <script>
@@ -51,6 +68,52 @@
          * notice.
          */
         const REFRESH = 60000;
+
+        /*
+         * Eight rows reading "Proxmox Server Solutions GmbH..." are eight rows
+         * saying nothing. The Devices page already folds a herd into one entry
+         * and hands the groups over; the board uses them rather than inventing
+         * its own rule, so the two cannot disagree about what a group is.
+         */
+        const fold = (report) => {
+            const groups = new Map((report.groups || []).map(g => [g.key, g]));
+            const folded = new Map();
+            const rows = [];
+
+            for (const device of report.devices) {
+                const group = groups.get(device.group);
+                if (!group) {
+                    rows.push({ name: device.name, icon: device.kind.icon,
+                                octets: device.octets });
+                    continue;
+                }
+                if (!folded.has(group.key)) {
+                    folded.set(group.key, { name: group.label + ' \u00d7 ' + group.count,
+                                            icon: group.icon, octets: 0 });
+                    rows.push(folded.get(group.key));
+                }
+                folded.get(group.key).octets += device.octets;
+            }
+
+            return rows.sort((left, right) => right.octets - left.octets);
+        };
+
+        const bytes = (octets) => {
+            if (!octets) {
+                return '';
+            }
+            if (octets < 1024) {
+                return octets + ' B';
+            }
+            const units = ['KB', 'MB', 'GB', 'TB'];
+            let value = octets / 1024;
+            for (let i = 0; i < units.length; i++) {
+                if (value < 1024 || i === units.length - 1) {
+                    return (value < 10 ? value.toFixed(1) : Math.round(value)) + ' ' + units[i];
+                }
+                value /= 1024;
+            }
+        };
 
         const render = (report) => {
             const summary = report.summary || {};
@@ -67,21 +130,22 @@
                 $('#wallNewLabel').text('{{ lang._("watching so far") }}');
             }
 
-            const top = report.devices.slice(0, 8);
-            const largest = top.reduce((max, d) => Math.max(max, d.octets), 0);
+            /* how many rows fit, rather than a number picked at the desk */
+            const room = Math.floor(($('#wallRows').height() || 320) / 44);
+            const top = fold(report).slice(0, Math.max(5, Math.min(14, room)));
+            const largest = top.reduce((max, e) => Math.max(max, e.octets), 0);
 
             const $rows = $('#wallRows').empty();
-            for (const device of top) {
+            for (const entry of top) {
                 const $bar = $('<div/>').addClass('wall-fill').css(
-                    'width', largest ? Math.max(1, (device.octets / largest) * 100) + '%' : '0'
+                    'width', largest ? Math.max(1, (entry.octets / largest) * 100) + '%' : '0'
                 );
                 $rows.append($('<div/>').addClass('wall-row')
-                    .append($('<div/>').addClass('wall-name')
-                        .append($('<i/>').addClass('fa fa-fw ' + device.kind.icon))
-                        .append(document.createTextNode(' ' + device.name)))
+                    .append($('<div/>').addClass('wall-name').attr('title', entry.name)
+                        .append($('<i/>').addClass('fa fa-fw ' + entry.icon))
+                        .append(document.createTextNode(' ' + entry.name)))
                     .append($('<div/>').addClass('wall-track').append($bar))
-                    .append($('<div/>').addClass('wall-bytes')
-                        .text(device.traffic ? device.traffic.split('  ')[0] : '')));
+                    .append($('<div/>').addClass('wall-bytes').text(bytes(entry.octets))));
             }
 
             /* the one thing a wall display must never do is look current while
@@ -97,7 +161,7 @@
                     .text('{{ lang._("Lens did not answer. This screen is not current.") }}');
                 return;
             }
-            $('#lensWall').show();
+            $('#lensWall').addClass('wall-on');
             render(report);
         });
 
@@ -117,12 +181,12 @@
 </script>
 
 <div id="lensWallBoard">
-    <p>
+    <p class="text-muted">
         <a href="#" id="wallFull">{{ lang._('Fill the screen') }}</a>
         &mdash; {{ lang._('refreshes itself every minute; nothing here is clickable on purpose.') }}
     </p>
 
-    <div id="lensWall" style="display: none;">
+    <div id="lensWall">
         <div class="wall-head">
             <div>
                 <div class="wall-big"><span id="wallHere"></span> / <span id="wallKnown"></span></div>

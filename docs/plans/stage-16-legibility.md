@@ -82,3 +82,24 @@ stylesheet of my own: one box for the figures, one for the table, one for the
 accounting. Controls are a single toolbar line; segment and tag filters are the
 line beneath it; the range picker is in the page header, because it governs
 everything under it.
+
+## 7. Third pass (2026-09-14, from screenshots)
+
+Seeing it rather than imagining it found two things the second pass could not.
+
+**The same sentence on thirty rows.** "hardware vendor only - it announces no
+name" was printed on every device the vendor table could name and nothing else
+could. Each copy is true and was written to help. Thirty of them stop the column
+being read at all. It is one word now — `dnsmasq`, `vendor`, `you`, `nothing` —
+with the sentence as the tooltip, which is also the first version that can be
+*compared* down the column (§4.47).
+
+**The wallboard filled an eighth of the wall**, and eight of its rows read
+`Proxmox Server Solutions GmbH…`. It now sizes to the height it is given, scales
+its type with the viewport, shows as many rows as fit, and folds a herd using
+the groups the Devices page already computed (§4.48).
+
+Also: addresses collapse after two rather than three, the caveat is a triangle
+rather than two lines of italics, and the table rows are tighter. None of that
+is clever — it is the difference between a page designed in a text editor and
+one looked at.
