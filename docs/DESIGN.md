@@ -1435,3 +1435,31 @@ holding, which are how the 103 GB question gets answered.
 is a real question and this removes the accidental answer to it. It is a
 different feature — top destinations, BACKLOG #23's neighbour — and it deserves
 to be built deliberately rather than survive as a side effect of a diagnostic.
+
+### §4.50 — The first judgement, and the three guards on it (2026-09-14)
+**Question:** everything Lens shows is a record — *it happened, here is the
+number*. Stage 12 says *and that is unusual*, which is a claim about what normal
+looks like. What has to be true before it is allowed to say that?
+**Decision:** three guards, all of which must pass.
+1. **Twenty-one complete days** for that device. Fewer and the answer is "still
+   learning, day 9 of 21", said on the page rather than hidden — the promise has
+   been printed since stage 4 and is easier to trust while you watch it kept.
+2. **A multiple** — today is at least four times the device's **median** day. A
+   median rather than a mean, because one backup night would drag a mean up and
+   hide everything after it. Tested.
+3. **A floor** — today is also at least 100 MB above that median. Without it,
+   3 KB against a 1 KB median is "three times normal": true, useless, and the
+   fastest way to teach someone to ignore the column.
+**Daily, not hourly.** Three weeks gives twenty-one samples of a day and three
+of any given hour-of-week. A median of three is not a baseline, it is a
+coincidence.
+**Today is never part of what is usual.** The day is still being written;
+including it would flatten every spike it was supposed to find.
+**And the verdict carries its own evidence:** "4 GB today against a usual day of
+300 MB — 13.3 times as much." A reader who thinks that is not worth mentioning
+can see the 300 MB and decide. This is the §4.29 condition for an inference —
+say what you inferred from — applied to the first inference that matters.
+**Consequences:** every threshold is a named constant in `lenslib/baseline.py`
+with the reason beside it, and all three are visible in the sentence. When the
+operator's boxes pass day 21 the first real verdicts arrive; if they are noise,
+the numbers to change are in one place and the tests describe what each is for.

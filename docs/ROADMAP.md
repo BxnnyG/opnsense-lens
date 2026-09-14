@@ -27,7 +27,7 @@ this one inherits, and 23 stages of experience with it.
 | 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 |
 | 10 | **Dashboard widget** — the top five, on the dashboard (§4.37) | S7 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 11 | DNS view | S12 | ⏳ |
-| 12 | Baseline, learning period visible, then verdicts | S8 | ⏳ |
+| 12 | **Baseline** — three weeks of learning, then three guards before anything is called unusual (§4.50) | S8 | 🔨 built 2026-09-14 · **first real verdicts once the boxes pass day 21** |
 | 13 | Correlation timeline | S9 | ⏳ |
 | 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |

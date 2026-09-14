@@ -443,6 +443,23 @@ class Store:
             (bucket_seconds, at, mac, at, at + step),
         )
 
+    def daily_totals(self, since, bucket_seconds=3600):
+        """
+        Bytes per device per day, for the baseline.
+
+        Daily rather than hourly on purpose: three weeks gives twenty-one daily
+        samples per device, and only three samples of any given hour-of-week.
+        A median of three is not a baseline, it is a coincidence.
+        """
+        return self.db.execute(
+            """SELECT mac, bucket / 86400 AS day, sum(octets) AS octets
+               FROM (%s)
+               WHERE macs = 1
+               GROUP BY mac, day
+               ORDER BY mac, day""" % ATTRIBUTION_SQL,
+            (bucket_seconds, since),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [

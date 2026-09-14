@@ -13,6 +13,7 @@ Two duties, one command each:
     collect.py label      store what the operator calls one device
     collect.py device     one device's hourly history, as JSON
     collect.py identity   whether MAC-keyed identity is holding, as JSON
+    collect.py baseline   which devices are doing something unusual today
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -39,6 +40,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lenslib import attribute                                   # noqa: E402
+from lenslib import baseline as baselib                         # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
 
@@ -163,6 +165,27 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+def baseline(store, now):
+    """Which devices are moving far more today than they usually do."""
+    today = now // 86400
+
+    # a day more than the baseline needs, so the median always has a full set
+    since = (today - baselib.NEEDS_DAYS - 1) * 86400
+
+    rows = [(row['mac'], row['day'], row['octets']) for row in store.daily_totals(since)]
+    report = baselib.assess(rows, today)
+
+    names = {}
+    for device in store.devices():
+        label = (device.get('label') or {}).get('name')
+        names[device['mac']] = label or device.get('hostname') or device['mac']
+
+    for entry in report['unusual']:
+        entry['name'] = names.get(entry['mac'], entry['mac'])
+
+    return report
 
 
 def moment(store, mac, at, step):
@@ -415,7 +438,8 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'segments', 'moment', 'label', 'prune', 'purge'],
+                 'identity', 'baseline', 'segments', 'moment', 'label',
+                 'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
@@ -437,6 +461,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'baseline':
+        print(json.dumps(baseline(Store(DB_PATH), int(time.time()))))
         return 0
 
     if args.duty == 'identity':

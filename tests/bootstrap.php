@@ -44,6 +44,7 @@ if (!function_exists('gettext')) {
 }
 
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Bytes.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/BaselineReport.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Duration.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Window.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceProbe.php';

@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceReport;
@@ -74,6 +75,9 @@ class DevicesController extends ApiControllerBase
             : null;
 
         $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+        $report['baseline'] = BaselineReport::describe(
+            self::decode($backend, 'lens baseline', $calls)
+        );
         $report['window'] = Window::describe(
             $hours,
             isset($traffic['first_bucket']) ? (int)$traffic['first_bucket'] : null,

@@ -55,6 +55,8 @@
     #lensDevices > tbody > tr > td { padding-top: 5px; padding-bottom: 5px; }
     .lens-evidence { white-space: nowrap; color: #999; font-size: 90%; }
     .lens-warn { color: #f0ad4e; margin-left: 6px; }
+    #lensBaselineBox.lens-quiet .lens-box-head { color: #999; font-weight: normal; }
+    #lensBaselineBox.lens-quiet table { display: none; }
     .lens-icon { margin-right: 6px; opacity: 0.75; }
     .lens-name { font-weight: 600; }
     .lens-mac { display: block; margin-left: 20px; font-size: 85%; }
@@ -733,6 +735,28 @@
             $('#lensTagWrap').toggle(drawChips($('#lensTags'), counts, tags) > 0);
         };
 
+        const drawBaseline = (baseline) => {
+            if (!baseline.headline) {
+                return;
+            }
+
+            $('#lensBaselineHeadline').text(baseline.headline);
+
+            const $rows = $('#lensBaselineRows').empty();
+            for (const row of (baseline.unusual || [])) {
+                $rows.append($('<tr/>')
+                    .append($('<td/>').append($('<b/>').text(row.name)))
+                    .append($('<td/>').text(row.says)));
+            }
+
+            /* the learning state is shown, not hidden: a promise the page has
+               been making since stage 4 is easier to trust while you can watch
+               it being kept */
+            $('#lensBaselineBox')
+                .toggleClass('lens-quiet', !(baseline.unusual || []).length)
+                .show();
+        };
+
         const drawSegments = () => {
             drawChips($('#lensSegments'), countBy(device => device.interfaces), segments);
             $('#lensSegments').show();
@@ -749,6 +773,7 @@
             kinds = report.kinds || {};
             drawRange(report.window || {});
             drawSummary(report.summary || {});
+            drawBaseline(report.baseline || {});
             groups = report.groups || [];
             $('#lensGroupWrap').toggle(groups.length > 0);
             $('#lensDevicesHeadline').text(report.headline || '');
@@ -819,6 +844,13 @@
     <div class="content-box lens-box">
         <div id="lensSummary"></div>
         <div id="lensDevicesHeadline" class="lens-box-foot"></div>
+    </div>
+
+    <div id="lensBaselineBox" class="content-box lens-box" style="display: none;">
+        <div id="lensBaselineHeadline" class="lens-box-head"></div>
+        <table class="table table-condensed">
+            <tbody id="lensBaselineRows"></tbody>
+        </table>
     </div>
 
     <div id="lensDevicesNote" class="alert alert-warning" style="display: none;"></div>
