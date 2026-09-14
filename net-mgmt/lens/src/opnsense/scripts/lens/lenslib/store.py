@@ -424,6 +424,25 @@ class Store:
             (bucket_seconds, since, mac),
         )
 
+    def device_moment(self, mac, at, step, bucket_seconds=3600):
+        """
+        What one device's traffic in one slice of the chart was made of.
+
+        The bar says a device moved 4 GB in that hour. This says on which
+        addresses and which segments, which is the only question a person has
+        after seeing the bar. Same attribution query as everything else, so the
+        parts add up to the bar exactly (§4.32).
+        """
+        return self.db.execute(
+            """SELECT address, interface, direction,
+                      sum(octets) AS octets, sum(packets) AS packets
+               FROM (%s)
+               WHERE macs = 1 AND mac = ? AND bucket >= ? AND bucket < ?
+               GROUP BY address, interface, direction
+               ORDER BY octets DESC""" % ATTRIBUTION_SQL,
+            (bucket_seconds, at, mac, at, at + step),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [

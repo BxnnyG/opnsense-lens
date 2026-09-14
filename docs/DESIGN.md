@@ -1311,3 +1311,23 @@ silently change unit is worse than one that says so.
 **Consequences:** the range lives in the query string, so it survives a reload,
 can be linked to, and the back button behaves. The wallboard deliberately has no
 picker (§4.40): nobody is standing at it to choose.
+
+### §4.44 — A drill-down that does not add up is worse than none (2026-09-14)
+**Question:** stage 19 makes every number open into what it is made of — a
+segment into the devices on it, an hour of a device's chart into the addresses
+behind it. What is the property that makes such a thing trustworthy?
+**Decision:** **the parts sum to the thing that was clicked, exactly**, and the
+drill-down goes through the same attribution query as the number it opened
+(`ATTRIBUTION_SQL`). A test adds the rows up and compares them against the bar.
+**Rationale:** a drill-down is the one place a reader *will* add the numbers up
+by hand, because that is what opening it means. Everywhere else a discrepancy is
+theoretical; here it is the first thing that happens. And the failure would be
+easy: the natural implementation of "what was in that hour" is a fresh query
+over `traffic_hour` filtered by address, which quietly includes hours the device
+shared an address with another — hours the chart above it refused (§4.26). The
+parts would exceed the bar and nothing on screen would explain it.
+**Consequences:** §4.32 now has four surfaces and one level of depth under them,
+all on one query. The segment drill-down needed no query at all — the Devices
+page already filters by interface, so a segment "opens" by linking to it with
+the filter applied, which also means the two pages cannot disagree about what is
+on a segment.

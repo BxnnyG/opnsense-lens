@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\Bytes;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Window;
@@ -107,6 +108,43 @@ class DevicesController extends ApiControllerBase
         $detail['timing'] = ['calls' => $calls];
 
         return $detail;
+    }
+
+    /**
+     * One slice of one device's chart, broken into the addresses behind it.
+     *
+     * @return array
+     */
+    public function momentAction()
+    {
+        $mac = (string)$this->request->get('mac', null, '');
+        if (!preg_match('/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/', $mac)) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+
+        $at = (int)$this->request->get('at', null, 0);
+        $step = (int)$this->request->get('step', null, 3600);
+
+        if ($at <= 0 || !in_array($step, [3600, 86400], true)) {
+            return ['status' => 'failed', 'message' => gettext('not a slice of a chart')];
+        }
+
+        $calls = [];
+        $raw = self::decode(new Backend(), 'lens moment ' . $mac . ' ' . $at . ' ' . $step, $calls);
+
+        $addresses = [];
+        foreach ($raw['addresses'] ?? [] as $row) {
+            $addresses[] = [
+                'address' => (string)($row['address'] ?? ''),
+                'interface' => (string)($row['interface'] ?? ''),
+                'traffic' => Bytes::human((int)($row['octets'] ?? 0)),
+                'sent' => Bytes::human((int)($row['sent'] ?? 0)),
+                'received' => Bytes::human((int)($row['received'] ?? 0)),
+                'octets' => (int)($row['octets'] ?? 0),
+            ];
+        }
+
+        return ['at' => $at, 'step' => $step, 'addresses' => $addresses];
     }
 
     /**

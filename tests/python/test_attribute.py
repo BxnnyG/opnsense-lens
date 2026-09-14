@@ -310,6 +310,76 @@ class DetailAgreesWithTheListTest(unittest.TestCase):
         self.assertEqual([], list(self.store.device_traffic('ff:ff:ff:ff:ff:ff', 0)))
 
 
+class MomentTest(unittest.TestCase):
+    """
+    One slice of one device's chart, opened.
+
+    The property that matters is that the parts add up to the bar. A drill-down
+    whose rows sum to something other than the thing clicked is the §4.32
+    failure one level further in, and it is the level where a reader is most
+    likely to add the numbers up by hand.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, 'lens.sqlite'))
+        self.base = 1788080400
+        self.store.store_buckets('p', [
+            (self.base, 'em0', '10.0.0.5', 'in', 100, 1),
+            (self.base, 'em0', '10.0.0.5', 'out', 400, 1),
+            (self.base, 'em1', '10.0.9.5', 'in', 50, 1),
+            (self.base + 3600, 'em0', '10.0.0.5', 'in', 900, 1),
+            (self.base, 'pppoe0', '1.1.1.1', 'out', 7000, 1),
+        ])
+        for address, interface in (('10.0.0.5', 'em0'), ('10.0.9.5', 'em1')):
+            self.store.db.execute(
+                """INSERT INTO address_observation
+                   (mac, address, interface, first_seen, last_seen)
+                   VALUES ('aa:bb:cc:dd:ee:01', ?, ?, ?, ?)""",
+                (address, interface, self.base - 3600, self.base + 9000),
+            )
+        self.store.commit()
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_the_parts_add_up_to_the_bar_that_was_clicked(self):
+        total = 0
+        for row in self.store.device_traffic('aa:bb:cc:dd:ee:01', 0):
+            if row['bucket'] == self.base:
+                total += row['octets']
+
+        parts = sum(r['octets'] for r in
+                    self.store.device_moment('aa:bb:cc:dd:ee:01', self.base, 3600))
+
+        self.assertEqual(550, total)
+        self.assertEqual(total, parts)
+
+    def test_a_device_on_two_segments_shows_both_in_one_slice(self):
+        rows = list(self.store.device_moment('aa:bb:cc:dd:ee:01', self.base, 3600))
+
+        self.assertEqual({('10.0.0.5', 'em0'), ('10.0.9.5', 'em1')},
+                         {(r['address'], r['interface']) for r in rows})
+
+    def test_a_daily_slice_covers_every_hour_inside_it(self):
+        day = self.base - (self.base % 86400)
+
+        parts = sum(r['octets'] for r in
+                    self.store.device_moment('aa:bb:cc:dd:ee:01', day, 86400))
+
+        self.assertEqual(1450, parts, 'both hours, and still not the far end')
+
+    def test_the_far_end_never_appears_in_a_devices_slice(self):
+        addresses = {r['address'] for r in
+                     self.store.device_moment('aa:bb:cc:dd:ee:01', self.base, 3600)}
+
+        self.assertNotIn('1.1.1.1', addresses)
+
+    def test_an_empty_slice_is_empty_and_not_an_error(self):
+        self.assertEqual([], list(
+            self.store.device_moment('aa:bb:cc:dd:ee:01', self.base + 86400 * 5, 3600)))
+
+
 class InterfaceTrafficTest(unittest.TestCase):
     """per-segment totals, on the same attribution query as everything else"""
 

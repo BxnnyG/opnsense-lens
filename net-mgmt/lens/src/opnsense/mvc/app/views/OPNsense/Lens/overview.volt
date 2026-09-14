@@ -170,7 +170,10 @@
         };
 
         let devices = [];
-        let segments = new Set();
+
+        /* arriving from the Networks page with one segment already chosen */
+        const asked = new URLSearchParams(location.search).get('segment');
+        let segments = new Set(asked ? [asked] : []);
         let kinds = {};
         let groups = [];
         let editing = null;
@@ -394,8 +397,14 @@
 
             svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
 
-            const bar = (x, y, w, h, klass, title) => {
+            const bar = (x, y, w, h, klass, title, point) => {
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                if (point && point.total) {
+                    /* a bar says a device moved 4 GB in that hour; the only
+                       question after that is what it was made of */
+                    rect.setAttribute('style', 'cursor: pointer');
+                    rect.addEventListener('click', () => openMoment(detail, point));
+                }
                 rect.setAttribute('x', x);
                 rect.setAttribute('y', y);
                 rect.setAttribute('width', Math.max(0.5, w));
@@ -422,8 +431,8 @@
                     bar(x, height - 1, w, 1, 'lens-chart-empty', when + ' \u2014 nothing');
                     return;
                 }
-                bar(x, height - down - up, w, down, 'lens-chart-down', title);
-                bar(x, height - up, w, up, 'lens-chart-up', title);
+                bar(x, height - down - up, w, down, 'lens-chart-down', title, point);
+                bar(x, height - up, w, up, 'lens-chart-up', title, point);
             });
         };
 
@@ -442,10 +451,44 @@
             }
         };
 
+        const openMoment = (detail, point) => {
+            const $block = $('#lensMoment').show();
+            $('#lensMomentWhen').text(new Date(point.bucket * 1000).toLocaleString());
+            $('#lensMomentRows').empty()
+                .append($('<tr/>').append($('<td/>').text('{{ lang._("reading...") }}')));
+
+            ajaxGet('/api/lens/devices/moment',
+                    { mac: detail.mac, at: point.bucket, step: detail.step },
+                    (moment, status) => {
+                const $rows = $('#lensMomentRows').empty();
+
+                if (status !== 'success' || !moment || !moment.addresses) {
+                    $rows.append($('<tr/>').append($('<td/>')
+                        .text('{{ lang._("That slice did not come back.") }}')));
+                    return;
+                }
+
+                if (!moment.addresses.length) {
+                    $rows.append($('<tr/>').append($('<td/>')
+                        .text('{{ lang._("Nothing of this device could be attributed in that slice.") }}')));
+                    return;
+                }
+
+                for (const row of moment.addresses) {
+                    $rows.append($('<tr/>')
+                        .append($('<td/>').text(row.address))
+                        .append($('<td/>').addClass('lens-if').text(row.interface))
+                        .append($('<td/>').addClass('lens-traffic').text(
+                            row.traffic + ' (' + row.sent + ' \u2191, ' + row.received + ' \u2193)')));
+                }
+            });
+        };
+
         const openDetail = (device) => {
             $('#lensDetailName').text(device.name);
             $('#lensDetailMac').text(device.mac);
             $('#lensDetailNote').hide();
+            $('#lensMoment').hide();
             $('#lensDetailBody').hide();
             $('#lensDetailLoading').show();
             $('#lensDetail').modal('show');
@@ -817,9 +860,18 @@
                     <div id="lensDetailBody" style="display: none;">
                         <svg id="lensChart" class="lens-chart"
                              preserveAspectRatio="none"></svg>
+                        <div id="lensMoment" class="lens-block" style="display: none;">
+                            <b>{{ lang._('What that slice was made of') }}</b>
+                            &mdash; <span id="lensMomentWhen"></span>
+                            <table class="table table-condensed">
+                                <tbody id="lensMomentRows"></tbody>
+                            </table>
+                        </div>
+
                         <p class="text-muted lens-chart-legend">
                             {{ lang._('One bar per') }} <span id="lensDetailStep"></span>,
                             {{ lang._('newest on the right.') }}
+                            {{ lang._('A bar with something in it opens the addresses behind it.') }}
                             <span class="lens-key lens-chart-up"></span> {{ lang._('sent') }}
                             <span class="lens-key lens-chart-down"></span> {{ lang._('received') }}
                             &mdash; {{ lang._('an hour with nothing in it keeps a thin line, so quiet cannot be mistaken for missing.') }}

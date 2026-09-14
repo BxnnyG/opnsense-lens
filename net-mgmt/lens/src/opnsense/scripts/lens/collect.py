@@ -14,6 +14,7 @@ Two duties, one command each:
     collect.py device     one device's hourly history, as JSON
     collect.py identity   whether MAC-keyed identity is holding, as JSON
     collect.py segments   traffic per interface, and how much of it is named
+    collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
 
@@ -162,6 +163,28 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+def moment(store, mac, at, step):
+    """One slice of one device's chart, broken into the addresses behind it."""
+    mac = parse.normalise_mac(mac or '')
+    rows = {}
+
+    for row in store.device_moment(mac, at, max(3600, step)):
+        key = (row['address'], row['interface'])
+        entry = rows.setdefault(key, {
+            'address': row['address'], 'interface': row['interface'],
+            'sent': 0, 'received': 0, 'octets': 0,
+        })
+        entry['sent' if row['direction'] == 'in' else 'received'] += row['octets']
+        entry['octets'] += row['octets']
+
+    return {
+        'mac': mac,
+        'at': at,
+        'step': step,
+        'addresses': sorted(rows.values(), key=lambda r: r['octets'], reverse=True),
+    }
 
 
 def segments(store, now, hours):
@@ -392,9 +415,11 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'segments', 'label', 'prune', 'purge'],
+                 'identity', 'segments', 'moment', 'label', 'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
+    parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
+    parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
     parser.add_argument('--fields', help='base64url of a JSON object of label fields')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
@@ -404,6 +429,10 @@ def main():
 
     if args.duty == 'status':
         print(json.dumps(Store(DB_PATH).status()))
+        return 0
+
+    if args.duty == 'moment':
+        print(json.dumps(moment(Store(DB_PATH), args.mac, args.at, args.step)))
         return 0
 
     if args.duty == 'segments':

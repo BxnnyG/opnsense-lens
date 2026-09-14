@@ -103,8 +103,17 @@
             const $body = $('#segTable > tbody').empty();
 
             for (const segment of report.segments) {
+                /* a segment opens the devices on it -- the Devices page already
+                   has a filter per interface, so this is a link, not a view */
+                const $label = segment.is_network
+                    ? $('<a/>').addClass('seg-name')
+                        .attr('href', '/ui/lens/overview?hours=' + chosenHours()
+                                      + '&segment=' + encodeURIComponent(segment.interface))
+                        .text(segment.name)
+                    : $('<span/>').addClass('seg-name').text(segment.name);
+
                 const $name = $('<td/>')
-                    .append($('<span/>').addClass('seg-name').text(segment.name))
+                    .append($label)
                     .append($('<span/>').addClass('seg-if').text(segment.interface));
                 if (segment.note) {
                     $name.append($('<span/>').addClass('seg-note').text(segment.note));
@@ -176,6 +185,7 @@
     </table>
 
     <p class="text-muted">
+        {{ lang._('A network with devices on it opens them, filtered to that segment.') }}
         {{ lang._('The bar length is what the segment carried; the filled part is what Lens could attribute to a device on it. A segment that is mostly unfilled is not a busy segment - it is one whose traffic belongs to machines that are not attached to it, and a plain byte total cannot tell those apart.') }}
     </p>
 </div>
