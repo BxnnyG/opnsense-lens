@@ -308,9 +308,21 @@ def segments(store, now, hours):
         entry['addresses'] = max(entry['addresses'], row['addresses'])
         entry['hours'] = max(entry['hours'], row['hours'])
 
+    # a sparkline per network: hourly for a day, daily beyond three
+    step = 86400 if hours > DAILY_ABOVE else 3600
+    start = since - since % step
+    slots = list(range(start, now - now % step + step, step))
+    series = {}
+    for row in store.interface_timeline(start, step):
+        series.setdefault(row['interface'], {})[row['at']] = row['octets']
+    for interface, entry in rows.items():
+        points = series.get(interface, {})
+        entry['series'] = [points.get(at, 0) for at in slots]
+
     return {
         'hours': hours,
         'since': since,
+        'step': step,
         'segments': sorted(rows.values(), key=lambda r: r['octets'], reverse=True),
         'device_interfaces': sorted(store.device_interfaces()),
         'first_bucket': store.status()['first_bucket'],

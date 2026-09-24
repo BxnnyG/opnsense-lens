@@ -80,6 +80,7 @@ class SegmentReport
                 'named_text' => Bytes::human($named),
                 'named_share' => $octets > 0 ? $named / $octets : 0.0,
                 'addresses' => (int)($segment['addresses'] ?? 0),
+                'series' => array_map('intval', (array)($segment['series'] ?? [])),
                 'note' => self::note($interface, $octets, $named, isset($deviceInterfaces[$interface])),
             ];
         }

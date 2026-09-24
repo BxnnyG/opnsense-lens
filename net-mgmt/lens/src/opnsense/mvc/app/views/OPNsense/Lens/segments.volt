@@ -47,6 +47,24 @@
     .seg-note { display: block; color: #999; font-size: 90%; max-width: 34em; }
     .seg-thin { color: #f0ad4e; }
     .seg-num { text-align: right; white-space: nowrap; }
+    .seg-cards { display: grid; gap: 12px;
+                 grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+    .seg-card { display: block; padding: 14px 16px; margin: 0; color: inherit;
+                text-decoration: none; border: 1px solid rgba(128, 128, 128, 0.18);
+                border-radius: 4px; transition: border-color 0.15s; }
+    .seg-card:hover { border-color: #d94f00; color: inherit; text-decoration: none; }
+    .seg-card-head { display: flex; justify-content: space-between; align-items: flex-start; }
+    .seg-card-name { font-size: 16px; font-weight: 600; }
+    .seg-card-num { font-size: 26px; font-weight: 600; margin-top: 8px;
+                    font-variant-numeric: tabular-nums; }
+    .seg-spark { width: 100%; height: 40px; display: block; margin-top: 8px; }
+    .seg-area { fill: rgba(217, 79, 0, 0.18); }
+    .seg-line { fill: none; stroke: #d94f00; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .seg-ring { width: 44px; height: 44px; }
+    .seg-ring-bg { fill: none; stroke: rgba(128, 128, 128, 0.2); stroke-width: 3.5; }
+    .seg-ring-fg { fill: none; stroke: #5cb85c; stroke-width: 3.5; stroke-linecap: round; }
+    .seg-ring-fg.thin { stroke: #f0ad4e; }
+    .seg-ring-text { font-size: 8px; text-anchor: middle; fill: currentColor; }
     .lens-page-head { display: flex; flex-wrap: wrap; gap: 16px;
                       align-items: baseline; justify-content: space-between;
                       margin-bottom: 4px; }
@@ -133,49 +151,87 @@
             $('#segHours').text((report.window || {}).asked || '');
             drawRange(report.window || {});
 
-            const largest = report.segments.reduce((max, s) => Math.max(max, s.octets), 0);
-            const $body = $('#segTable > tbody').empty();
+            /*
+             * Your networks as cards, the way UniFi shows them: a number, a
+             * sparkline, and a ring for how much of it has a device on it. What
+             * is not yours -- the far side of the line, lo0, the unplaced flows --
+             * is a short list underneath, because it is context, not a network
+             * you can open.
+             */
+            const mine = report.segments.filter(seg => seg.is_network);
+            const other = report.segments.filter(seg => !seg.is_network);
 
-            for (const segment of report.segments) {
-                /* a segment opens the devices on it -- the Devices page already
-                   has a filter per interface, so this is a link, not a view */
-                const $label = segment.is_network
-                    ? $('<a/>').addClass('seg-name')
-                        .attr('href', '/ui/lens/overview?hours=' + chosenHours()
-                                      + '&segment=' + encodeURIComponent(segment.interface))
-                        .text(segment.name)
-                    : $('<span/>').addClass('seg-name').text(segment.name);
+            const svgNode = (tag, attrs) => {
+                const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+                for (const [key, value] of Object.entries(attrs || {})) {
+                    node.setAttribute(key, value);
+                }
+                return node;
+            };
 
-                const $name = $('<td/>')
-                    .append($label)
-                    .append($('<span/>').addClass('seg-if').text(segment.interface));
+            const sparkline = (series) => {
+                const node = svgNode('svg', { viewBox: '0 0 200 40', preserveAspectRatio: 'none',
+                                              class: 'seg-spark' });
+                const peak = Math.max(1, ...series);
+                if (series.length < 2) {
+                    return node;
+                }
+                const x = (i) => i / (series.length - 1) * 200;
+                const y = (v) => 38 - v / peak * 34;
+                let line = 'M 0 ' + y(series[0]);
+                series.forEach((v, i) => { line += ' L ' + x(i) + ' ' + y(v); });
+                node.appendChild(svgNode('path', { d: line + ' L 200 40 L 0 40 Z', class: 'seg-area' }));
+                node.appendChild(svgNode('path', { d: line, class: 'seg-line' }));
+                return node;
+            };
+
+            const ring = (share) => {
+                const node = svgNode('svg', { viewBox: '0 0 36 36', class: 'seg-ring' });
+                const r = 15.9;
+                const c = 2 * Math.PI * r;
+                node.appendChild(svgNode('circle', { cx: 18, cy: 18, r: r, class: 'seg-ring-bg' }));
+                node.appendChild(svgNode('circle', {
+                    cx: 18, cy: 18, r: r, class: 'seg-ring-fg' + (share < 0.5 ? ' thin' : ''),
+                    'stroke-dasharray': (share * c) + ' ' + c, transform: 'rotate(-90 18 18)'
+                }));
+                const text = svgNode('text', { x: 18, y: 21, class: 'seg-ring-text' });
+                text.textContent = pct(share);
+                node.appendChild(text);
+                return node;
+            };
+
+            const $cards = $('#segCards').empty();
+            for (const segment of mine) {
+                const href = '/ui/lens/overview?hours=' + chosenHours()
+                    + '&segment=' + encodeURIComponent(segment.interface);
+                const $card = $('<a/>').addClass('content-box seg-card').attr('href', href);
+
+                $card.append($('<div/>').addClass('seg-card-head')
+                    .append($('<div/>')
+                        .append($('<div/>').addClass('seg-card-name').text(segment.name))
+                        .append($('<div/>').addClass('seg-if').text(segment.interface)))
+                    .append(ring(segment.named_share)));
+
+                $card.append($('<div/>').addClass('seg-card-num').text(segment.traffic));
+                $card.append($('<div/>').addClass('seg-if').text(
+                    segment.sent + ' \u2191 \u00b7 ' + segment.received + ' \u2193 \u00b7 '
+                    + segment.addresses + ' {{ lang._("addresses") }}'));
+                $card.append(sparkline(segment.series || []));
                 if (segment.note) {
-                    $name.append($('<span/>').addClass('seg-note').text(segment.note));
+                    $card.append($('<div/>').addClass('seg-note').text(segment.note));
                 }
-
-                /* one bar, two meanings: its length is how much this segment
-                   carried, the filled part is how much of it has a device */
-                const $bar = $('<span/>').addClass('seg-bar')
-                    .css('width', largest ? Math.max(2, (segment.octets / largest) * 100) + '%' : '0')
-                    .append($('<span/>').addClass('seg-named')
-                        .css('width', pct(segment.named_share)));
-
-                const $named = $('<td/>').addClass('seg-num')
-                    .text(pct(segment.named_share));
-                if (segment.is_network && segment.named_share < 0.5) {
-                    $named.addClass('seg-thin');
-                }
-                if (!segment.is_network) {
-                    $named.text('—');
-                }
-
-                $body.append($('<tr/>')
-                    .append($name)
-                    .append($('<td/>').append($bar))
-                    .append($('<td/>').addClass('seg-num').text(segment.traffic))
-                    .append($named)
-                    .append($('<td/>').addClass('seg-num').text(segment.addresses || '')));
+                $cards.append($card);
             }
+
+            const $other = $('#segOther').empty();
+            for (const segment of other) {
+                $other.append($('<tr/>')
+                    .append($('<td/>').append($('<b/>').text(segment.name))
+                        .append($('<span/>').addClass('seg-if').text(' ' + segment.interface)))
+                    .append($('<td/>').addClass('seg-num').text(segment.traffic))
+                    .append($('<td/>').addClass('seg-note').text(segment.note || '')));
+            }
+            $('#segOtherBox').toggle(other.length > 0);
 
             $('#segExport').on('click', (event) => {
                 event.preventDefault();
@@ -223,22 +279,15 @@
             {{ lang._('across every interface NetFlow reported.') }}
         </p>
 
-        <table id="segTable" class="table table-condensed table-striped">
-        <thead>
-            <tr>
-                <th>{{ lang._('Network') }}</th>
-                <th style="width: 30%;">{{ lang._('Share, and how much has a device') }}</th>
-                <th class="seg-num">{{ lang._('Traffic') }}</th>
-                <th class="seg-num">{{ lang._('Named') }}</th>
-                <th class="seg-num">{{ lang._('Addresses') }}</th>
-            </tr>
-        </thead>
-            <tbody></tbody>
-        </table>
+        <div id="segCards" class="seg-cards"></div>
 
         <p class="text-muted lens-box-foot">
-            {{ lang._('A network with devices on it opens them, filtered to that segment.') }}
-            {{ lang._('The bar length is what the segment carried; the filled part is what Lens could attribute to a device on it. A segment that is mostly unfilled is not a busy segment - it is one whose traffic belongs to machines that are not attached to it, and a plain byte total cannot tell those apart.') }}
+            {{ lang._('A card opens the devices on that network. The ring is how much of its traffic Lens can put a device to: a network that is mostly unnamed is not a busy network, it is one whose traffic belongs to machines not attached to it.') }}
         </p>
+    </div>
+
+    <div id="segOtherBox" class="content-box lens-box" style="display: none;">
+        <p class="lens-box-head">{{ lang._('Not your networks') }}</p>
+        <table class="table table-condensed"><tbody id="segOther"></tbody></table>
     </div>
 </div>

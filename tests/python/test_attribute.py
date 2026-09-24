@@ -436,6 +436,17 @@ class TimelineTest(unittest.TestCase):
 
         self.assertEqual(segments, chart)
 
+    def test_each_networks_sparkline_totals_what_its_card_says(self):
+        per_slice = {}
+        for row in self.store.interface_timeline(0, 3600):
+            per_slice[row['interface']] = per_slice.get(row['interface'], 0) + row['octets']
+
+        per_card = {}
+        for row in self.store.interface_traffic(0):
+            per_card[row['interface']] = per_card.get(row['interface'], 0) + row['octets']
+
+        self.assertEqual(per_card, per_slice)
+
     def test_a_daily_step_folds_the_hours_inside_it(self):
         day = sum(r['octets'] for r in self.store.network_timeline(0, 86400))
         hours = sum(r['octets'] for r in self.store.network_timeline(0, 3600))

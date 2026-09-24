@@ -146,6 +146,16 @@ class SegmentReportTest extends TestCase
         $this->assertNull($report['segments'][0]['note']);
     }
 
+    public function testTheSparklineComesThroughAsNumbers()
+    {
+        $segment = $this->segment('lagg0_vlan24', 30, 30);
+        $segment['series'] = [10, '0', 20];
+
+        $report = SegmentReport::describe($this->raw([$segment], ['lagg0_vlan24']), self::NAMES);
+
+        $this->assertSame([10, 0, 20], $report['segments'][0]['series']);
+    }
+
     public function testAnEmptyAnswerIsAnEmptyReportAndNotAnError()
     {
         $report = SegmentReport::describe([], []);

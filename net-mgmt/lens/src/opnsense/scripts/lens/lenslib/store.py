@@ -526,6 +526,17 @@ class Store:
             (mac,),
         )
 
+    def interface_timeline(self, since, step):
+        """Bytes per interface per slice, for each network's own sparkline."""
+        return self.db.execute(
+            """SELECT interface, (bucket / ?) * ? AS at, sum(octets) AS octets
+               FROM traffic_hour
+               WHERE bucket >= ?
+               GROUP BY interface, at
+               ORDER BY interface, at""",
+            (step, step, since),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [
