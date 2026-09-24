@@ -1553,3 +1553,26 @@ visits", not sixty lines.
 cannot name or count the device differently from the list (§4.37); and the
 heatmap is tested to total the same bytes as the device's own chart. The same
 heatmap, for the whole network, is now a card on the dashboard.
+
+### §4.55 — Grafana gets gauges over a named window, never counters (2026-09-25)
+**Question:** the Grafana user wants Lens inside the tool they already use.
+`/api/lens/metrics/prometheus` exposes it. The obvious type for "bytes a
+device moved" is a counter. Why not?
+**Decision:** every value is a **gauge** over a window carried as a label
+(`window="24h"`). Lens keeps hourly buckets, not running totals; a "total over
+the last 24 hours" goes *down* whenever a heavy hour ages out, and Prometheus'
+`rate()` reads any decrease in a counter as a reset — it would turn a quiet
+evening into a spike. A gauge with its window named cannot be misread that way.
+**The metric that matters most is not about traffic:**
+`lens_collector_last_run_seconds{duty}`. A stopped collector is a hole in
+history that nothing can fill afterwards (§4.25); the one alert every scraper
+should have is on that number.
+**Two smaller calls.** Label values are escaped as the format requires — a
+device named `Bennys "Küche"` with a newline in it is a test case, because an
+unescaped quote ends the label and Prometheus drops the whole scrape. And the
+named-ratio is only emitted for the operator's own networks: a share of the
+internet's traffic that has a device on it is always zero and means nothing.
+**Consequences:** it is built from `DeviceReport`, `BaselineReport` and
+`SegmentReport` like every page, so a Grafana panel cannot disagree with Lens
+about a device (§4.37). It is scraped with an OPNsense API key belonging to a
+user holding Reporting: Lens; the scrape config is in the controller's docblock.

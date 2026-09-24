@@ -77,7 +77,7 @@ class SegmentsController extends ApiControllerBase
      *
      * @return array device name to description
      */
-    private static function names(): array
+    public static function names(): array
     {
         $names = [];
 

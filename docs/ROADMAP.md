@@ -42,7 +42,7 @@ this one inherits, and 23 stages of experience with it.
 | 24 | **Who's home** — presence strips, the herd folded away by measured coverage (§4.52) | S5 | 🔨 built 2026-09-24 · **awaiting router test** |
 | 25 | **One calm sentence** — on the dashboard and the wall, in a fixed order of what outranks what (§4.53) | S6 | 🔨 built 2026-09-24 · **awaiting router test** |
 | 26 | **The device page** — a real page per device: hero, figures, chart with drill-down, its week as a heatmap, where it has been, presence (§4.54) | S5 | 🔨 built 2026-09-24 · **awaiting router test** |
-| 27 | `/metrics` for Grafana (BACKLOG #30) | S7 | ⏳ |
+| 27 | **`/metrics` for Grafana** — gauges over a named window, and the collector's age to alert on (§4.55) | S7 | 🔨 built 2026-09-25 · **awaiting a scrape** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
