@@ -1,5 +1,5 @@
 PLUGIN_NAME=		lens
-PLUGIN_VERSION=		0.12
+PLUGIN_VERSION=		0.13
 PLUGIN_REVISION=	1
 PLUGIN_COMMENT=		Device-centric traffic insight and client management
 PLUGIN_MAINTAINER=	claude@bxnny.de

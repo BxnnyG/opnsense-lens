@@ -187,3 +187,83 @@ Priority order, all recorded in [BACKLOG.md](BACKLOG.md):
 - **An Elasticsearch-shaped appetite.** The 500 MB ceiling is a design
   statement, not a limitation to grow out of.
 - **Tiering itself.** There is nothing to withhold.
+
+## Self-check: what would make each kind of person say "oh" (2026-09-24)
+
+Written after the dashboard shipped, by asking of each audience the operator
+named — the Apple user, the UniFi user, the Grafana user, the person who just
+wants the internet to work, the IT admin — *what would they open this for, and
+what would they expect to find that is not here?* Sorted by what it costs,
+because a wish that needs a new data source is a different kind of promise from
+one that needs a new view of data already on disk.
+
+### What each of them opens it for
+
+| Who | The question they arrive with | What Lens answers today | What is missing |
+|---|---|---|---|
+| **Apple user** | "Is everything fine, and who's home?" | presence, names, icons | one calm sentence at the top; a *who's home* view that reads like a family, not a table |
+| **UniFi user** | "Show me my clients and let me click into one" | device list, detail chart, drill-down | a per-device *life story*: when it joined, which VLAN, every address and name it had |
+| **Grafana user** | "Give me the time series and let me slice it" | three ranges, hourly/daily charts | a heatmap of *when* each device is active; a `/metrics` endpoint so their own Grafana can have it |
+| **Just wants it to work** | "Is the internet slow, and whose fault is it?" | who is using the line | **latency and packet loss** — the half of "slow" that is not bandwidth |
+| **IT admin** | "What joined, what changed, and prove it" | new-device count, CSV export, identity check | an alert when something new joins; a record of what talked on which port |
+
+### With the data already on disk — cheapest, and most of the wow
+
+These need no new source. The store already holds every hourly bucket and
+every address window; these are views nobody has drawn yet.
+
+- **#26 — Who's home.** A strip per device across the day, filled where it was
+  present. The address windows *are* this chart; it only has to be drawn.
+  Presence is the question the Apple user and the family admin actually have,
+  and nothing in OPNsense answers it.
+- **#27 — When is it active.** A 7×24 heatmap per device, hour of week against
+  bytes. The single most Grafana-shaped view there is, and after the baseline's
+  three weeks every cell has three samples behind it.
+- **#28 — A device's life story.** First seen; every address, VLAN and name it
+  has held, with dates. The windows record all of it; the detail modal shows
+  none of it yet. This is the UniFi client page's best feature.
+- **#29 — One calm sentence.** Above the dashboard cards: "Everything looks
+  normal — 12 devices home, the line is quiet." or "One thing is unusual: the
+  NAS moved 4 GB today." Built from the verdicts that already exist (§4.50),
+  worded for someone who will read only that line.
+- **#30 — A `/metrics` endpoint.** Prometheus text format, per device and per
+  segment. Box 2 already runs Telegraf; the Grafana user gets everything Lens
+  knows inside the tool they already live in, and Lens does not have to become
+  Grafana. Read-only, same ACL as the pages.
+
+### Needs a source Lens has not read yet
+
+- **#20 — Latency and packet loss.** Core already runs `dpinger` for every
+  gateway and exposes its results; the gateway half is a read, not a new probe.
+  Public targets (1.1.1.1, 9.9.9.9) would be the first packets Lens itself
+  sends, and deserve their own decision.
+- **#23 — Top domains, and what was blocked.** Waiting on one `qstats` output.
+- **#31 — What each device talked to, by port.** `FlowDstPortTotals` exists and
+  is harvestable — but daily only, 62 days (DESIGN §1.4). Good enough for "this
+  camera talks to port 8883 every day", not for "at 14:05".
+- **#32 — New-device alerts.** The detection exists (§4.34). Delivery is the
+  question: OPNsense has a notification and syslog path; a message that fires on
+  day one for every device is §4.34's failure, so it inherits the same two-day
+  guard.
+
+### Deliberately not — and the one that hurts
+
+- **Application names and categories** ("Netflix", "Gaming") need deep packet
+  inspection. That is Zenarmor's whole engine and exactly what VISION already
+  declined.
+- **#33 — "Pause this device."** The single most-used feature in the UniFi and
+  Apple home apps, and the one a parent would try first. It means writing a
+  firewall rule, which crosses §4.9 in a way the NetFlow fix button (§4.35) does
+  not: that one switches on a source Lens reads, this one changes who can reach
+  the internet. **Recorded as a deliberate no for now**, because a reporting
+  plugin that can cut a device off is a different product with a different
+  failure mode — and because if it ever exists, it should be an opt-in with its
+  own decision, not a button that slid in behind a chart.
+
+### The order this suggests
+
+The dashboard shipped today closes most of the *look* gap to Zenarmor. The
+*feel* gap is #29 (one calm sentence) and #26 (who's home) — both cheap, both
+from data already kept. The *depth* gap for technical users is #27 and #30. The
+*trust* gap for everyone is #20, because "is it slow" is the question every one
+of these people has eventually, and Lens cannot answer the latency half of it.

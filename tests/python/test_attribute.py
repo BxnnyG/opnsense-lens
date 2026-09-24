@@ -396,6 +396,55 @@ class MomentTest(unittest.TestCase):
             self.store.device_moment('aa:bb:cc:dd:ee:01', self.base + 86400 * 5, 3600)))
 
 
+class TimelineTest(unittest.TestCase):
+    """the dashboard's chart and the Networks page are the same bytes"""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.dir.name, 'lens.sqlite'))
+        self.base = 1788080400
+        self.store.store_buckets('p', [
+            (self.base, 'em0', '10.0.0.5', 'in', 100, 1),
+            (self.base, 'em0', '10.0.0.9', 'out', 300, 1),
+            (self.base + 3600, 'em1', '10.0.9.5', 'in', 50, 1),
+            (self.base, 'pppoe0', '1.1.1.1', 'out', 7000, 1),
+            (self.base, 'lo0', '127.0.0.1', 'in', 900, 1),
+        ])
+        for address, interface in (('10.0.0.5', 'em0'), ('10.0.9.5', 'em1')):
+            self.store.db.execute(
+                """INSERT INTO address_observation
+                   (mac, address, interface, first_seen, last_seen)
+                   VALUES ('aa:bb:cc:dd:ee:01', ?, ?, ?, ?)""",
+                (address, interface, self.base - 3600, self.base + 9000),
+            )
+        self.store.commit()
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_only_your_own_segments_are_in_the_chart(self):
+        """the far side of the line and lo0 are not your network's traffic"""
+        total = sum(r['octets'] for r in self.store.network_timeline(0, 3600))
+
+        self.assertEqual(450, total)
+
+    def test_the_chart_totals_what_the_networks_page_shows_for_your_segments(self):
+        networks = self.store.device_interfaces()
+        segments = sum(r['octets'] for r in self.store.interface_traffic(0)
+                       if r['interface'] in networks)
+        chart = sum(r['octets'] for r in self.store.network_timeline(0, 3600))
+
+        self.assertEqual(segments, chart)
+
+    def test_a_daily_step_folds_the_hours_inside_it(self):
+        day = sum(r['octets'] for r in self.store.network_timeline(0, 86400))
+        hours = sum(r['octets'] for r in self.store.network_timeline(0, 3600))
+
+        self.assertEqual(hours, day)
+        slots = {r['at'] for r in self.store.network_timeline(0, 86400)}
+        self.assertEqual(1, len(slots))
+
+
 class InterfaceTrafficTest(unittest.TestCase):
     """per-segment totals, on the same attribution query as everything else"""
 

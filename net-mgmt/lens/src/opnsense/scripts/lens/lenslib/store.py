@@ -460,6 +460,26 @@ class Store:
             (bucket_seconds, since),
         )
 
+    def network_timeline(self, since, step):
+        """
+        Traffic on the operator's own segments, per slice, both directions.
+
+        Only interfaces a device has ever been seen on: the far end of the line,
+        lo0 and the unplaced '0' are excluded, exactly as the Networks page marks
+        them. Not wrapped in ATTRIBUTION_SQL because nothing here is per device;
+        the sum is the same one the Networks page shows for those segments, and a
+        test holds the two to it.
+        """
+        return self.db.execute(
+            """SELECT (bucket / ?) * ? AS at, direction, sum(octets) AS octets
+               FROM traffic_hour
+               WHERE bucket >= ?
+                 AND interface IN (SELECT DISTINCT interface FROM address_observation)
+               GROUP BY at, direction
+               ORDER BY at""",
+            (step, step, since),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [

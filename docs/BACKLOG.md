@@ -153,6 +153,24 @@ Filtern."* Recorded as given, ordered by my judgement.
   directory user. Stage 6's tags are the same idea without needing a directory,
   and the grouping is already built (§4.33) — this is a default, not a feature.
 
+### From the self-check, 2026-09-24 (see [VISION.md](VISION.md))
+
+- **#26 — Who's home.** A presence strip per device across the day, drawn from
+  the address windows the store already keeps.
+- **#27 — When is it active.** A 7×24 hour-of-week heatmap per device.
+- **#28 — A device's life story.** Every address, VLAN and name it has held,
+  with dates, in the detail view.
+- **#29 — One calm sentence** above the dashboard, built from the verdicts that
+  already exist and worded for someone who reads only that line.
+- **#30 — A `/metrics` endpoint** in Prometheus format, so a Grafana user gets
+  Lens inside the tool they already use.
+- **#31 — What each device talked to, by port** — `FlowDstPortTotals`, daily only.
+- **#32 — New-device alerts** through OPNsense's own notification path, with
+  §4.34's two-day guard.
+- **#33 — "Pause this device"** — the most-asked consumer feature, and a
+  deliberate no for now: it writes a firewall rule, which is a different product
+  with a different failure mode (VISION, self-check).
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages

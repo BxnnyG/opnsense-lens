@@ -6,6 +6,7 @@
     </Services>
     <Reporting>
         <Lens order="40" cssClass="fa fa-eye fa-fw">
+            <Dashboard order="5" VisibleName="Dashboard" url="/ui/lens/dashboard"/>
             <Devices order="10" VisibleName="Devices" url="/ui/lens/overview"/>
             <Segments order="20" VisibleName="Networks" url="/ui/lens/segments"/>
             <Wallboard order="30" VisibleName="Wallboard" url="/ui/lens/wall"/>

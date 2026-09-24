@@ -38,6 +38,11 @@ this one inherits, and 23 stages of experience with it.
 | 20 | Top domains, and what was blocked (BACKLOG #23) | S12 | ⏳ blocked on one `qstats` output (§1) |
 | 21 | **Export** — the table you are looking at, in a file (§4.45) | S6 | 🔨 built 2026-09-14 · scheduled/emailed reports explicitly not included |
 | 22 | **Tags as a filter** — your own words beside the segments (BACKLOG #25) | S1 | 🔨 built 2026-09-14 |
+| 23 | **Dashboard** — Zenarmor's shape on core's arithmetic: facts, network over time, top devices, networks, system (§4.51) | S6 | 🔨 built 2026-09-24 · **awaiting router test** |
+| 24 | Who's home — presence strips (BACKLOG #26) | S5 | ⏳ |
+| 25 | One calm sentence above the dashboard (BACKLOG #29) | S6 | ⏳ |
+| 26 | Hour-of-week heatmap per device (BACKLOG #27) | S5 | ⏳ |
+| 27 | `/metrics` for Grafana (BACKLOG #30) | S7 | ⏳ |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

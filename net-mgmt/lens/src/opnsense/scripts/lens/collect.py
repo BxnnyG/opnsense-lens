@@ -14,6 +14,7 @@ Two duties, one command each:
     collect.py device     one device's hourly history, as JSON
     collect.py identity   whether MAC-keyed identity is holding, as JSON
     collect.py baseline   which devices are doing something unusual today
+    collect.py timeline   traffic on your own segments over time
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -165,6 +166,31 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+def timeline(store, now, hours):
+    """The whole network over the window, one slice per hour or per day."""
+    step = 86400 if hours > DAILY_ABOVE else 3600
+    since = now - hours * 3600
+    since -= since % step
+
+    totals = {}
+    for row in store.network_timeline(since, step):
+        slot = totals.setdefault(row['at'], {'sent': 0, 'received': 0})
+        # on a device segment 'in' entered the interface: the devices sent it
+        slot['sent' if row['direction'] == 'in' else 'received'] += row['octets']
+
+    first = store.status()['first_bucket']
+    start = max(since, first - (first % step)) if first else since
+
+    series = []
+    at = start
+    while at < now:
+        slot = totals.get(at, {'sent': 0, 'received': 0})
+        series.append({'at': at, 'sent': slot['sent'], 'received': slot['received']})
+        at += step
+
+    return {'hours': hours, 'step': step, 'series': series, 'first_bucket': first}
 
 
 def baseline(store, now):
@@ -438,7 +464,7 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'baseline', 'segments', 'moment', 'label',
+                 'identity', 'baseline', 'timeline', 'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
@@ -461,6 +487,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'timeline':
+        print(json.dumps(timeline(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'baseline':

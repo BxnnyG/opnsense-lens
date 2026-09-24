@@ -1463,3 +1463,34 @@ say what you inferred from — applied to the first inference that matters.
 with the reason beside it, and all three are visible in the sentence. When the
 operator's boxes pass day 21 the first real verdicts arrive; if they are noise,
 the numbers to change are in one place and the tests describe what each is for.
+
+### §4.51 — A dashboard in Zenarmor's shape, on core's arithmetic (2026-09-24)
+**Question:** the operator, pointing at Zenarmor: *"das hat geile UI … hat auch
+System-Stats, sieht deutlichst geiler aus."* What does it take to get that
+without becoming it?
+**What Zenarmor's shape actually is** (from its own documentation, not
+memory): a row of facts at the top, a time series, top-N bars, a pie or donut
+per dimension, system panes for CPU, memory and disk — and every element opens
+a narrower view of itself.
+**Decision:** Reporting: Lens gets a Dashboard as its front door with exactly
+that shape: five fact tiles (here now, traffic, WAN right now, unusual today,
+new), the network over time as stacked areas, who is using the line, which
+networks as a donut, and this firewall's load, memory, disk and uptime. Every
+card links to the page that answers it in full.
+**The part that is not visual.** The system card uses **core's own formulas**,
+read from `Diagnostics\Api\SystemController` on 2026-09-24: the same five page
+counters for memory, the same `kern.boottime` parse for uptime, the same `df`
+wrapper for disk. A dashboard that disagreed with OPNsense's own system widget
+by a few percent would be a dashboard nobody trusted about anything else. And it
+reads them through configd behind Lens's own ACL rather than calling core's
+`api/diagnostics/*` from the browser — those sit behind core's privileges, so a
+user holding only Reporting: Lens would have got a blank system card: §4.38 by
+a different road.
+**Two smaller calls.** Load is shown against the core count, because 0.95 means
+"nearly full" on the operator's two-core box and nothing on sixteen. The WAN
+rate is the difference between two readings of core's cumulative counters,
+taken five seconds apart by the page; the first reading shows "measuring" rather
+than a number it cannot yet know.
+**Consequences:** the chart is tested to total exactly what the Networks page
+shows for the operator's own segments, and the donut excludes the far side of
+the line because it is not a share of anything the operator owns.
