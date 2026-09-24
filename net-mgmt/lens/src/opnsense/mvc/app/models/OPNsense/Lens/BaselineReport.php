@@ -45,9 +45,14 @@ class BaselineReport
 {
     /**
      * @param array $raw what `lens baseline` returned
+     * @param array $names mac to the name DeviceReport gives it. The collector
+     *                     cannot know a device's vendor name -- that is looked
+     *                     up at display time (§4.23) -- so without this a
+     *                     Proxmox guest was "Proxmox Server Solutions GmbH
+     *                     1B5816" in the list and a bare MAC in the verdict.
      * @return array
      */
-    public static function describe(array $raw): array
+    public static function describe(array $raw, array $names = []): array
     {
         $days = (int)($raw['days'] ?? 0);
         $needs = (int)($raw['needs_days'] ?? 21);
@@ -59,7 +64,7 @@ class BaselineReport
 
             $rows[] = [
                 'mac' => (string)($entry['mac'] ?? ''),
-                'name' => (string)($entry['name'] ?? ($entry['mac'] ?? '')),
+                'name' => (string)($names[$entry['mac'] ?? ''] ?? ($entry['name'] ?? ($entry['mac'] ?? ''))),
                 'today' => Bytes::human($today),
                 'usual' => Bytes::human($usual),
                 'times' => (float)($entry['times'] ?? 0),

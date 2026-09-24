@@ -34,6 +34,8 @@ use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceReport;
+use OPNsense\Lens\Headline;
+use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\Window;
 
 /**
@@ -76,11 +78,20 @@ class DevicesController extends ApiControllerBase
 
         $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
         $report['baseline'] = BaselineReport::describe(
-            self::decode($backend, 'lens baseline', $calls)
+            self::decode($backend, 'lens baseline', $calls),
+            self::names($report['devices'])
         );
         $report['window'] = Window::describe(
             $hours,
             isset($traffic['first_bucket']) ? (int)$traffic['first_bucket'] : null,
+            time()
+        );
+        $report['sentence'] = Headline::compose(
+            $report['summary'],
+            $report['baseline'],
+            $observedAt,
+            (bool)$report['stale'],
+            $report['window']['asked'],
             time()
         );
         $report['timing'] = [
@@ -89,6 +100,51 @@ class DevicesController extends ApiControllerBase
         ];
 
         return $report;
+    }
+
+    /**
+     * When each device was here, across the chosen range.
+     *
+     * Names and icons come from DeviceReport, run without traffic because none
+     * is needed; the spans come from the collector. Neither decides the other.
+     *
+     * @return array
+     */
+    public function presenceAction()
+    {
+        $backend = new Backend();
+        $calls = [];
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
+
+        $devices = self::decode($backend, 'lens devices', $calls);
+        $status = self::decode($backend, 'lens status', $calls);
+        $macdb = self::decode($backend, 'interface list macdb', $calls);
+        $raw = self::decode($backend, 'lens presence ' . $hours, $calls);
+
+        $observedAt = isset($status['runs']['observe']['at'])
+            ? (int)$status['runs']['observe']['at']
+            : null;
+
+        $rows = DeviceReport::describe($devices, $macdb, [], $observedAt, time())['devices'];
+
+        $report = PresenceReport::describe($rows, $raw, time());
+        $report['window'] = Window::describe($hours, $raw['start'] ?? null, time());
+
+        return $report;
+    }
+
+    /**
+     * @param array $rows DeviceReport's device rows
+     * @return array mac to the name every page calls it
+     */
+    private static function names(array $rows): array
+    {
+        $names = [];
+        foreach ($rows as $row) {
+            $names[$row['mac']] = $row['name'];
+        }
+
+        return $names;
     }
 
     /**

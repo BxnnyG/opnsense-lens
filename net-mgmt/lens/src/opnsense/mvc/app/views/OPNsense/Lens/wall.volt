@@ -54,6 +54,10 @@
                   font-size: clamp(14px, 1.4vw, 28px); font-variant-numeric: tabular-nums; }
 
     .wall-foot { margin-top: 2vh; color: #999; }
+    .wall-sentence { font-size: clamp(16px, 1.8vw, 34px); margin-bottom: 2.5vh;
+                     padding-left: 14px; border-left: 5px solid #5cb85c; }
+    .wall-sentence.wall-notice { border-left-color: #f0ad4e; }
+    .wall-sentence.wall-alert { border-left-color: #d9534f; color: #f0ad4e; }
     .wall-warn { color: #f0ad4e; font-weight: 600; }
 
     #lensWallBoard:fullscreen { min-height: 100vh; padding: 3vh 3vw; }
@@ -117,6 +121,11 @@
 
         const render = (report) => {
             const summary = report.summary || {};
+
+            /* on a wall this is the line read from across the room */
+            const sentence = report.sentence || {};
+            $('#wallSentence').attr('class', 'wall-sentence wall-' + (sentence.tone || 'calm'))
+                .text(sentence.sentence || '');
 
             $('#wallHere').text(summary.here);
             $('#wallKnown').text(summary.known);
@@ -187,6 +196,8 @@
     </p>
 
     <div id="lensWall">
+        <div id="wallSentence" class="wall-sentence"></div>
+
         <div class="wall-head">
             <div>
                 <div class="wall-big"><span id="wallHere"></span> / <span id="wallKnown"></span></div>

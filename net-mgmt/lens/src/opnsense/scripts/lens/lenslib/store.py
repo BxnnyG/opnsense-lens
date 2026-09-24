@@ -480,6 +480,14 @@ class Store:
             (step, step, since),
         )
 
+    def presence_windows(self, since):
+        """:return: every address window that was still open at or after `since`"""
+        return self.db.execute(
+            """SELECT mac, first_seen, last_seen FROM address_observation
+               WHERE last_seen >= ?""",
+            (since,),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [

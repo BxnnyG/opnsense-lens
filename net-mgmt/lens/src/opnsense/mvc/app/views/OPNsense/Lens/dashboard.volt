@@ -50,6 +50,16 @@
     .dash-sub { color: #999; font-size: 12px; }
     .dash-warn { color: #f0ad4e; }
 
+    .dash-sentence { display: flex; gap: 16px; align-items: center;
+                     padding: 16px 18px; margin: 0 0 14px 0;
+                     border-left: 4px solid #5cb85c; }
+    .dash-sentence > i { font-size: 30px; color: #5cb85c; }
+    .dash-sentence-text { font-size: 18px; line-height: 1.3; }
+    .dash-sentence.dash-notice { border-left-color: #f0ad4e; }
+    .dash-sentence.dash-notice > i { color: #f0ad4e; }
+    .dash-sentence.dash-alert { border-left-color: #d9534f; }
+    .dash-sentence.dash-alert > i { color: #d9534f; }
+
     .dash-chart { width: 100%; height: 170px; display: block; }
     .dash-up { fill: #d94f00; opacity: 0.85; }
     .dash-down { fill: #7a8b99; opacity: 0.75; }
@@ -139,6 +149,16 @@
             if (status !== 'success' || !report || !report.devices) {
                 $('#dashError').show();
                 return;
+            }
+
+            /* the one line for someone who reads only one line (§4.53) */
+            const sentence = report.sentence || {};
+            if (sentence.sentence) {
+                $('#dashSentence').attr('class', 'content-box dash-sentence dash-' + sentence.tone);
+                $('#dashSentenceIcon').attr('class', 'fa ' + sentence.icon);
+                $('#dashSentenceText').text(sentence.sentence);
+                $('#dashSentenceAlso').text((sentence.also || []).join(' '));
+                $('#dashSentence').show();
             }
 
             const summary = report.summary || {};
@@ -387,16 +407,24 @@
     <div id="dashRange"></div>
 </div>
 
+<div id="dashSentence" class="content-box dash-sentence" style="display: none;">
+    <i id="dashSentenceIcon"></i>
+    <div>
+        <div id="dashSentenceText" class="dash-sentence-text"></div>
+        <div id="dashSentenceAlso" class="dash-sub"></div>
+    </div>
+</div>
+
 <div id="dashError" class="alert alert-danger" style="display: none;">
     {{ lang._('The device report did not come back.') }}
 </div>
 
 <div class="dash-facts">
-    <div class="content-box dash-fact">
-        <i class="fa fa-laptop"></i>
+    <a class="content-box dash-fact" href="/ui/lens/presence" style="color: inherit; text-decoration: none;">
+        <i class="fa fa-home"></i>
         <div><div class="dash-num" id="factHere">&hellip;</div>
-             <div class="dash-sub">{{ lang._('devices here now, of all known') }}</div></div>
-    </div>
+             <div class="dash-sub">{{ lang._('devices home now, of all known') }} &rsaquo;</div></div>
+    </a>
     <div class="content-box dash-fact">
         <i class="fa fa-exchange"></i>
         <div><div class="dash-num" id="factMoved">&hellip;</div>

@@ -14,6 +14,7 @@
             <pattern>ui/lens/wall*</pattern>
             <pattern>ui/lens/segments*</pattern>
             <pattern>ui/lens/dashboard*</pattern>
+            <pattern>ui/lens/presence*</pattern>
             <pattern>api/lens/dashboard/*</pattern>
             <pattern>api/lens/segments/*</pattern>
             <pattern>api/lens/sources/*</pattern>

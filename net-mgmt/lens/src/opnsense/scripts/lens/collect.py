@@ -15,6 +15,7 @@ Two duties, one command each:
     collect.py identity   whether MAC-keyed identity is holding, as JSON
     collect.py baseline   which devices are doing something unusual today
     collect.py timeline   traffic on your own segments over time
+    collect.py presence   when each device was here, as spans
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -43,6 +44,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lenslib import attribute                                   # noqa: E402
 from lenslib import baseline as baselib                         # noqa: E402
 from lenslib import parse                                       # noqa: E402
+from lenslib import presence as presencelib                     # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
 
 # overridable so the tests can drive the real script against a temporary file
@@ -168,6 +170,29 @@ def observe(store, now):
     )
 
 
+def presence(store, now, hours):
+    """Every device's presence across the window, merged and clipped."""
+    since = now - hours * 3600
+
+    # the chart cannot start before Lens did; otherwise every device looks
+    # absent for the part of the window nobody was watching
+    watching = store.status()['first_observation']
+    start = max(since, watching) if watching else since
+
+    windows = [(r['mac'], r['first_seen'], r['last_seen'])
+               for r in store.presence_windows(start)]
+    found = presencelib.spans(windows, start, now)
+
+    return {
+        'since': since,
+        'start': start,
+        'now': now,
+        'hours': hours,
+        'devices': {mac: {'spans': s, 'seconds': presencelib.seconds(s)}
+                    for mac, s in found.items()},
+    }
+
+
 def timeline(store, now, hours):
     """The whole network over the window, one slice per hour or per day."""
     step = 86400 if hours > DAILY_ABOVE else 3600
@@ -201,17 +226,11 @@ def baseline(store, now):
     since = (today - baselib.NEEDS_DAYS - 1) * 86400
 
     rows = [(row['mac'], row['day'], row['octets']) for row in store.daily_totals(since)]
-    report = baselib.assess(rows, today)
 
-    names = {}
-    for device in store.devices():
-        label = (device.get('label') or {}).get('name')
-        names[device['mac']] = label or device.get('hostname') or device['mac']
-
-    for entry in report['unusual']:
-        entry['name'] = names.get(entry['mac'], entry['mac'])
-
-    return report
+    # No names here. A device's name depends on the vendor table, which is read
+    # at display time (§4.23); resolving it here gave a Proxmox guest one name in
+    # the list and a bare MAC in the verdict. DeviceReport names it, once.
+    return baselib.assess(rows, today)
 
 
 def moment(store, mac, at, step):
@@ -464,7 +483,8 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'baseline', 'timeline', 'segments', 'moment', 'label',
+                 'identity', 'baseline', 'timeline', 'presence', 'segments', 'moment',
+                 'label',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
@@ -487,6 +507,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'presence':
+        print(json.dumps(presence(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'timeline':

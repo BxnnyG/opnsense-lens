@@ -86,6 +86,24 @@ class BaselineReportTest extends TestCase
         $this->assertStringNotContainsString('4.0 times', $report['unusual'][0]['says']);
     }
 
+    public function testTheVerdictUsesTheNameEveryOtherPageUses()
+    {
+        /*
+         * Shipped in 0.12: the collector named devices itself, without the
+         * vendor table, so a Proxmox guest was "Proxmox Server Solutions GmbH
+         * 1B5816" in the list and a bare MAC in the verdict (§4.37).
+         */
+        $report = BaselineReport::describe(
+            ['days' => 25, 'needs_days' => 21, 'unusual' => [[
+                'mac' => 'bc:24:11:1b:58:16', 'today' => 4000 * self::MB,
+                'usual' => 300 * self::MB, 'times' => 13.3,
+            ]]],
+            ['bc:24:11:1b:58:16' => 'Proxmox Server Solutions GmbH 1B5816']
+        );
+
+        $this->assertSame('Proxmox Server Solutions GmbH 1B5816', $report['unusual'][0]['name']);
+    }
+
     public function testAnEmptyAnswerIsALearningStateAndNotAnError()
     {
         $report = BaselineReport::describe([]);

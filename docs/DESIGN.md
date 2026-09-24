@@ -1494,3 +1494,39 @@ than a number it cannot yet know.
 **Consequences:** the chart is tested to total exactly what the Networks page
 shows for the operator's own segments, and the donut excludes the far side of
 the line because it is not a share of anything the operator owns.
+
+### §4.52 — Who's home is a chart the collector has been drawing for a month (2026-09-24)
+**Question:** the Apple user and the family admin both arrive asking "who's
+home?". Nothing in OPNsense answers it. Does Lens have to start collecting
+something new?
+**Decision:** no — the address windows kept since stage 4 *are* the answer. A
+window opens when a device is first seen and closes once it has been gone longer
+than the observation gap. Merged per device (two addresses at once are one
+presence, not two) and clipped to the chart, they become one strip per device.
+**The order is measured, not inferred.** Devices present for at least 98% of the
+range are folded into "were here the whole time" — on the second firewall that
+is servers, access points and thirty virtual machines, forty solid bars that say
+nothing. The rows that come and go lead, here-now first. The split is coverage
+of the window, never a guess at what kind of device it is: a phone that never
+left the house is folded with the servers, correctly.
+**And the chart starts when Lens did.** Before the first observation every
+device would look absent, which is the §4.28 mistake — reading the past as a
+gap — drawn as a picture.
+
+### §4.53 — One sentence, and the order it is allowed to say things in (2026-09-24)
+**Question:** a person who reads only one line should get the one thing that
+matters. Everything on the dashboard is already true. Which one goes first?
+**Decision:** a fixed order. A collector that stopped outranks everything —
+every other sentence would be about the past without saying so. Then something
+unusual (§4.50), naming the device and its own comparison. Then something new
+(§4.34, behind the same two-day guard). And only when none of those applies:
+"Everything looks normal: 12 devices home, 9.4 GB over the last 24 hours."
+**Rationale:** the calm sentence is the one people will learn to trust, which
+makes it the one that must never be said while a louder one applies. The test
+file for `Headline` is almost entirely about that: every sentence is true on its
+own; what can go wrong is order.
+**Found on the way:** stage 12's collector named the devices in its verdicts
+itself, without the vendor table, so a Proxmox guest was "Proxmox Server
+Solutions GmbH 1B5816" in the list and a bare MAC in the verdict — and the new
+sentence would have put that MAC in the one line people read. The collector no
+longer names anything; `DeviceReport` does, once, for every surface (§4.37).
