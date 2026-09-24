@@ -33,6 +33,7 @@ use OPNsense\Core\Backend;
 use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\DeviceDetail;
+use OPNsense\Lens\DeviceProfile;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Headline;
 use OPNsense\Lens\PresenceReport;
@@ -100,6 +101,48 @@ class DevicesController extends ApiControllerBase
         ];
 
         return $report;
+    }
+
+    /**
+     * Everything the device page shows about one device.
+     *
+     * The row comes from DeviceReport over the last day, so the page names and
+     * counts the device exactly as the list does (§4.37).
+     *
+     * @return array
+     */
+    public function profileAction()
+    {
+        $mac = strtolower((string)$this->request->get('mac', null, ''));
+        if (!preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $mac)) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+
+        $backend = new Backend();
+        $calls = [];
+
+        $devices = self::decode($backend, 'lens devices', $calls);
+        $status = self::decode($backend, 'lens status', $calls);
+        $macdb = self::decode($backend, 'interface list macdb', $calls);
+        $traffic = self::decode($backend, 'lens traffic ' . Window::DEFAULT_HOURS, $calls);
+        $raw = self::decode($backend, 'lens profile ' . $mac, $calls);
+
+        $observedAt = isset($status['runs']['observe']['at'])
+            ? (int)$status['runs']['observe']['at']
+            : null;
+
+        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+
+        foreach ($report['devices'] as $row) {
+            if ($row['mac'] === $mac) {
+                $profile = DeviceProfile::describe($row, $raw, $observedAt, time());
+                $profile['kinds'] = $report['kinds'];
+                $profile['status'] = 'ok';
+                return $profile;
+            }
+        }
+
+        return ['status' => 'failed', 'message' => gettext('Lens has never seen this device.')];
     }
 
     /**

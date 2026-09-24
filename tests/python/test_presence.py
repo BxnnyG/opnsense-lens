@@ -71,5 +71,35 @@ class StoreTest(unittest.TestCase):
             self.assertEqual({'bb'}, macs)
 
 
+class HeatmapStoreTest(unittest.TestCase):
+    """the heatmap rows add up to the same bytes as the device's own chart"""
+
+    def test_a_devices_week_totals_its_attributed_traffic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = Store(os.path.join(directory, 'lens.sqlite'))
+            base = 1788080400
+            store.store_buckets('p', [
+                (base, 'em0', '10.0.0.5', 'in', 100, 1),
+                (base + 3600, 'em0', '10.0.0.5', 'out', 400, 1),
+                (base, 'pppoe0', '1.1.1.1', 'out', 9000, 1),
+            ])
+            store.db.execute(
+                """INSERT INTO address_observation
+                   (mac, address, interface, first_seen, last_seen)
+                   VALUES ('aa', '10.0.0.5', 'em0', ?, ?)""", (base - 3600, base + 9000))
+            store.commit()
+
+            week = sum(r['octets'] for r in store.device_heatmap('aa', 0))
+            chart = sum(r['octets'] for r in store.device_traffic('aa', 0))
+            network = sum(r['octets'] for r in store.network_heatmap(0))
+
+            self.assertEqual(500, week)
+            self.assertEqual(chart, week)
+            self.assertEqual(500, network, 'the far end is not your network')
+
+            cells = list(store.device_heatmap('aa', 0))
+            self.assertTrue(all(0 <= r['dow'] <= 6 and 0 <= r['hour'] <= 23 for r in cells))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -488,6 +488,44 @@ class Store:
             (since,),
         )
 
+    def device_heatmap(self, mac, since, bucket_seconds=3600):
+        """
+        One device's bytes per hour of the week, in the firewall's own timezone.
+
+        Local time on purpose: a heatmap in UTC puts the evening at the wrong
+        end of the row for everyone not in London.
+        """
+        return self.db.execute(
+            """SELECT CAST(strftime('%%w', bucket, 'unixepoch', 'localtime') AS INTEGER) AS dow,
+                      CAST(strftime('%%H', bucket, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+                      sum(octets) AS octets
+               FROM (%s)
+               WHERE macs = 1 AND mac = ?
+               GROUP BY dow, hour""" % ATTRIBUTION_SQL,
+            (bucket_seconds, since, mac),
+        )
+
+    def network_heatmap(self, since):
+        """The same, for everything on the operator's own segments."""
+        return self.db.execute(
+            """SELECT CAST(strftime('%w', bucket, 'unixepoch', 'localtime') AS INTEGER) AS dow,
+                      CAST(strftime('%H', bucket, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+                      sum(octets) AS octets
+               FROM traffic_hour
+               WHERE bucket >= ?
+                 AND interface IN (SELECT DISTINCT interface FROM address_observation)
+               GROUP BY dow, hour""",
+            (since,),
+        )
+
+    def device_windows(self, mac):
+        """Every address window one device has ever had, oldest first."""
+        return self.db.execute(
+            """SELECT address, interface, first_seen, last_seen
+               FROM address_observation WHERE mac = ? ORDER BY first_seen""",
+            (mac,),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [

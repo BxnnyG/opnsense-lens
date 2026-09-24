@@ -89,6 +89,17 @@
     .dash-meter .fill.hot { background: #f0ad4e; }
     .dash-meter .fill.full { background: #d9534f; }
 
+    .hm { display: grid; grid-template-columns: 30px repeat(24, 1fr); gap: 2px; }
+    .hm-cell { aspect-ratio: 1 / 1; border-radius: 2px; min-height: 8px; }
+    .hm-l0 { background: rgba(128, 128, 128, 0.12); }
+    .hm-l1 { background: rgba(217, 79, 0, 0.25); }
+    .hm-l2 { background: rgba(217, 79, 0, 0.5); }
+    .hm-l3 { background: rgba(217, 79, 0, 0.75); }
+    .hm-l4 { background: rgba(217, 79, 0, 1); }
+    .hm-day, .hm-hour { font-size: 10px; color: #999; }
+    .hm-day { align-self: center; }
+    .hm-hour { text-align: center; }
+
     .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
                  border: 1px solid #999; border-radius: 10px; font-size: 90%;
                  text-decoration: none; }
@@ -200,12 +211,14 @@
             for (const device of report.devices) {
                 const group = groups.get(device.group);
                 if (!group) {
-                    rows.push({ name: device.name, icon: device.kind.icon, octets: device.octets });
+                    rows.push({ name: device.name, icon: device.kind.icon, octets: device.octets,
+                                href: '/ui/lens/device?mac=' + encodeURIComponent(device.mac) });
                     continue;
                 }
                 if (!folded.has(group.key)) {
                     folded.set(group.key, { name: group.label + ' × ' + group.count,
-                                            icon: group.icon, octets: 0 });
+                                            icon: group.icon, octets: 0,
+                                            href: '/ui/lens/overview?hours=' + hours });
                     rows.push(folded.get(group.key));
                 }
                 folded.get(group.key).octets += device.octets;
@@ -217,7 +230,8 @@
             const $top = $('#dashTop').empty();
             for (const row of top) {
                 $top.append($('<div/>').addClass('dash-row')
-                    .append($('<div/>').addClass('name').attr('title', row.name)
+                    .append($('<a/>').addClass('name').attr('title', row.name)
+                        .attr('href', row.href).css('color', 'inherit')
                         .append($('<i/>').addClass('fa fa-fw ' + row.icon))
                         .append(document.createTextNode(' ' + row.name)))
                     .append($('<div/>').addClass('track').append($('<div/>').addClass('fill')
@@ -340,6 +354,29 @@
                         .append(document.createTextNode(slice.name)))
                     .append($('<span/>').text(Math.round(share * 100) + '%')));
             });
+        });
+
+        /* ------------------------------------------------ the network's week */
+        ajaxGet('/api/lens/dashboard/heatmap', {}, (grid, status) => {
+            if (status !== 'success' || !grid || !grid.rows) {
+                return;
+            }
+            const $hm = $('#dashHeatmap').empty();
+            $hm.append($('<div/>'));
+            for (let hour = 0; hour < 24; hour++) {
+                $hm.append($('<div/>').addClass('hm-hour').text(hour % 3 === 0 ? hour : ''));
+            }
+            grid.rows.forEach((row, day) => {
+                $hm.append($('<div/>').addClass('hm-day').text(grid.days[day]));
+                row.forEach((cell, hour) => {
+                    $hm.append($('<div/>').addClass('hm-cell hm-l' + cell.level)
+                        .attr('title', grid.days[day] + ' ' + hour + ':00 \u2014 ' + cell.text));
+                });
+            });
+            $('#dashHeatmapNote').text(grid.empty
+                ? '{{ lang._("Nothing measured yet.") }}'
+                : '{{ lang._("Your networks, four weeks folded onto one, local time. Busiest:") }} '
+                  + (grid.busiest ? grid.days[grid.busiest.day] + ' ' + grid.busiest.hour + ':00' : ''));
         });
 
         /* ------------------------------------------------ the firewall itself */
@@ -479,6 +516,12 @@
             <svg id="dashDonut" class="dash-donut" viewBox="0 0 130 130"></svg>
             <div id="dashSlices" class="dash-slices"></div>
         </div>
+    </div>
+
+    <div class="content-box dash-card">
+        <div class="dash-title"><span>{{ lang._('When your network is busy') }}</span></div>
+        <div class="hm" id="dashHeatmap"></div>
+        <div class="dash-sub" id="dashHeatmapNote" style="margin-top: 8px;"></div>
     </div>
 
     <div class="content-box dash-card">

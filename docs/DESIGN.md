@@ -1530,3 +1530,26 @@ itself, without the vendor table, so a Proxmox guest was "Proxmox Server
 Solutions GmbH 1B5816" in the list and a bare MAC in the verdict — and the new
 sentence would have put that MAC in the one line people read. The collector no
 longer names anything; `DeviceReport` does, once, for every surface (§4.37).
+
+### §4.54 — A device gets a page, not a pop-up (2026-09-24)
+**Question:** stage 8 put a device's chart in a modal. The self-check (§VISION)
+said the UniFi user's favourite screen is the client page — one device, all of
+it, with a URL. The operator: *"her mit den geil aussehenden Seiten."*
+**Decision:** `/ui/lens/device?mac=…` is a real page, and every device name on
+every page links to it. It carries: a header with the device's icon, name,
+vendor, MAC and pills for home/away, role, randomised MAC and tags; editing in
+place; five figures; the traffic chart with its own range and the drill-down
+into a bar's addresses; its week as a 7×24 heatmap; where it has been — every
+address and segment it has held, with dates and visit counts; and its presence
+across the last seven days. The modal is gone.
+**Three choices inside it.** The heatmap is in the firewall's **local time**,
+because in UTC the evening sits at the wrong end of the row for anyone not in
+London; it starts on **Monday** while SQLite's week starts on Sunday; and it is
+shaded on a **square-root scale**, because traffic is heavy-tailed and a linear
+one paints the backup hour dark and every other hour of the week blank. The life
+story folds visits: sixty returns to the same lease are one line saying "60
+visits", not sixty lines.
+**Consequences:** the row the page shows comes from `DeviceReport`, so the page
+cannot name or count the device differently from the list (§4.37); and the
+heatmap is tested to total the same bytes as the device's own chart. The same
+heatmap, for the whole network, is now a card on the dashboard.

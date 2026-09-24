@@ -31,6 +31,7 @@ namespace OPNsense\Lens\Api;
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\Bytes;
+use OPNsense\Lens\Heatmap;
 use OPNsense\Lens\SystemFacts;
 use OPNsense\Lens\Window;
 
@@ -78,6 +79,18 @@ class DashboardController extends ApiControllerBase
                 time()
             ),
         ];
+    }
+
+    /**
+     * @return array the network's week, hour by hour
+     */
+    public function heatmapAction()
+    {
+        $raw = self::decode(new Backend(), 'lens heatmap');
+        $grid = Heatmap::grid((array)($raw['heatmap'] ?? []));
+        $grid['heatmap_days'] = (int)($raw['heatmap_days'] ?? 28);
+
+        return $grid;
     }
 
     /**

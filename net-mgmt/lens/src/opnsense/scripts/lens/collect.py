@@ -16,6 +16,8 @@ Two duties, one command each:
     collect.py baseline   which devices are doing something unusual today
     collect.py timeline   traffic on your own segments over time
     collect.py presence   when each device was here, as spans
+    collect.py profile    one device: its week as a heatmap, and every address it held
+    collect.py heatmap    the whole network's week as a heatmap
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -168,6 +170,39 @@ def observe(store, now):
     return '%d devices, %d addresses, %d new windows' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened)
     )
+
+
+# Four weeks: every hour of the week gets four samples, which is the fewest that
+# makes a weekly pattern visible rather than one busy Tuesday.
+HEATMAP_DAYS = 28
+
+
+def profile(store, now, mac):
+    """Everything the device page needs that the list does not already have."""
+    mac = parse.normalise_mac(mac or '')
+    since = now - HEATMAP_DAYS * 86400
+
+    return {
+        'mac': mac,
+        'heatmap': [[r['dow'], r['hour'], r['octets']] for r in store.device_heatmap(mac, since)],
+        'windows': [
+            {'address': r['address'], 'interface': r['interface'],
+             'first_seen': r['first_seen'], 'last_seen': r['last_seen']}
+            for r in store.device_windows(mac)
+        ],
+        'heatmap_days': HEATMAP_DAYS,
+    }
+
+
+def heatmap(store, now):
+    """The network's week."""
+    since = now - HEATMAP_DAYS * 86400
+
+    return {
+        'heatmap': [[r['dow'], r['hour'], r['octets']] for r in store.network_heatmap(since)],
+        'heatmap_days': HEATMAP_DAYS,
+        'first_bucket': store.status()['first_bucket'],
+    }
 
 
 def presence(store, now, hours):
@@ -483,8 +518,8 @@ def main():
     parser.add_argument(
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
-                 'identity', 'baseline', 'timeline', 'presence', 'segments', 'moment',
-                 'label',
+                 'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
+                 'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
@@ -507,6 +542,14 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'profile':
+        print(json.dumps(profile(Store(DB_PATH), int(time.time()), args.mac)))
+        return 0
+
+    if args.duty == 'heatmap':
+        print(json.dumps(heatmap(Store(DB_PATH), int(time.time()))))
         return 0
 
     if args.duty == 'presence':

@@ -304,12 +304,10 @@
             $name.append($('<i/>')
                 .addClass('fa fa-fw lens-icon ' + device.kind.icon)
                 .attr('title', device.kind.type));
-            $name.append($('<a/>').addClass('lens-name').attr('href', '#')
-                .text(device.name)
-                .on('click', function (event) {
-                    event.preventDefault();
-                    openDetail(device);
-                }));
+            /* the name opens the device's own page (§4.54) */
+            $name.append($('<a/>').addClass('lens-name')
+                .attr('href', '/ui/lens/device?mac=' + encodeURIComponent(device.mac))
+                .text(device.name));
             $name.append($('<a/>').addClass('lens-edit').attr('href', '#')
                 .attr('title', '{{ lang._("Give this device a name of your own") }}')
                 .append($('<i/>').addClass('fa fa-pencil'))
@@ -391,70 +389,6 @@
                 .append($named);
         };
 
-        /*
-         * The chart is hand-drawn SVG rather than a charting library: it is
-         * twenty-four stacked bars, the page already ships no dependencies, and
-         * a library would decide the axis and the rounding for us. Sent below,
-         * received above, one bar per hour, scaled to the busiest hour shown.
-         */
-        const drawChart = (detail) => {
-            const svg = document.getElementById('lensChart');
-            while (svg.firstChild) {
-                svg.removeChild(svg.firstChild);
-            }
-
-            const points = detail.series;
-            if (!points.length) {
-                return;
-            }
-
-            const width = 640;
-            const height = 140;
-            const gap = points.length > 60 ? 0 : 1;
-            const step = width / points.length;
-            const peak = detail.peak || 1;
-
-            svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
-
-            const bar = (x, y, w, h, klass, title, point) => {
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                if (point && point.total) {
-                    /* a bar says a device moved 4 GB in that hour; the only
-                       question after that is what it was made of */
-                    rect.setAttribute('style', 'cursor: pointer');
-                    rect.addEventListener('click', () => openMoment(detail, point));
-                }
-                rect.setAttribute('x', x);
-                rect.setAttribute('y', y);
-                rect.setAttribute('width', Math.max(0.5, w));
-                rect.setAttribute('height', Math.max(0, h));
-                rect.setAttribute('class', klass);
-                const label = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-                label.textContent = title;
-                rect.appendChild(label);
-                svg.appendChild(rect);
-            };
-
-            points.forEach((point, index) => {
-                const x = index * step;
-                const w = step - gap;
-                const down = (point.received / peak) * height;
-                const up = (point.sent / peak) * height;
-                const when = new Date(point.bucket * 1000).toLocaleString();
-                const title = when + ' \u2014 ' + bytes(point.sent) + ' up, '
-                    + bytes(point.received) + ' down';
-
-                /* an hour with nothing in it still gets a mark, so a quiet hour
-                   cannot be mistaken for an hour Lens has no data for */
-                if (!point.total) {
-                    bar(x, height - 1, w, 1, 'lens-chart-empty', when + ' \u2014 nothing');
-                    return;
-                }
-                bar(x, height - down - up, w, down, 'lens-chart-down', title, point);
-                bar(x, height - up, w, up, 'lens-chart-up', title, point);
-            });
-        };
-
         /* the same units as the table, without a second round trip to get them */
         const bytes = (octets) => {
             if (octets < 1024) {
@@ -468,77 +402,6 @@
                 }
                 value /= 1024;
             }
-        };
-
-        const openMoment = (detail, point) => {
-            const $block = $('#lensMoment').show();
-            $('#lensMomentWhen').text(new Date(point.bucket * 1000).toLocaleString());
-            $('#lensMomentRows').empty()
-                .append($('<tr/>').append($('<td/>').text('{{ lang._("reading...") }}')));
-
-            ajaxGet('/api/lens/devices/moment',
-                    { mac: detail.mac, at: point.bucket, step: detail.step },
-                    (moment, status) => {
-                const $rows = $('#lensMomentRows').empty();
-
-                if (status !== 'success' || !moment || !moment.addresses) {
-                    $rows.append($('<tr/>').append($('<td/>')
-                        .text('{{ lang._("That slice did not come back.") }}')));
-                    return;
-                }
-
-                if (!moment.addresses.length) {
-                    $rows.append($('<tr/>').append($('<td/>')
-                        .text('{{ lang._("Nothing of this device could be attributed in that slice.") }}')));
-                    return;
-                }
-
-                for (const row of moment.addresses) {
-                    $rows.append($('<tr/>')
-                        .append($('<td/>').text(row.address))
-                        .append($('<td/>').addClass('lens-if').text(row.interface))
-                        .append($('<td/>').addClass('lens-traffic').text(
-                            row.traffic + ' (' + row.sent + ' \u2191, ' + row.received + ' \u2193)')));
-                }
-            });
-        };
-
-        const openDetail = (device) => {
-            $('#lensDetailName').text(device.name);
-            $('#lensDetailMac').text(device.mac);
-            $('#lensDetailNote').hide();
-            $('#lensMoment').hide();
-            $('#lensDetailBody').hide();
-            $('#lensDetailLoading').show();
-            $('#lensDetail').modal('show');
-
-            ajaxGet('/api/lens/devices/history',
-                    { mac: device.mac, hours: chosenHours() }, (detail, detailStatus) => {
-                $('#lensDetailLoading').hide();
-
-                if (detailStatus !== 'success' || !detail || !detail.series) {
-                    $('#lensDetailNote').text('{{ lang._("No history came back.") }}').show();
-                    return;
-                }
-
-                $('#lensDetailStep').text(detail.step_name);
-                $('#lensDetailWindow').text(LABELS[chosenHours()]);
-                $('#lensDetailTotal').text(detail.total);
-                $('#lensDetailSent').text(detail.sent);
-                $('#lensDetailReceived').text(detail.received);
-                $('#lensDetailPeak').text(detail.busiest
-                    ? detail.busiest.what + ' {{ lang._("at") }} '
-                      + new Date(detail.busiest.bucket * 1000).toLocaleString()
-                    : '{{ lang._("nothing measured in this window") }}');
-                $('#lensDetailIfs').text(detail.interfaces.join(', ') || '\u2014');
-
-                if (detail.note) {
-                    $('#lensDetailNote').text(detail.note).show();
-                }
-
-                drawChart(detail);
-                $('#lensDetailBody').show();
-            });
         };
 
         const openEditor = (device) => {
@@ -904,75 +767,6 @@
             {{ lang._('A device can hold several addresses at once, on different interfaces. They are listed, not merged: merging them would report one machine as two, at half its traffic each.') }}
             {{ lang._('Traffic is joined onto whoever held the address at the hour it was measured, not onto whoever holds it now.') }}
         </p>
-    </div>
-
-    <div class="modal" id="lensDetail" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                    <h4 class="modal-title">
-                        <span id="lensDetailName"></span>
-                        <span id="lensDetailMac" class="lens-mac"></span>
-                    </h4>
-                </div>
-                <div class="modal-body">
-                    <div id="lensDetailLoading">
-                        <i class="fa fa-spinner fa-spin"></i>
-                        {{ lang._('Reading this device out of the store...') }}
-                    </div>
-                    <div id="lensDetailNote" class="alert alert-info" style="display: none;"></div>
-                    <div id="lensDetailBody" style="display: none;">
-                        <svg id="lensChart" class="lens-chart"
-                             preserveAspectRatio="none"></svg>
-                        <div id="lensMoment" class="lens-block" style="display: none;">
-                            <b>{{ lang._('What that slice was made of') }}</b>
-                            &mdash; <span id="lensMomentWhen"></span>
-                            <table class="table table-condensed">
-                                <tbody id="lensMomentRows"></tbody>
-                            </table>
-                        </div>
-
-                        <p class="text-muted lens-chart-legend">
-                            {{ lang._('One bar per') }} <span id="lensDetailStep"></span>,
-                            {{ lang._('newest on the right.') }}
-                            {{ lang._('A bar with something in it opens the addresses behind it.') }}
-                            <span class="lens-key lens-chart-up"></span> {{ lang._('sent') }}
-                            <span class="lens-key lens-chart-down"></span> {{ lang._('received') }}
-                            &mdash; {{ lang._('an hour with nothing in it keeps a thin line, so quiet cannot be mistaken for missing.') }}
-                        </p>
-                        <table class="table table-condensed">
-                            <tbody>
-                                <tr>
-                                    <td style="width: 14em;">
-                                        {{ lang._('Over') }} <span id="lensDetailWindow"></span>
-                                    </td>
-                                    <td>
-                                        <span id="lensDetailTotal"></span>
-                                        (<span id="lensDetailSent"></span> {{ lang._('up') }},
-                                        <span id="lensDetailReceived"></span> {{ lang._('down') }})
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td>{{ lang._('Busiest hour') }}</td>
-                                    <td id="lensDetailPeak"></td>
-                                </tr>
-                                <tr>
-                                    <td>{{ lang._('Seen on') }}</td>
-                                    <td id="lensDetailIfs"></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p class="text-muted">
-                            {{ lang._('Only hours this device could be identified in are counted. An hour it shared an address with another device is left out of both, and appears in the accounting below the list.') }}
-                        </p>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn" data-dismiss="modal">{{ lang._('Close') }}</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="modal" id="lensEditor" tabindex="-1" role="dialog">
