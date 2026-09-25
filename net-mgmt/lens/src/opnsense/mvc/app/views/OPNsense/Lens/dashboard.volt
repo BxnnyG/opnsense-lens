@@ -89,6 +89,21 @@
     .dash-meter .fill.hot { background: #f0ad4e; }
     .dash-meter .fill.full { background: #d9534f; }
 
+    .line-row { padding: 8px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.15); }
+    .line-row:last-child { border-bottom: 0; }
+    .line-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+                margin-right: 7px; background: #999; }
+    .line-good .line-dot { background: #5cb85c; }
+    .line-degraded .line-dot { background: #f0ad4e; }
+    .line-down .line-dot { background: #d9534f; }
+    .line-figures { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
+    .line-big { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .line-degraded .line-big { color: #f0ad4e; }
+    .line-down .line-big { color: #d9534f; }
+    .line-spark { width: 100%; height: 50px; display: block; margin-top: 4px; }
+    .line-path { fill: none; stroke: #5b8fb9; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .line-loss { fill: #d9534f; }
+
     .hm { display: grid; grid-template-columns: 30px repeat(24, 1fr); gap: 2px; }
     .hm-cell { aspect-ratio: 1 / 1; border-radius: 2px; min-height: 8px; }
     .hm-l0 { background: rgba(128, 128, 128, 0.12); }
@@ -379,6 +394,68 @@
                   + (grid.busiest ? grid.days[grid.busiest.day] + ' ' + grid.busiest.hour + ':00' : ''));
         });
 
+        /* ------------------------------------------------ the line */
+        const lineSpark = (series) => {
+            const node = svg('svg', { viewBox: '0 0 300 50', preserveAspectRatio: 'none',
+                                      class: 'line-spark' });
+            const delays = series.map(p => p.delay).filter(v => v !== null);
+            if (series.length < 2 || !delays.length) {
+                return node;
+            }
+            const peak = Math.max(1, ...delays);
+            const x = (i) => i / (series.length - 1) * 300;
+            const y = (v) => 46 - v / peak * 40;
+
+            /* loss as marks along the floor: rare, but the thing people noticed */
+            series.forEach((p, i) => {
+                if (p.loss) {
+                    node.appendChild(svg('rect', { x: x(i) - 1.5, y: 44, width: 3, height: 6,
+                                                   class: 'line-loss' }));
+                }
+            });
+
+            let path = '';
+            series.forEach((p, i) => {
+                if (p.delay === null) {
+                    return;
+                }
+                path += (path ? ' L ' : 'M ') + x(i) + ' ' + y(p.delay);
+            });
+            node.appendChild(svg('path', { d: path, class: 'line-path' }));
+            return node;
+        };
+
+        ajaxGet('/api/lens/dashboard/line', { hours: hours }, (line, status) => {
+            if (status !== 'success' || !line || !line.lines) {
+                return;
+            }
+            const $box = $('#dashLine').empty();
+            const shown = line.lines.filter(l => l.monitored || l.state === 'down');
+
+            if (!shown.length) {
+                $box.append($('<div/>').addClass('dash-sub').text(
+                    '{{ lang._("No gateway is being monitored. Switch on monitoring under System: Gateways and dpinger starts measuring latency and loss.") }}'));
+                return;
+            }
+
+            for (const gw of shown) {
+                const fmt = (v, unit) => v === null ? '\u2014' : v.toFixed(1) + unit;
+                const $row = $('<div/>').addClass('line-row line-' + gw.state);
+                $row.append($('<div/>').addClass('line-head')
+                    .append($('<span/>').addClass('line-dot'))
+                    .append($('<b/>').text(gw.name))
+                    .append($('<span/>').addClass('dash-sub').text(
+                        ' ' + gw.status + (gw.monitor ? ' \u00b7 ' + gw.monitor : ''))));
+                $row.append($('<div/>').addClass('line-figures')
+                    .append($('<span/>').addClass('line-big').text(fmt(gw.delay, ' ms')))
+                    .append($('<span/>').addClass('dash-sub').text(
+                        '{{ lang._("jitter") }} ' + fmt(gw.stddev, ' ms') + ' \u00b7 {{ lang._("loss") }} '
+                        + fmt(gw.loss, '%'))));
+                $row.append(lineSpark(gw.series || []));
+                $box.append($row);
+            }
+        });
+
         /* ------------------------------------------------ the firewall itself */
         const meter = (id, percent, text) => {
             const $meter = $('#' + id);
@@ -516,6 +593,14 @@
             <svg id="dashDonut" class="dash-donut" viewBox="0 0 130 130"></svg>
             <div id="dashSlices" class="dash-slices"></div>
         </div>
+    </div>
+
+    <div class="content-box dash-card">
+        <div class="dash-title">
+            <span>{{ lang._('The line') }}</span>
+            <span class="dash-sub">{{ lang._('measured by dpinger, judged against your own gateway thresholds') }}</span>
+        </div>
+        <div id="dashLine"></div>
     </div>
 
     <div class="content-box dash-card">

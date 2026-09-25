@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\DeviceReport;
+use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\Metrics;
 use OPNsense\Lens\SegmentReport;
 
@@ -79,7 +80,13 @@ class MetricsController extends ApiControllerBase
         /* the exposition format, not JSON: Prometheus reads nothing else */
         $this->response->setRawHeader('Content-Type: text/plain; version=0.0.4; charset=utf-8');
 
-        return Metrics::render($report, $segments, $status, time());
+        return Metrics::render(
+            $report,
+            $segments,
+            $status,
+            time(),
+            LineQuality::describe(self::decode($backend, 'interface gateways status'), [])
+        );
     }
 
     private static function decode(Backend $backend, string $command): array

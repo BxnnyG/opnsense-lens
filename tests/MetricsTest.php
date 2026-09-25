@@ -126,6 +126,19 @@ class MetricsTest extends TestCase
         $this->assertStringContainsString('lens_segment_bytes{interface="pppoe0",name="WAN",yours="false",window="24h"} 9000', $text);
     }
 
+    public function testTheLineIsExposedAndAnUnmonitoredGatewayHasNoLatencySample()
+    {
+        $text = Metrics::render(['devices' => []], ['segments' => []], [], self::NOW, ['lines' => [
+            ['name' => 'WAN', 'state' => 'degraded', 'delay' => 180.5, 'loss' => 12.0],
+            ['name' => 'BACKUP', 'state' => 'good', 'delay' => null, 'loss' => null],
+        ]]);
+
+        $this->assertStringContainsString('lens_gateway_delay_ms{gateway="WAN",state="degraded"} 180.5', $text);
+        $this->assertStringContainsString('lens_gateway_loss_percent{gateway="WAN",state="degraded"} 12', $text);
+        $this->assertStringNotContainsString('lens_gateway_delay_ms{gateway="BACKUP"', $text);
+        $this->assertStringContainsString('lens_gateway_up{gateway="BACKUP",state="good"} 1', $text);
+    }
+
     public function testTheOutputEndsWithANewline()
     {
         $this->assertStringEndsWith("\n", $this->render());

@@ -203,6 +203,29 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(0, health['overlaps'])
         self.assertIsNone(health['watching_since'])
 
+    def test_an_hours_loss_is_its_worst_sample_not_its_average(self):
+        """one five-minute sample at 40% loss is the dropped call someone noticed"""
+        for minute, loss in ((0, 0.0), (5, 40.0), (10, 0.0)):
+            self.store.store_gateway_samples(3600 + minute * 60, [
+                ('WAN', 12.0, 1.0, loss, 'none', '1.1.1.1')])
+        self.store.commit()
+
+        rows = list(self.store.gateway_series(0, 3600))
+
+        self.assertEqual(1, len(rows))
+        self.assertEqual(40.0, rows[0]['loss'])
+        self.assertEqual(12.0, rows[0]['delay'])
+        self.assertEqual(3, rows[0]['samples'])
+
+    def test_gateway_samples_are_pruned_and_purged_with_everything_else(self):
+        self.store.store_gateway_samples(100, [('WAN', 12.0, 1.0, 0.0, 'none', '')])
+        self.store.commit()
+        self.store.prune(9999999999)
+        self.store.commit()
+
+        self.assertEqual(0, self.store.db.execute(
+            "SELECT count(*) FROM gateway_sample").fetchone()[0])
+
     def test_buckets_are_stored_once_and_the_watermark_only_moves_forward(self):
         rows = [(1787990400, 'vtnet1_vlan20', '10.10.20.115', 'in', 120, 3),
                 (1787994000, 'vtnet1_vlan20', '10.10.20.115', 'in', 300, 5)]

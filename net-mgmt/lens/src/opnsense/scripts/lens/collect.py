@@ -18,6 +18,7 @@ Two duties, one command each:
     collect.py presence   when each device was here, as spans
     collect.py profile    one device: its week as a heatmap, and every address it held
     collect.py heatmap    the whole network's week as a heatmap
+    collect.py gateways   latency, jitter and loss per gateway over time
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -167,14 +168,55 @@ def observe(store, now):
     store.extend_windows(extend, now)
     store.open_new_windows(opened, now)
 
-    return '%d devices, %d addresses, %d new windows' % (
-        len({key[0] for key in seen}), len(set(seen)), len(opened)
+    return '%d devices, %d addresses, %d new windows%s' % (
+        len({key[0] for key in seen}), len(set(seen)), len(opened), sample_gateways(store, now)
     )
+
+
+# core's own reader of what dpinger measured; run directly, because this runs
+# inside configd and must not call back into it
+GATEWAY_STATUS = '/usr/local/opnsense/scripts/routes/gateway_status.php'
+
+
+def sample_gateways(store, now):
+    """
+    Record every gateway's latency, jitter and loss beside the observation.
+
+    Secondary to identity, so a failure here never costs the observation -- but
+    it is not swallowed either: the run's own detail says the gateways could not
+    be read, which is where stage 4 learned to put such things (§4.56).
+    """
+    try:
+        rows = parse.parse_gateway_status(must_read_command([GATEWAY_STATUS], timeout=30))
+    except RuntimeError as failure:
+        return '; gateways unreadable: %s' % str(failure)[:120]
+
+    store.store_gateway_samples(now, rows)
+    return '; %d gateways sampled' % len(rows)
 
 
 # Four weeks: every hour of the week gets four samples, which is the fewest that
 # makes a weekly pattern visible rather than one busy Tuesday.
 HEATMAP_DAYS = 28
+
+
+def gateways(store, now, hours):
+    """Each gateway's quality over the window, one slice per hour or per day."""
+    step = 86400 if hours > DAILY_ABOVE else 3600
+    since = now - hours * 3600
+    since -= since % step
+
+    series = {}
+    for row in store.gateway_series(since, step):
+        series.setdefault(row['name'], []).append({
+            'at': row['slot'],
+            'delay': round(row['delay'], 1) if row['delay'] is not None else None,
+            'stddev': round(row['stddev'], 1) if row['stddev'] is not None else None,
+            'loss': round(row['loss'], 1) if row['loss'] is not None else None,
+            'samples': row['samples'],
+        })
+
+    return {'hours': hours, 'step': step, 'since': since, 'gateways': series}
 
 
 def profile(store, now, mac):
@@ -531,6 +573,7 @@ def main():
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
+                 'gateways',
                  'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
@@ -554,6 +597,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'gateways':
+        print(json.dumps(gateways(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'profile':

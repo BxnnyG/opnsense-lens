@@ -51,6 +51,8 @@ class Headline
      * @param bool $stale whether that observation is too old to call current
      * @param string $window the range the page is showing, in words
      * @param int $now
+     * @param array $line LineQuality's output; read live, so it outranks even a
+     *                    stale collector -- the line's state is not old
      * @return array ['tone' => calm|notice|alert, 'icon' => fa class, 'sentence' => ..., 'also' => [...]]
      */
     public static function compose(
@@ -59,11 +61,34 @@ class Headline
         ?int $observedAt,
         bool $stale,
         string $window,
-        int $now
+        int $now,
+        array $line = []
     ): array {
         $unusual = (array)($baseline['unusual'] ?? []);
         $new = !empty($summary['new_yet']) ? (array)($summary['new'] ?? []) : [];
         $also = [];
+
+        /* "is the internet all right" is the question every one of these people
+           has eventually; when the answer is no, it is the only sentence (§4.56) */
+        foreach ((array)($line['lines'] ?? []) as $gateway) {
+            if ($gateway['state'] === 'down') {
+                return self::said('alert', 'fa-plug', sprintf(
+                    gettext('%s is down right now.'),
+                    $gateway['name']
+                ), []);
+            }
+        }
+        foreach ((array)($line['lines'] ?? []) as $gateway) {
+            if ($gateway['state'] === 'degraded') {
+                return self::said('notice', 'fa-signal', sprintf(
+                    gettext('%s is struggling right now: %s ms to %s, %s%% of packets lost.'),
+                    $gateway['name'],
+                    self::times($gateway['delay'] ?? 0),
+                    $gateway['monitor'] ?? gettext('its monitor'),
+                    self::times($gateway['loss'] ?? 0)
+                ), []);
+            }
+        }
 
         if ($observedAt === null) {
             return self::said('alert', 'fa-hourglass-o', gettext(

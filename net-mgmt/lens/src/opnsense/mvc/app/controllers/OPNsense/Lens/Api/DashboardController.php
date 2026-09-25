@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\Heatmap;
+use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\SystemFacts;
 use OPNsense\Lens\Window;
 
@@ -79,6 +80,20 @@ class DashboardController extends ApiControllerBase
                 time()
             ),
         ];
+    }
+
+    /**
+     * @return array every gateway's quality now, and over the chosen range
+     */
+    public function lineAction()
+    {
+        $backend = new Backend();
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
+
+        return LineQuality::describe(
+            self::decode($backend, 'interface gateways status'),
+            self::decode($backend, 'lens gateways ' . $hours)
+        );
     }
 
     /**

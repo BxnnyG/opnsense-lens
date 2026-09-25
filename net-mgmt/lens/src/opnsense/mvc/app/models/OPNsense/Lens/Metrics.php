@@ -53,8 +53,13 @@ class Metrics
      * @param int $now
      * @return string
      */
-    public static function render(array $devices, array $segments, array $status, int $now): string
-    {
+    public static function render(
+        array $devices,
+        array $segments,
+        array $status,
+        int $now,
+        array $line = []
+    ): string {
         $out = [];
 
         self::family($out, 'lens_devices_known', 'gauge', 'Devices Lens has ever observed.');
@@ -131,6 +136,20 @@ class Metrics
                 self::labels(['duty' => (string)$duty, 'ok' => !empty($run['ok']) ? 'true' : 'false']),
                 max(0, $now - (int)($run['at'] ?? $now))
             );
+        }
+
+        self::family($out, 'lens_gateway_delay_ms', 'gauge', 'Latency dpinger measures to the gateway monitor.');
+        self::family($out, 'lens_gateway_loss_percent', 'gauge', 'Packet loss dpinger measures.');
+        self::family($out, 'lens_gateway_up', 'gauge', '0 when core reports the gateway down.');
+        foreach ((array)($line['lines'] ?? []) as $gateway) {
+            $labels = self::labels(['gateway' => $gateway['name'], 'state' => $gateway['state']]);
+            if ($gateway['delay'] !== null) {
+                $out[] = sprintf('lens_gateway_delay_ms{%s} %s', $labels, self::number($gateway['delay']));
+            }
+            if ($gateway['loss'] !== null) {
+                $out[] = sprintf('lens_gateway_loss_percent{%s} %s', $labels, self::number($gateway['loss']));
+            }
+            $out[] = sprintf('lens_gateway_up{%s} %d', $labels, $gateway['state'] === 'down' ? 0 : 1);
         }
 
         self::family($out, 'lens_store_bytes', 'gauge', 'Size of the Lens store on disk.');

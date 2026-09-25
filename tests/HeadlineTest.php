@@ -64,6 +64,42 @@ class HeadlineTest extends TestCase
         $this->assertStringContainsString('12 devices home', $said['sentence']);
     }
 
+    private function line(string $state): array
+    {
+        return ['lines' => [['name' => 'WAN', 'state' => $state, 'delay' => 180.0,
+                             'loss' => 12.0, 'monitor' => '1.1.1.1']]];
+    }
+
+    public function testADownLineIsTheOnlySentence()
+    {
+        /* live, so it outranks even a stale collector: the line's state is not old */
+        $said = Headline::compose(['here' => 12], ['unusual' => []], self::NOW - 9999, true,
+                                  '24 hours', self::NOW, $this->line('down'));
+
+        $this->assertSame('alert', $said['tone']);
+        $this->assertSame('WAN is down right now.', $said['sentence']);
+    }
+
+    public function testAStrugglingLineSaysHowBadly()
+    {
+        $said = Headline::compose(['here' => 12, 'new_yet' => true, 'new' => ['X']],
+                                  ['unusual' => []], self::NOW - 60, false, '24 hours',
+                                  self::NOW, $this->line('degraded'));
+
+        $this->assertSame('notice', $said['tone']);
+        $this->assertStringContainsString('180 ms', $said['sentence']);
+        $this->assertStringContainsString('12% of packets lost', $said['sentence']);
+    }
+
+    public function testAHealthyLineChangesNothing()
+    {
+        $said = Headline::compose(['here' => 12, 'moved' => '1 GB', 'new_yet' => true, 'new' => []],
+                                  ['unusual' => [], 'learning' => false], self::NOW - 60, false,
+                                  '24 hours', self::NOW, $this->line('good'));
+
+        $this->assertSame('calm', $said['tone']);
+    }
+
     public function testAStoppedCollectorOutranksEverything()
     {
         /* every other sentence would be about the past without saying so */

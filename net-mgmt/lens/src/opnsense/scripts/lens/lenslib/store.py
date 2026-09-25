@@ -11,7 +11,7 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 DEFAULT_SETTINGS = {
     # how long observations and harvested traffic are kept
@@ -102,6 +102,20 @@ MIGRATIONS = {
             updated INTEGER NOT NULL
         )""",
     ],
+    # What dpinger measured on each gateway, every observation run. Core keeps
+    # this in RRD graphs of its own; Lens keeps it beside the traffic so the two
+    # can be read against each other on one time axis.
+    5: [
+        """CREATE TABLE gateway_sample (
+            at INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            delay REAL,
+            stddev REAL,
+            loss REAL,
+            status TEXT,
+            PRIMARY KEY (at, name)
+        )""",
+    ]
 }
 
 
@@ -537,6 +551,33 @@ class Store:
             (step, step, since),
         )
 
+    def store_gateway_samples(self, at, rows):
+        """:param rows: (name, delay, stddev, loss, status, monitor)"""
+        self.db.executemany(
+            """INSERT OR REPLACE INTO gateway_sample (at, name, delay, stddev, loss, status)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            [(at, name, delay, stddev, loss, status)
+             for name, delay, stddev, loss, status, _ in rows],
+        )
+
+    def gateway_series(self, since, step):
+        """
+        Per gateway per slice: the average delay and the worst loss.
+
+        Worst, not average, for loss: one five-minute sample at 40% loss is the
+        dropped call someone noticed, and an hourly average would hide it.
+        """
+        return self.db.execute(
+            """SELECT name, (at / ?) * ? AS slot,
+                      avg(delay) AS delay, max(loss) AS loss, avg(stddev) AS stddev,
+                      count(*) AS samples
+               FROM gateway_sample
+               WHERE at >= ?
+               GROUP BY name, slot
+               ORDER BY name, slot""",
+            (step, step, since),
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [
@@ -591,12 +632,13 @@ class Store:
         self.db.execute(
             "DELETE FROM device_label WHERE mac NOT IN (SELECT mac FROM device)"
         )
+        self.db.execute("DELETE FROM gateway_sample WHERE at < ?", (cutoff,))
         return self.db.total_changes - before
 
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
-                      'device_label', 'harvest_state', 'run_log'):
+                      'device_label', 'gateway_sample', 'harvest_state', 'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
         self.db.execute("VACUUM")

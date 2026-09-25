@@ -204,5 +204,30 @@ lease 10.0.25.12 {
         self.assertEqual({}, parse.parse_isc_leases(''))
 
 
+class GatewayStatusTest(unittest.TestCase):
+    """what dpinger measured, as core's gateway_status.php prints it"""
+
+    OUTPUT = (
+        '{"WAN_PPPOE": {"name": "WAN_PPPOE", "status": "none", "delay": "12.3 ms",'
+        ' "stddev": "1.1 ms", "loss": "0.0 %", "monitor": "1.1.1.1"},'
+        ' "WAN_BACKUP": {"name": "WAN_BACKUP", "status": "none", "delay": "~",'
+        ' "stddev": "~", "loss": "~", "monitor": "~"}}'
+    )
+
+    def test_the_formatted_values_become_numbers(self):
+        rows = {row[0]: row for row in parse.parse_gateway_status(self.OUTPUT)}
+
+        self.assertEqual((12.3, 1.1, 0.0), rows['WAN_PPPOE'][1:4])
+
+    def test_an_unmonitored_gateway_is_no_reading_not_zero(self):
+        rows = {row[0]: row for row in parse.parse_gateway_status(self.OUTPUT)}
+
+        self.assertEqual((None, None, None), rows['WAN_BACKUP'][1:4])
+
+    def test_garbage_is_no_gateways_rather_than_a_crash(self):
+        self.assertEqual([], parse.parse_gateway_status('Execute error'))
+        self.assertEqual([], parse.parse_gateway_status(''))
+
+
 if __name__ == '__main__':
     unittest.main()

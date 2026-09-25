@@ -8,6 +8,7 @@ reached from a test (DESIGN 4.21).
 """
 
 import csv
+import json
 import io
 import re
 
@@ -250,3 +251,48 @@ def buckets_from_timeseries(payload, complete_before, after=None):
             rows.append((bucket, interface, address, direction, octets, packets))
 
     return sorted(rows)
+
+
+def parse_gateway_status(text):
+    """
+    Core's gateway_status.php, which reports what dpinger measured:
+
+        {"WAN_PPPOE": {"name": "WAN_PPPOE", "status": "none", "delay": "12.3 ms",
+                       "stddev": "1.1 ms", "loss": "0.0 %", "monitor": "1.1.1.1"}}
+
+    The values arrive formatted for a person, and "~" where dpinger has not
+    measured anything -- a gateway with monitoring switched off. That is kept as
+    None, not 0: "no reading" and "no latency" are different claims, and only
+    one of them is ever true.
+
+    :return: list of (name, delay_ms, stddev_ms, loss_pct, status, monitor)
+    """
+    try:
+        data = json.loads(text or '{}')
+    except ValueError:
+        return []
+
+    if not isinstance(data, dict):
+        return []
+
+    rows = []
+    for name, gateway in sorted(data.items()):
+        if not isinstance(gateway, dict):
+            continue
+        rows.append((
+            str(name),
+            _measure(gateway.get('delay')),
+            _measure(gateway.get('stddev')),
+            _measure(gateway.get('loss')),
+            str(gateway.get('status') or ''),
+            str(gateway.get('monitor') or ''),
+        ))
+    return rows
+
+
+def _measure(value):
+    """'12.3 ms' -> 12.3, '0.0 %' -> 0.0, '~' or anything unreadable -> None"""
+    try:
+        return float(str(value).split()[0])
+    except (ValueError, IndexError):
+        return None

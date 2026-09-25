@@ -36,6 +36,7 @@ use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceProfile;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Headline;
+use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\Window;
 
@@ -93,7 +94,8 @@ class DevicesController extends ApiControllerBase
             $observedAt,
             (bool)$report['stale'],
             $report['window']['asked'],
-            time()
+            time(),
+            LineQuality::describe(self::decode($backend, 'interface gateways status', $calls), [])
         );
         $report['timing'] = [
             'total_ms' => (int)round((microtime(true) - $started) * 1000),

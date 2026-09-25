@@ -1576,3 +1576,31 @@ internet's traffic that has a device on it is always zero and means nothing.
 `SegmentReport` like every page, so a Grafana panel cannot disagree with Lens
 about a device (§4.37). It is scraped with an OPNsense API key belonging to a
 user holding Reporting: Lens; the scrape config is in the controller's docblock.
+
+### §4.56 — "Is the internet all right" is answered by core's judgement (2026-09-25)
+**Question:** the self-check named latency and packet loss as the trust gap —
+"is it slow?" is the question every kind of user has eventually, and Lens could
+only answer the bandwidth half. Core already runs `dpinger` for every monitored
+gateway. What should Lens add?
+**Decision:** three things, and one it deliberately does not.
+1. **The line, now:** a dashboard card per monitored gateway — state, latency,
+   jitter, loss, the monitor address — read through `interface gateways status`
+   (core's `gateway_status.php`, read from its source on 2026-09-25).
+2. **The line, over time:** every five-minute observation now also samples the
+   gateways into the store (schema v5, `gateway_sample`), so the card draws
+   latency across the chosen range with loss marked along the floor. Per slice
+   the delay is averaged but the **loss is the worst sample**, because one
+   five-minute window at 40% is the dropped call somebody noticed, and an hourly
+   average would hide it.
+3. **The sentence knows:** a gateway that is down, or degraded, now outranks
+   everything else the one-line summary could say — including a stale
+   collector, because the line's state is read live and is not old.
+**What it does not do: invent thresholds.** Whether 180 ms is slow is decided
+by the latency and loss thresholds the operator configured on that gateway,
+which dpinger already applies. A Lens threshold would eventually call a line
+slow that System: Gateways calls fine, and one of the two would be wrong.
+**Consequences:** sampling is secondary to identity, so a failure to read the
+gateways never costs the observation — but it is not swallowed either; the
+run's own detail says "gateways unreadable" (§4.25's lesson). An unmonitored
+gateway reports "~", which is kept as *no reading*, never as zero latency. The
+same values go to Prometheus as `lens_gateway_*`.
