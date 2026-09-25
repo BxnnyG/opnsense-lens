@@ -95,7 +95,8 @@ class DevicesController extends ApiControllerBase
             (bool)$report['stale'],
             $report['window']['asked'],
             time(),
-            LineQuality::describe(self::decode($backend, 'interface gateways status', $calls), [])
+            LineQuality::describe(self::decode($backend, 'interface gateways status', $calls), []),
+            (array)(self::decode($backend, 'lens internet 24', $calls)['latest'] ?? [])
         );
         $report['timing'] = [
             'total_ms' => (int)round((microtime(true) - $started) * 1000),

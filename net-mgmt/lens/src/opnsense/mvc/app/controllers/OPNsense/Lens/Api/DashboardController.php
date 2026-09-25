@@ -31,7 +31,9 @@ namespace OPNsense\Lens\Api;
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\Bytes;
+use OPNsense\Core\Config;
 use OPNsense\Lens\Heatmap;
+use OPNsense\Lens\Internet;
 use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\SystemFacts;
 use OPNsense\Lens\Window;
@@ -80,6 +82,26 @@ class DashboardController extends ApiControllerBase
                 time()
             ),
         ];
+    }
+
+    /**
+     * @return array the internet: state, WAN addresses, public round trips, uptime
+     */
+    public function internetAction()
+    {
+        $backend = new Backend();
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
+
+        $wan = Config::getInstance()->object()->interfaces->wan ?? null;
+        $wanName = $wan !== null && (string)$wan->descr !== '' ? (string)$wan->descr : 'WAN';
+
+        return Internet::describe(
+            self::decode($backend, 'interface address'),
+            self::decode($backend, 'lens internet ' . $hours),
+            LineQuality::describe(self::decode($backend, 'interface gateways status'), []),
+            $wanName,
+            time()
+        );
     }
 
     /**

@@ -296,3 +296,28 @@ def _measure(value):
         return float(str(value).split()[0])
     except (ValueError, IndexError):
         return None
+
+
+def parse_ping(text):
+    """
+    FreeBSD ping's summary, the two lines that matter:
+
+        3 packets transmitted, 3 packets received, 0.0% packet loss
+        round-trip min/avg/max/stddev = 10.123/11.456/12.789/0.987 ms
+
+    At 100% loss the second line is not printed at all, so the round-trip is
+    None -- "no answer", which is not the same claim as "0 ms".
+
+    :return: (avg_ms, stddev_ms, loss_pct), loss None when nothing was sent
+    """
+    loss = rtt = stddev = None
+
+    found = re.search(r'([0-9.]+)% packet loss', text or '')
+    if found:
+        loss = float(found.group(1))
+
+    found = re.search(r'= [0-9.]+/([0-9.]+)/[0-9.]+/([0-9.]+) ms', text or '')
+    if found:
+        rtt, stddev = float(found.group(1)), float(found.group(2))
+
+    return rtt, stddev, loss

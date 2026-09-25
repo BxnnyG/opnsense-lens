@@ -19,6 +19,7 @@ Two duties, one command each:
     collect.py profile    one device: its week as a heatmap, and every address it held
     collect.py heatmap    the whole network's week as a heatmap
     collect.py gateways   latency, jitter and loss per gateway over time
+    collect.py internet   round trips to public resolvers, uptime and outages
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -48,6 +49,7 @@ from lenslib import attribute                                   # noqa: E402
 from lenslib import baseline as baselib                         # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib import presence as presencelib                     # noqa: E402
+from lenslib import uptime                                      # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
 
 # overridable so the tests can drive the real script against a temporary file
@@ -168,9 +170,65 @@ def observe(store, now):
     store.extend_windows(extend, now)
     store.open_new_windows(opened, now)
 
-    return '%d devices, %d addresses, %d new windows%s' % (
-        len({key[0] for key in seen}), len(set(seen)), len(opened), sample_gateways(store, now)
+    return '%d devices, %d addresses, %d new windows%s%s' % (
+        len({key[0] for key in seen}), len(set(seen)), len(opened),
+        sample_gateways(store, now), probe_internet(store, now)
     )
+
+
+# Three operators' anycast resolvers, the names people already know. Three so
+# that one of them having a bad minute is visibly that one, not "the internet".
+PROBES = (
+    ('Quad9', '9.9.9.9'),
+    ('Cloudflare', '1.1.1.1'),
+    ('Google', '8.8.8.8'),
+)
+
+# three echoes each, and ping gives up on its own after this many seconds
+PROBE_COUNT = 3
+PROBE_DEADLINE = 4
+
+
+def probe_internet(store, now):
+    """
+    Round trips to the public resolvers, all three at once.
+
+    In parallel, so the observation run grows by one deadline rather than
+    three. Nine small packets every five minutes; stated in §4.57 because it is
+    the first traffic this plugin sends rather than reads.
+    """
+    # FreeBSD's ping: -t is a deadline in seconds there and a TTL on Linux, so
+    # anywhere else these flags would send packets that die four hops out --
+    # and a test suite run on a laptop must not ping the internet at all
+    if not sys.platform.startswith('freebsd'):
+        return '; probes skipped, not FreeBSD'
+
+    running = []
+    for name, address in PROBES:
+        try:
+            running.append((name, subprocess.Popen(
+                ['/sbin/ping', '-c', str(PROBE_COUNT), '-t', str(PROBE_DEADLINE), '-q', address],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )))
+        except OSError:
+            continue
+
+    rows = []
+    for name, process in running:
+        try:
+            out, _ = process.communicate(timeout=PROBE_DEADLINE + 2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            out = ''
+        rtt, stddev, loss = parse.parse_ping(out)
+        rows.append((name, rtt, stddev, 100.0 if loss is None else loss))
+
+    if not rows:
+        return '; probes could not run'
+
+    store.store_probe_samples(now, rows)
+    answered = sum(1 for _, rtt, _, _ in rows if rtt is not None)
+    return '; %d of %d probes answered' % (answered, len(rows))
 
 
 # core's own reader of what dpinger measured; run directly, because this runs
@@ -198,6 +256,43 @@ def sample_gateways(store, now):
 # Four weeks: every hour of the week gets four samples, which is the fewest that
 # makes a weekly pattern visible rather than one busy Tuesday.
 HEATMAP_DAYS = 28
+
+
+def internet(store, now, hours):
+    """The public resolvers over the window, and whether anything answered."""
+    step = 86400 if hours > DAILY_ABOVE else 3600
+    since = now - hours * 3600
+    slice_start = since - since % step
+
+    series = {}
+    for row in store.probe_series(slice_start, step):
+        series.setdefault(row['target'], []).append({
+            'at': row['slot'],
+            'rtt': round(row['rtt'], 1) if row['rtt'] is not None else None,
+            'loss': round(row['loss'], 1) if row['loss'] is not None else None,
+        })
+
+    latest = [{'target': r['target'],
+               'rtt': round(r['rtt'], 1) if r['rtt'] is not None else None,
+               'stddev': round(r['stddev'], 1) if r['stddev'] is not None else None,
+               'loss': r['loss'], 'at': r['at']}
+              for r in store.latest_probes()]
+
+    rounds = [(r['at'], r['best_loss']) for r in store.probe_rounds(since)]
+
+    # the strip: hourly slices for a day, four-hourly for a week, daily beyond
+    slots = hours if hours <= 24 else (hours // 4 if hours <= 168 else hours // 24)
+
+    return {
+        'hours': hours,
+        'step': step,
+        'since': since,
+        'now': now,
+        'targets': [name for name, _ in PROBES],
+        'series': series,
+        'latest': latest,
+        'uptime': uptime.assess(rounds, since, now, slots),
+    }
 
 
 def gateways(store, now, hours):
@@ -573,7 +668,7 @@ def main():
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
-                 'gateways',
+                 'gateways', 'internet',
                  'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
@@ -597,6 +692,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'internet':
+        print(json.dumps(internet(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'gateways':

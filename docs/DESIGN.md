@@ -1604,3 +1604,40 @@ gateways never costs the observation — but it is not swallowed either; the
 run's own detail says "gateways unreadable" (§4.25's lesson). An unmonitored
 gateway reports "~", which is kept as *no reading*, never as zero latency. The
 same values go to Prometheus as `lens_gateway_*`.
+
+### §4.57 — Lens sends its first packets, and says how many (2026-09-25)
+**Question:** the operator, comparing with UniFi: *"ich gehe drauf, sehe
+instant IPv4, die WAN-Qualität, WAN down wann, welche Latenz zu Quad9,
+Cloudflare, Google."* The first three Lens could read. Latency to named public
+resolvers it cannot — dpinger measures one monitor address per gateway. It
+would mean Lens originating traffic for the first time, which the self-check
+deferred as "deserving its own decision". This is it.
+**Decision:** yes, on the operator's explicit request, and bounded. Every
+five-minute observation pings Quad9 (9.9.9.9), Cloudflare (1.1.1.1) and Google
+(8.8.8.8), three echoes each, all three **in parallel** with a four-second
+deadline, so the observation run grows by one deadline and not three. Nine small
+packets every five minutes: about 2,600 a day. Results go to `probe_sample`
+(schema v6).
+**Why three.** One resolver having a bad minute is that resolver's problem.
+All three at once, on three operators' anycast networks, is the line. So a
+round is "down" only when **every** target lost every packet — and that is the
+definition the uptime strip, the outage list, the panel's state and the
+one-line summary all share.
+**Two ways to round an absence away, both refused.** An outage runs from the
+first silent round to the first round that answered again, not to the last
+silent one — otherwise a five-minute outage measures as zero. And a slice of
+the strip in which no round ran is drawn grey, not green: "we did not look" is
+not "it was fine".
+**Where it does not run.** Only on FreeBSD. There, `ping -t` is a deadline in
+seconds; on Linux it is a TTL, and the same flags would send packets that die
+four hops out. A test suite on a laptop must not ping the internet at all.
+**What the panel shows, in the order UniFi does:** state with a coloured dot;
+the WAN's primary IPv4 and IPv6, read through `interface address` exactly as
+core's own interface overview reads them; the live rate down and up; each
+resolver's round trip with its own sparkline, where a silent slice is a red bar
+rather than a dip to zero; and the uptime percentage, the strip, and the last
+outages with how long each lasted.
+**Consequences:** "The internet is unreachable: none of Quad9, Cloudflare,
+Google answered" now outranks every other sentence the dashboard can say. A
+setting to change or disable the targets is not built yet; it belongs on
+Services: Lens when someone needs it.

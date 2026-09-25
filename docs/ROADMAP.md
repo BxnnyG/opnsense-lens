@@ -44,6 +44,7 @@ this one inherits, and 23 stages of experience with it.
 | 26 | **The device page** — a real page per device: hero, figures, chart with drill-down, its week as a heatmap, where it has been, presence (§4.54) | S5 | 🔨 built 2026-09-24 · **awaiting router test** |
 | 27 | **`/metrics` for Grafana** — gauges over a named window, and the collector's age to alert on (§4.55) | S7 | 🔨 built 2026-09-25 · **awaiting a scrape** |
 | 28 | **The line** — latency, jitter and loss per gateway, now and over time, judged by core's own thresholds (§4.56) | new | 🔨 built 2026-09-25 · **awaiting router test** |
+| 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | new | 🔨 built 2026-09-25 · **awaiting router test** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -70,7 +71,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | ✅ router-tested 2026-08-30 |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | 🔨 built 2026-08-30 (§4.35) · **awaiting router test** |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | 🔨 built 2026-08-30 (§4.33) |
-| — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | gateway half built as stage 28 (§4.56); public targets still undecided |
+| — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | gateway half built as stage 28 (§4.56); public targets built as stage 29 (§4.57) |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | ~~Setup wizard~~ | S3 | ⛔ closed 2026-09-12 (§4.39) |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |

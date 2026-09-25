@@ -229,5 +229,19 @@ class GatewayStatusTest(unittest.TestCase):
         self.assertEqual([], parse.parse_gateway_status(''))
 
 
+class PingTest(unittest.TestCase):
+    def test_a_normal_round_trip(self):
+        self.assertEqual((11.456, 0.987, 0.0), parse.parse_ping(
+            '3 packets transmitted, 3 packets received, 0.0% packet loss\n'
+            'round-trip min/avg/max/stddev = 10.123/11.456/12.789/0.987 ms'))
+
+    def test_total_loss_is_no_answer_rather_than_zero_milliseconds(self):
+        self.assertEqual((None, None, 100.0), parse.parse_ping(
+            '3 packets transmitted, 0 packets received, 100.0% packet loss'))
+
+    def test_nothing_at_all_is_nothing_known(self):
+        self.assertEqual((None, None, None), parse.parse_ping(''))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -89,6 +89,44 @@
     .dash-meter .fill.hot { background: #f0ad4e; }
     .dash-meter .fill.full { background: #d9534f; }
 
+    .net-panel { padding: 18px 20px; margin: 0 0 14px 0; border-left: 4px solid #999; }
+    .net-panel.net-up { border-left-color: #5cb85c; }
+    .net-panel.net-degraded { border-left-color: #f0ad4e; }
+    .net-panel.net-down { border-left-color: #d9534f; }
+    .net-top { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between;
+               align-items: baseline; }
+    .net-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+               background: #999; margin-right: 8px; }
+    .net-up .net-dot { background: #5cb85c; box-shadow: 0 0 8px rgba(92, 184, 92, 0.7); }
+    .net-degraded .net-dot { background: #f0ad4e; }
+    .net-down .net-dot { background: #d9534f; box-shadow: 0 0 8px rgba(217, 83, 79, 0.8); }
+    .net-title { font-size: 20px; font-weight: 600; margin-right: 10px; }
+    .net-state-text { color: #999; }
+    .net-down .net-state-text { color: #d9534f; font-weight: 600; }
+    .net-addr { text-align: right; }
+    .net-ip { font-family: monospace; font-size: 15px; margin-left: 10px; }
+    .net-v6 { display: block; font-size: 12px; color: #999; }
+    .net-mid { display: flex; flex-wrap: wrap; gap: 30px; margin: 16px 0; align-items: center; }
+    .net-rate { min-width: 12em; }
+    .net-arrow { color: #999; margin-right: 6px; }
+    .net-big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .net-upload { color: #d94f00; }
+    .net-probes { display: flex; flex-wrap: wrap; gap: 24px; flex: 1; }
+    .net-probe { min-width: 8em; }
+    .net-ms { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .net-loss { color: #d9534f; font-size: 12px; }
+    .net-spark { width: 120px; height: 28px; display: block; margin-top: 4px; }
+    .net-spark-line { fill: none; stroke: #5b8fb9; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .net-gap { fill: rgba(217, 83, 79, 0.6); }
+    .net-uptime-head { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .net-strip { display: flex; gap: 2px; height: 22px; }
+    .net-seg { flex: 1; border-radius: 2px; }
+    .net-seg-up { background: #5cb85c; }
+    .net-seg-partial { background: #f0ad4e; }
+    .net-seg-down { background: #d9534f; }
+    .net-seg-none { background: rgba(128, 128, 128, 0.15); }
+    .net-outages { margin-top: 6px; font-size: 12px; color: #d9534f; }
+
     .line-row { padding: 8px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.15); }
     .line-row:last-child { border-bottom: 0; }
     .line-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
@@ -394,6 +432,81 @@
                   + (grid.busiest ? grid.days[grid.busiest.day] + ' ' + grid.busiest.hour + ':00' : ''));
         });
 
+        /* ------------------------------------------------ the internet */
+        const probeSpark = (series) => {
+            const node = svg('svg', { viewBox: '0 0 120 28', preserveAspectRatio: 'none',
+                                      class: 'net-spark' });
+            const values = series.map(p => p.rtt).filter(v => v !== null);
+            if (series.length < 2 || !values.length) {
+                return node;
+            }
+            const peak = Math.max(1, ...values);
+            const x = (i) => i / (series.length - 1) * 120;
+            let path = '';
+            series.forEach((p, i) => {
+                /* a slice where nothing answered is drawn as a red bar, not a
+                   dip to zero: "no answer" is not "fast" */
+                if (p.loss >= 100) {
+                    node.appendChild(svg('rect', { x: x(i) - 1, y: 0, width: 2, height: 28,
+                                                   class: 'net-gap' }));
+                }
+                if (p.rtt === null) {
+                    return;
+                }
+                path += (path ? ' L ' : 'M ') + x(i) + ' ' + (26 - p.rtt / peak * 22);
+            });
+            node.appendChild(svg('path', { d: path, class: 'net-spark-line' }));
+            return node;
+        };
+
+        ajaxGet('/api/lens/dashboard/internet', { hours: hours }, (net, status) => {
+            if (status !== 'success' || !net || !net.state) {
+                return;
+            }
+
+            $('#netPanel').attr('class', 'content-box net-panel net-' + net.state.key).show();
+            $('#netState').text(net.state.text);
+            $('#netWanName').text(net.wan.name);
+            $('#netV4').text(net.wan.ipv4 || '{{ lang._("no IPv4") }}');
+            $('#netV6').text(net.wan.ipv6 || '').toggle(!!net.wan.ipv6);
+
+            const $probes = $('#netProbes').empty();
+            for (const probe of net.probes) {
+                const $p = $('<div/>').addClass('net-probe');
+                $p.append($('<div/>').addClass('dash-sub').text(probe.target));
+                $p.append($('<div/>').addClass('net-ms').text(
+                    probe.rtt === null ? (probe.loss === null ? '\u2014' : '{{ lang._("no answer") }}')
+                                       : Math.round(probe.rtt) + ' ms'));
+                if (probe.loss) {
+                    $p.append($('<div/>').addClass('net-loss')
+                        .text(Math.round(probe.loss) + '% {{ lang._("lost") }}'));
+                }
+                $p.append(probeSpark(probe.series));
+                $probes.append($p);
+            }
+            if (!net.probes.some(p => p.rtt !== null || p.loss !== null)) {
+                $probes.append($('<div/>').addClass('dash-sub').text(
+                    '{{ lang._("The first round of pings runs within five minutes of installing.") }}'));
+            }
+
+            const uptime = net.uptime;
+            $('#netUptimePct').text(uptime.percent === null ? '\u2014' : uptime.percent + '%');
+            $('#netLastOutage').text(uptime.last
+                ? '{{ lang._("last outage") }} ' + uptime.last.ago + ', ' + uptime.last.for
+                : (uptime.rounds ? '{{ lang._("no outage in this range") }}' : ''));
+
+            const $strip = $('#netStrip').empty();
+            for (const state of uptime.strip) {
+                $strip.append($('<span/>').addClass('net-seg net-seg-' + state));
+            }
+
+            const $outages = $('#netOutages').empty();
+            for (const outage of uptime.outages.slice(0, 3)) {
+                $outages.append($('<div/>').text(
+                    new Date(outage.from * 1000).toLocaleString() + ' \u2014 ' + outage.for));
+            }
+        });
+
         /* ------------------------------------------------ the line */
         const lineSpark = (series) => {
             const node = svg('svg', { viewBox: '0 0 300 50', preserveAspectRatio: 'none',
@@ -471,7 +584,7 @@
 
         let lastWan = null;
 
-        const system = () => ajaxGet('/api/lens/dashboard/system', {}, (sys, status) => {
+        const readSystem = () => ajaxGet('/api/lens/dashboard/system', {}, (sys, status) => {
             if (status !== 'success' || !sys) {
                 return;
             }
@@ -492,7 +605,6 @@
             /* the WAN rate needs two readings of core's cumulative counters;
                the first poll only remembers, every later one can say */
             if (sys.wan) {
-                $('#factWanName').text(sys.wan.name);
                 if (lastWan && sys.wan.at > lastWan.at) {
                     const seconds = sys.wan.at - lastWan.at;
                     const down = Math.max(0, sys.wan.received - lastWan.received) * 8 / seconds;
@@ -500,19 +612,19 @@
                     const bits = (b) => b >= 1e9 ? (b / 1e9).toFixed(1) + ' Gbit/s'
                         : b >= 1e6 ? (b / 1e6).toFixed(1) + ' Mbit/s'
                         : Math.round(b / 1e3) + ' kbit/s';
-                    $('#factWan').text('↓ ' + bits(down));
-                    $('#factWanSub').text('↑ ' + bits(up) + ' {{ lang._("right now") }}');
+                    $('#netDown').text(bits(down));
+                    $('#netUp').text(bits(up));
                 } else {
-                    $('#factWan').text('…');
-                    $('#factWanSub').text('{{ lang._("measuring") }}');
+                    $('#netDown').text('…');
+                    $('#netUp').text('…');
                 }
                 lastWan = sys.wan;
             }
         });
 
         range();
-        system();
-        setInterval(system, 5000);
+        readSystem();
+        setInterval(readSystem, 5000);
     });
 </script>
 
@@ -533,6 +645,39 @@
     {{ lang._('The device report did not come back.') }}
 </div>
 
+<div id="netPanel" class="content-box net-panel" style="display: none;">
+    <div class="net-top">
+        <div class="net-state">
+            <span class="net-dot" id="netDot"></span>
+            <span class="net-title">{{ lang._('Internet') }}</span>
+            <span id="netState" class="net-state-text"></span>
+        </div>
+        <div class="net-addr">
+            <span class="dash-sub" id="netWanName">WAN</span>
+            <span class="net-ip" id="netV4"></span>
+            <span class="net-ip net-v6" id="netV6"></span>
+        </div>
+    </div>
+
+    <div class="net-mid">
+        <div class="net-rate">
+            <div><span class="net-arrow">&darr;</span><span class="net-big" id="netDown">&hellip;</span></div>
+            <div><span class="net-arrow">&uarr;</span><span class="net-big net-upload" id="netUp">&hellip;</span></div>
+            <div class="dash-sub">{{ lang._('right now, on the WAN') }}</div>
+        </div>
+        <div class="net-probes" id="netProbes"></div>
+    </div>
+
+    <div class="net-uptime">
+        <div class="net-uptime-head">
+            <span>{{ lang._('Uptime') }} <b id="netUptimePct"></b></span>
+            <span class="dash-sub" id="netLastOutage"></span>
+        </div>
+        <div class="net-strip" id="netStrip"></div>
+        <div class="net-outages" id="netOutages"></div>
+    </div>
+</div>
+
 <div class="dash-facts">
     <a class="content-box dash-fact" href="/ui/lens/presence" style="color: inherit; text-decoration: none;">
         <i class="fa fa-home"></i>
@@ -543,12 +688,6 @@
         <i class="fa fa-exchange"></i>
         <div><div class="dash-num" id="factMoved">&hellip;</div>
              <div class="dash-sub" id="factMovedSub"></div></div>
-    </div>
-    <div class="content-box dash-fact">
-        <i class="fa fa-globe"></i>
-        <div><div class="dash-num" id="factWan">&hellip;</div>
-             <div class="dash-sub"><span id="factWanName">WAN</span> &middot;
-                 <span id="factWanSub"></span></div></div>
     </div>
     <div class="content-box dash-fact">
         <i class="fa fa-bell-o"></i>

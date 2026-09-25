@@ -11,7 +11,7 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 DEFAULT_SETTINGS = {
     # how long observations and harvested traffic are kept
@@ -115,7 +115,19 @@ MIGRATIONS = {
             status TEXT,
             PRIMARY KEY (at, name)
         )""",
-    ]
+    ],
+    # Round trips Lens measures itself, to the public resolvers people know by
+    # name. The first traffic this plugin originates (§4.57).
+    6: [
+        """CREATE TABLE probe_sample (
+            at INTEGER NOT NULL,
+            target TEXT NOT NULL,
+            rtt REAL,
+            stddev REAL,
+            loss REAL,
+            PRIMARY KEY (at, target)
+        )""",
+    ],
 }
 
 
@@ -578,6 +590,42 @@ class Store:
             (step, step, since),
         )
 
+    def store_probe_samples(self, at, rows):
+        """:param rows: (target, rtt, stddev, loss)"""
+        self.db.executemany(
+            """INSERT OR REPLACE INTO probe_sample (at, target, rtt, stddev, loss)
+               VALUES (?, ?, ?, ?, ?)""",
+            [(at, target, rtt, stddev, loss) for target, rtt, stddev, loss in rows],
+        )
+
+    def probe_series(self, since, step):
+        """Per target per slice: average round trip, worst loss (as gateway_series)."""
+        return self.db.execute(
+            """SELECT target, (at / ?) * ? AS slot,
+                      avg(rtt) AS rtt, max(loss) AS loss, count(*) AS samples
+               FROM probe_sample WHERE at >= ?
+               GROUP BY target, slot ORDER BY target, slot""",
+            (step, step, since),
+        )
+
+    def probe_rounds(self, since):
+        """
+        Each observation run's probes collapsed to one answer: was anything
+        reachable at all. The internet is down when every target was.
+        """
+        return self.db.execute(
+            """SELECT at, min(loss) AS best_loss, count(*) AS targets
+               FROM probe_sample WHERE at >= ?
+               GROUP BY at ORDER BY at""",
+            (since,),
+        )
+
+    def latest_probes(self):
+        return self.db.execute(
+            """SELECT target, rtt, stddev, loss, at FROM probe_sample
+               WHERE at = (SELECT max(at) FROM probe_sample)"""
+        )
+
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
         return [
@@ -633,12 +681,14 @@ class Store:
             "DELETE FROM device_label WHERE mac NOT IN (SELECT mac FROM device)"
         )
         self.db.execute("DELETE FROM gateway_sample WHERE at < ?", (cutoff,))
+        self.db.execute("DELETE FROM probe_sample WHERE at < ?", (cutoff,))
         return self.db.total_changes - before
 
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
-                      'device_label', 'gateway_sample', 'harvest_state', 'run_log'):
+                      'device_label', 'gateway_sample', 'probe_sample', 'harvest_state',
+                      'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
         self.db.execute("VACUUM")

@@ -62,11 +62,24 @@ class Headline
         bool $stale,
         string $window,
         int $now,
-        array $line = []
+        array $line = [],
+        array $probes = []
     ): array {
         $unusual = (array)($baseline['unusual'] ?? []);
         $new = !empty($summary['new_yet']) ? (array)($summary['new'] ?? []) : [];
         $also = [];
+
+        /* three operators' anycast resolvers all silent at once is not one of
+           them having a bad minute; it is the line (§4.57) */
+        $answered = array_filter($probes, function ($probe) {
+            return $probe['rtt'] !== null;
+        });
+        if ($probes !== [] && $answered === []) {
+            return self::said('alert', 'fa-chain-broken', sprintf(
+                gettext('The internet is unreachable: none of %s answered.'),
+                implode(', ', array_column($probes, 'target'))
+            ), []);
+        }
 
         /* "is the internet all right" is the question every one of these people
            has eventually; when the answer is no, it is the only sentence (§4.56) */

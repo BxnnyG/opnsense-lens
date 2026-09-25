@@ -70,6 +70,30 @@ class HeadlineTest extends TestCase
                              'loss' => 12.0, 'monitor' => '1.1.1.1']]];
     }
 
+    public function testNoResolverAnsweringMeansTheInternetIsGone()
+    {
+        $said = Headline::compose(['here' => 12], ['unusual' => []], self::NOW - 60, false,
+                                  '24 hours', self::NOW, $this->line('good'), [
+            ['target' => 'Quad9', 'rtt' => null], ['target' => 'Cloudflare', 'rtt' => null],
+            ['target' => 'Google', 'rtt' => null],
+        ]);
+
+        $this->assertSame('alert', $said['tone']);
+        $this->assertStringContainsString('unreachable', $said['sentence']);
+        $this->assertStringContainsString('Quad9, Cloudflare, Google', $said['sentence']);
+    }
+
+    public function testOneResolverSilentIsNotTheInternetGone()
+    {
+        $said = Headline::compose(['here' => 12, 'moved' => '1 GB', 'new_yet' => true, 'new' => []],
+                                  ['unusual' => [], 'learning' => false], self::NOW - 60, false,
+                                  '24 hours', self::NOW, $this->line('good'), [
+            ['target' => 'Quad9', 'rtt' => null], ['target' => 'Cloudflare', 'rtt' => 9.0],
+        ]);
+
+        $this->assertSame('calm', $said['tone']);
+    }
+
     public function testADownLineIsTheOnlySentence()
     {
         /* live, so it outranks even a stale collector: the line's state is not old */
