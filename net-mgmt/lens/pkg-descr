@@ -25,6 +25,18 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.27_1
+
+* Devices, Events, Who's home and the weekly report answer on a busy box: the
+  join that puts traffic on devices seeks instead of scanning every window an
+  address ever had, and complete days are summed once by the harvest instead
+  of on every page. On a store the size of the second firewall's, Events went
+  from 8.3 s to 0.2 s and the device list from 5 s to under 1 s (schema 10)
+* windows are kept in day-long pieces; every page still sees whole visits
+* the router round runs its checks on the box again - root's shell there is
+  csh, and the script never ran, so every box read "not installed" - and it now
+  times each duty the pages wait for
+
 0.26_1
 
 * the package is built on FreeBSD by the repository's own CI, with a pkg

@@ -921,10 +921,17 @@ def harvest_destinations(store, now):
 
 
 def harvest(store, now):
-    """Both harvests: the hourly one always, the daily destinations when switched on."""
+    """
+    Both harvests -- the hourly one always, the daily destinations when switched
+    on -- and then the complete days summed once, so no page sums them (§4.69).
+    """
     said = harvest_hours(store, now)
     if store.settings()['destinations_enabled']:
         said += '; ' + harvest_destinations(store, now)
+    summed = store.fill_device_days(now)
+    store.commit()
+    if summed:
+        said += '; %d days summed' % summed
     return said
 
 

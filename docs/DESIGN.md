@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.26_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.27_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -234,7 +234,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) · 🔨 (40) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1`; CI builds the package and a pkg repository on FreeBSD since stage 40 (§4.68) — every build from this repository is `os-lens-devel` unless tagged; publishing waits on the operator |
 | S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 9, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 10 (day-long window pieces and summed days since stage 41, §4.69), observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built |
@@ -245,7 +245,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
 | S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: a per-device hour-of-week heatmap, the policy behind a block |
-| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
+| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round now times every duty on the box. Observe waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
 | S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); built, not router-tested |
@@ -1878,3 +1878,20 @@ building on the box (`pkg add`). The package is marked ABI-independent
 build from this repository is named `os-lens-devel` (`Mk/devel.mk`); a tag
 builds `os-lens`, and moving the box from one to the other is a one-time
 delete and install, since both own the same files.
+
+### §4.69 — Windows are stored in day-long pieces, and complete days are summed once (2026-09-27)
+**Question:** on a busy box the attribution join grew with windows × traffic
+rows and pages timed out (stage 41). Keep the join exact and make it cheap?
+**Decision:** no window piece is longer than a day. Observe starts a new piece
+when one has run a day, and migration 10 cuts the old ones; the join can then
+seek `first_seen >= bucket − 1 day` on a span index and look at a handful of
+windows. The pieces are a storage detail: every reader receives stays, joined
+back where one piece ends and the next begins, so a server present for sixty
+days is one visit, not sixty. Complete days — every hour of them harvested —
+are summed per device once, by the harvest (`device_day`), for the baseline and
+Events; today is always live, and a bucket arriving late for a summed day drops
+that day's sums. This is a computed aggregate of what Lens keeps, the kind of
+thing S2 already stores, and prune, purge and a device's deletion take it.
+**Consequences:** the attribution is unchanged — the same overlap rule, tested
+against the old query on the same store. The harvest carries a one-off cost
+after the upgrade while it sums the days it already holds.

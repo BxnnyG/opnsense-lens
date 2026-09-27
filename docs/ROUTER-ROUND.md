@@ -1,4 +1,4 @@
-# Router round for `os-lens-0.25_1` (2026-09-27)
+# Router round for `os-lens-0.27_1` (2026-09-27)
 
 > Why this exists: nineteen stages, stages 30 and 31 included, have been built
 > since the last click-test on a box (`0.5_2`, 2026-08-31). PROCESS calls each of them
@@ -25,7 +25,7 @@
 
     tools/lens-deploy.sh            # both boxes, from a checkout of this branch
 
-- [ ] router-01: `pkg info -x os-lens` says `0.25_1` — named `os-lens-devel`
+- [ ] router-01: `pkg info -x os-lens` says `0.27_1` — named `os-lens-devel`
       when built on the box, because `Mk/devel.mk` marks every build from this
       repository as a development build (stage 40)
 - [ ] second box: the same
@@ -188,7 +188,7 @@ These have been open since the dates beside them. Each is one command.
 
 ## 4. After the round
 
-- ROADMAP: every ticked stage becomes ✅ with the date and `0.25_1`; the
+- ROADMAP: every ticked stage becomes ✅ with the date and `0.27_1`; the
   measured numbers go into the operations notes (observe with/without probes,
   harvest, store size).
 - DESIGN §1b: the same.

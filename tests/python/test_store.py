@@ -354,9 +354,10 @@ class MigrationTest(unittest.TestCase):
         self.assertEqual(SCHEMA_VERSION, store.status()['schema_version'])
         self.assertEqual(1, store.status()['traffic_rows'])
         self.assertEqual(1, store.status()['observations'])
+        # since schema 10 the join seeks on a span index (§4.69)
         self.assertEqual(
-            [('address', 'interface')],
-            [tuple(row[2] for row in store.db.execute("PRAGMA index_info(address_observation_by_address)"))],
+            [('address', 'interface', 'first_seen', 'last_seen')],
+            [tuple(row[2] for row in store.db.execute("PRAGMA index_info(address_observation_span)"))],
         )
 
     def test_the_new_table_takes_rows_with_an_interface(self):

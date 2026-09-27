@@ -94,3 +94,48 @@ class RoundTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RemoteTest(unittest.TestCase):
+    """How the script reaches the box (stage 41): on stdin, never as a quoted argument."""
+
+    def answer(self, stdout, stderr=''):
+        class Done:
+            pass
+        done = Done()
+        done.stdout, done.stderr = stdout, stderr
+        seen = {}
+
+        def run(argv, **kwargs):
+            seen['argv'], seen['input'] = argv, kwargs.get('input')
+            return done
+        original = lensround.subprocess.run
+        lensround.subprocess.run = run
+        try:
+            result = lensround.ssh_sections({'name': 'r', 'host': '10.0.0.1', 'port': '22'})
+        finally:
+            lensround.subprocess.run = original
+        return result, seen
+
+    def test_the_script_goes_on_stdin_to_sh_so_csh_never_parses_it(self):
+        _, seen = self.answer('@@version@@\n0.26_1\n@@end@@\n')
+
+        self.assertEqual('sh -s', seen['argv'][-1])
+        self.assertIn('section timings', seen['input'])
+
+    def test_a_script_that_did_not_finish_is_an_error_not_an_empty_box(self):
+        (sections, error), _ = self.answer('Unmatched \'.\n', 'csh: Unmatched')
+
+        self.assertIsNone(sections)
+        self.assertIn('did not finish', error)
+
+    def test_duty_timings_are_judged(self):
+        report = lensround.Report({'name': 'router-01', 'host': '10.10.10.1', 'port': '22'})
+        lensround.judge_ssh(report, sections(timings='events 7=0.40\nbaseline=4.10\ntraffic 168=31.5\ndevices='),
+                            '0.18_1')
+        verdicts = {what: verdict for what, verdict, _ in report.rows}
+
+        self.assertEqual('ok', verdicts['duty events 7'])
+        self.assertEqual('look', verdicts['duty baseline'])
+        self.assertEqual('FAIL', verdicts['duty traffic 168'])
+        self.assertEqual('FAIL', verdicts['duty devices'])

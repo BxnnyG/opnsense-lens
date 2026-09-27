@@ -10,10 +10,19 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 
 import os
 import sqlite3
+import time
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
+
+# No stored window is longer than this (§4.69). A device present for weeks is a
+# chain of day-long pieces, joined back into one stay for every reader; the cap
+# is what lets the attribution join seek instead of scanning every window.
+WINDOW_MAX = 86400
+
+# the open end of a range that has none
+FOREVER = 2 ** 62
 
 # every key, its default and its bounds live in lenslib.settings (§4.58)
 DEFAULT_SETTINGS = settingslib.defaults()
@@ -151,6 +160,34 @@ MIGRATIONS = {
     9: [
         "ALTER TABLE device_label ADD COLUMN owner TEXT",
     ],
+    # Stage 41 (§4.69): a span index the join can seek on, windows cut into
+    # day-long pieces so it may, and complete days summed once per device.
+    # The cut keeps every second: the first piece ends where the second begins.
+    10: [
+        "CREATE INDEX address_observation_span"
+        " ON address_observation(address, interface, first_seen, last_seen)",
+        "DROP INDEX address_observation_by_address",
+        """WITH RECURSIVE piece(mac, address, interface, first_seen, last_seen, end_at) AS (
+               SELECT mac, address, interface, first_seen + 86400,
+                      min(first_seen + 172800, last_seen), last_seen
+               FROM address_observation WHERE last_seen - first_seen > 86400
+               UNION ALL
+               SELECT mac, address, interface, first_seen + 86400,
+                      min(first_seen + 172800, end_at), end_at
+               FROM piece WHERE end_at - first_seen > 86400
+           )
+           INSERT OR IGNORE INTO address_observation (mac, address, interface, first_seen, last_seen)
+           SELECT mac, address, interface, first_seen, last_seen FROM piece""",
+        "UPDATE address_observation SET last_seen = first_seen + 86400 WHERE last_seen - first_seen > 86400",
+        """CREATE TABLE device_day (
+            mac TEXT NOT NULL,
+            day INTEGER NOT NULL,
+            octets INTEGER NOT NULL,
+            sent INTEGER NOT NULL,
+            PRIMARY KEY (mac, day)
+        )""",
+        "CREATE TABLE device_day_done (day INTEGER PRIMARY KEY, at INTEGER NOT NULL)",
+    ],
 }
 
 
@@ -166,7 +203,12 @@ MIGRATIONS = {
 # refuse it rather than picking one.
 #
 # Grouping is on traffic_hour's own primary key, so the join can never multiply
-# the octets it is counting. Parameters, in order: bucket_seconds, since.
+# the octets it is counting. Parameters, in order: bucket_seconds, since, until.
+#
+# `first_seen >= bucket - WINDOW_MAX` changes nothing about which windows match
+# -- no piece is longer than WINDOW_MAX, so one that reaches the bucket started
+# at most that long before it -- and turns the join from a scan of every window
+# of the address into a seek on the span index (§4.69).
 ATTRIBUTION_SQL = """
     SELECT t.bucket AS bucket, t.interface AS interface, t.address AS address,
            t.direction AS direction, t.octets AS octets, t.packets AS packets,
@@ -175,11 +217,33 @@ ATTRIBUTION_SQL = """
     LEFT JOIN address_observation o
       ON o.address = t.address
      AND o.interface = t.interface
+     AND o.first_seen >= t.bucket - %d
      AND o.first_seen < t.bucket + ?
      AND o.last_seen >= t.bucket
-    WHERE t.bucket >= ?
+    WHERE t.bucket >= ? AND t.bucket < ?
     GROUP BY t.bucket, t.interface, t.address, t.direction
-"""
+""" % WINDOW_MAX
+
+
+def stays(rows):
+    """
+    Pieces of one window joined back into the stay they were cut from (§4.69):
+    same device, address and interface, one starting where the last one ended.
+
+    :param rows: mac, address, interface, first_seen, last_seen -- ordered by
+                 mac, address, interface, first_seen
+    :return: list of dicts with the same keys
+    """
+    out = []
+    for row in rows:
+        row = {key: row[key] for key in ('mac', 'address', 'interface', 'first_seen', 'last_seen')}
+        last = out[-1] if out else None
+        if last and (last['mac'], last['address'], last['interface']) == \
+                (row['mac'], row['address'], row['interface']) and row['first_seen'] <= last['last_seen']:
+            last['last_seen'] = max(last['last_seen'], row['last_seen'])
+        else:
+            out.append(row)
+    return out
 
 
 class Store:
@@ -258,14 +322,49 @@ class Store:
         return {(r['mac'], r['address'], r['interface']): r['last_seen'] for r in rows}
 
     def extend_windows(self, keys, now):
+        """
+        Carry each window on to `now`. One that has run WINDOW_MAX continues in
+        a new piece starting where it stopped (§4.69): no second is lost or
+        doubled, and the join can keep seeking instead of scanning.
+        """
         for mac, address, interface in keys:
-            self.db.execute(
-                """UPDATE address_observation SET last_seen = ?
+            row = self.db.execute(
+                """SELECT first_seen, last_seen FROM address_observation
                    WHERE mac = ? AND address = ? AND interface = ?
-                     AND first_seen = (SELECT max(first_seen) FROM address_observation
-                                       WHERE mac = ? AND address = ? AND interface = ?)""",
-                (now, mac, address, interface, mac, address, interface),
+                   ORDER BY first_seen DESC LIMIT 1""",
+                (mac, address, interface),
+            ).fetchone()
+            if row is None:
+                continue
+            if now - row['first_seen'] > WINDOW_MAX and row['last_seen'] > row['first_seen']:
+                self.db.execute(
+                    """INSERT OR IGNORE INTO address_observation
+                       (mac, address, interface, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)""",
+                    (mac, address, interface, row['last_seen'], now),
+                )
+            else:
+                self.db.execute(
+                    """UPDATE address_observation SET last_seen = ?
+                       WHERE mac = ? AND address = ? AND interface = ? AND first_seen = ?""",
+                    (now, mac, address, interface, row['first_seen']),
+                )
+
+    def record_window(self, mac, address, interface, first_seen, last_seen):
+        """
+        A whole window written at once -- imports, fixtures, the preview -- in
+        the day-long pieces every stored window is kept in (§4.69).
+        """
+        start = int(first_seen)
+        while True:
+            end = min(start + WINDOW_MAX, int(last_seen))
+            self.db.execute(
+                """INSERT OR IGNORE INTO address_observation
+                   (mac, address, interface, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)""",
+                (mac, address, interface, start, end),
             )
+            if end >= int(last_seen):
+                return
+            start = end
 
     def open_new_windows(self, keys, now):
         self.db.executemany(
@@ -326,17 +425,19 @@ class Store:
                     'muted': bool(row['muted']),
                 }
 
-        for row in self.db.execute(
+        for stay in stays(self.db.execute(
             """SELECT mac, address, interface, first_seen, last_seen
-               FROM address_observation ORDER BY last_seen DESC, address"""
-        ):
-            if row['mac'] in devices:
-                devices[row['mac']]['addresses'].append({
-                    'address': row['address'],
-                    'interface': row['interface'],
-                    'first_seen': row['first_seen'],
-                    'last_seen': row['last_seen'],
+               FROM address_observation ORDER BY mac, address, interface, first_seen"""
+        )):
+            if stay['mac'] in devices:
+                devices[stay['mac']]['addresses'].append({
+                    'address': stay['address'],
+                    'interface': stay['interface'],
+                    'first_seen': stay['first_seen'],
+                    'last_seen': stay['last_seen'],
                 })
+        for device in devices.values():
+            device['addresses'].sort(key=lambda window: (-window['last_seen'], window['address']))
 
         return list(devices.values())
 
@@ -418,9 +519,10 @@ class Store:
                        JOIN address_observation b
                          ON a.address = b.address AND a.interface = b.interface
                         AND a.mac < b.mac
+                        AND b.first_seen >= a.first_seen - %d
                         AND a.first_seen <= b.last_seen
                         AND b.first_seen <= a.last_seen
-                   )"""),
+                   )""" % WINDOW_MAX),
             'reused': one(
                 """SELECT count(*) FROM (
                        SELECT address, interface FROM address_observation
@@ -463,16 +565,17 @@ class Store:
         """
         return self.db.execute(
             """SELECT a.address, a.interface, a.mac AS one, b.mac AS other,
-                      max(a.first_seen, b.first_seen) AS at
+                      min(max(a.first_seen, b.first_seen)) AS at
                FROM address_observation a
                JOIN address_observation b
                  ON a.address = b.address AND a.interface = b.interface
                 AND a.mac < b.mac
+                AND b.first_seen >= a.first_seen - %d
                 AND a.first_seen <= b.last_seen
                 AND b.first_seen <= a.last_seen
                WHERE max(a.first_seen, b.first_seen) >= ?
                GROUP BY a.address, a.interface, a.mac, b.mac
-               ORDER BY at""",
+               ORDER BY at""" % WINDOW_MAX,
             (since,),
         )
 
@@ -506,6 +609,13 @@ class Store:
         )
         written = self.db.total_changes - before
 
+        # a bucket arriving for a day already summed: that day is summed again
+        if written:
+            days = sorted({row[0] // 86400 for row in rows})
+            marks = ','.join('?' * len(days))
+            self.db.execute("DELETE FROM device_day WHERE day IN (%s)" % marks, days)
+            self.db.execute("DELETE FROM device_day_done WHERE day IN (%s)" % marks, days)
+
         self.db.execute(
             """INSERT INTO harvest_state (provider, last_bucket) VALUES (?, ?)
                ON CONFLICT(provider) DO UPDATE SET
@@ -536,10 +646,7 @@ class Store:
         Grouping is on traffic_hour's own primary key, so the join can never
         multiply the octets it is counting.
         """
-        if until is None:
-            return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since))
-        return self.db.execute(
-            "SELECT * FROM (%s) WHERE bucket < ?" % ATTRIBUTION_SQL, (bucket_seconds, since, until))
+        return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since, FOREVER if until is None else until))
 
     @staticmethod
     def _macs(mac):
@@ -570,7 +677,7 @@ class Store:
                WHERE macs = 1 AND mac IN (%s)
                GROUP BY bucket, direction
                ORDER BY bucket""" % (ATTRIBUTION_SQL, marks),
-            (bucket_seconds, since) + macs,
+            (bucket_seconds, since, FOREVER) + macs,
         )
 
     def device_moment(self, mac, at, step, bucket_seconds=3600):
@@ -590,7 +697,7 @@ class Store:
                WHERE macs = 1 AND mac IN (%s) AND bucket >= ? AND bucket < ?
                GROUP BY address, interface, direction
                ORDER BY octets DESC""" % (ATTRIBUTION_SQL, marks),
-            (bucket_seconds, at) + macs + (at, at + step),
+            (bucket_seconds, at, at + step) + macs + (at, at + step),
         )
 
     def daily_totals(self, since, bucket_seconds=3600):
@@ -600,16 +707,62 @@ class Store:
         Daily rather than hourly on purpose: three weeks gives twenty-one daily
         samples per device, and only three samples of any given hour-of-week.
         A median of three is not a baseline, it is a coincidence.
+
+        Complete days come from device_day, summed once by the harvest (§4.69);
+        the rest -- today, and any day not summed yet -- from the join itself.
+
+        :return: list of {'mac', 'day', 'octets', 'sent'}, by mac and day
         """
-        return self.db.execute(
+        first_day = int(since) // 86400
+        done = {row['day'] for row in self.db.execute(
+            "SELECT day FROM device_day_done WHERE day >= ?", (first_day,))}
+        rows = [dict(row) for row in self.db.execute(
+            """SELECT mac, day, octets, sent FROM device_day
+               WHERE day >= ? AND day IN (SELECT day FROM device_day_done)""", (first_day,))]
+
+        missing = [day for day in range(first_day, int(time.time()) // 86400 + 1) if day not in done]
+        if missing:
+            live = self._day_sums(max(int(since), missing[0] * 86400), FOREVER, bucket_seconds)
+            rows.extend(row for row in live if row['day'] not in done)
+
+        rows.sort(key=lambda row: (row['mac'], row['day']))
+        return rows
+
+    def _day_sums(self, since, until, bucket_seconds=3600):
+        """The join, summed per device and day, over [since, until)."""
+        return [dict(row) for row in self.db.execute(
             """SELECT mac, bucket / 86400 AS day, sum(octets) AS octets,
                       sum(CASE WHEN direction = 'in' THEN octets ELSE 0 END) AS sent
                FROM (%s)
                WHERE macs = 1
-               GROUP BY mac, day
-               ORDER BY mac, day""" % ATTRIBUTION_SQL,
-            (bucket_seconds, since),
-        )
+               GROUP BY mac, day""" % ATTRIBUTION_SQL,
+            (bucket_seconds, since, until),
+        )]
+
+    def fill_device_days(self, now, limit=31):
+        """
+        Sum complete days once (§4.69): every hour of the day harvested, and not
+        today. Newest first, so the baseline's three weeks are there first.
+
+        :return: how many days were summed
+        """
+        last = self.last_bucket('FlowSourceAddrTotals')
+        first = self.db.execute("SELECT min(bucket) FROM traffic_hour").fetchone()[0]
+        if last is None or first is None:
+            return 0
+        settled = min((last + 3600) // 86400, int(now) // 86400)
+        oldest = max(first // 86400, (int(now) - self.setting_int('retention_days') * 86400) // 86400)
+        done = {row[0] for row in self.db.execute("SELECT day FROM device_day_done WHERE day >= ?", (oldest,))}
+        days = [day for day in range(settled - 1, oldest - 1, -1) if day not in done][:limit]
+        for day in days:
+            sums = self._day_sums(day * 86400, (day + 1) * 86400)
+            self.db.execute("DELETE FROM device_day WHERE day = ?", (day,))
+            self.db.executemany(
+                "INSERT INTO device_day (mac, day, octets, sent) VALUES (?, ?, ?, ?)",
+                [(row['mac'], day, row['octets'], row['sent']) for row in sums],
+            )
+            self.db.execute("INSERT OR REPLACE INTO device_day_done (day, at) VALUES (?, ?)", (day, int(now)))
+        return len(days)
 
     def network_timeline(self, since, step):
         """
@@ -707,7 +860,7 @@ class Store:
                FROM (%s)
                WHERE macs = 1 AND mac IN (%s)
                GROUP BY dow, hour""" % (ATTRIBUTION_SQL, marks),
-            (bucket_seconds, since) + macs,
+            (bucket_seconds, since, FOREVER) + macs,
         )
 
     def network_heatmap(self, since):
@@ -724,13 +877,16 @@ class Store:
         )
 
     def device_windows(self, mac):
-        """Every address window one device has ever had, oldest first."""
+        """Every stay one device has had on an address, oldest first (pieces joined, §4.69)."""
         marks, macs = self._macs(mac)
-        return self.db.execute(
-            """SELECT address, interface, first_seen, last_seen
-               FROM address_observation WHERE mac IN (%s) ORDER BY first_seen""" % marks,
+        found = stays(self.db.execute(
+            """SELECT mac, address, interface, first_seen, last_seen
+               FROM address_observation WHERE mac IN (%s)
+               ORDER BY mac, address, interface, first_seen""" % marks,
             macs,
-        )
+        ))
+        found.sort(key=lambda stay: stay['first_seen'])
+        return found
 
     def interface_timeline(self, since, step):
         """Bytes per interface per slice, for each network's own sparkline."""
@@ -838,7 +994,7 @@ class Store:
                       count(DISTINCT address) AS addresses
                FROM (%s)
                GROUP BY interface, direction""" % ATTRIBUTION_SQL,
-            (bucket_seconds, since),
+            (bucket_seconds, since, FOREVER),
         )
 
     def log_run(self, duty, at, ok, took_ms, detail):
@@ -864,13 +1020,15 @@ class Store:
         self.db.execute("DELETE FROM gateway_sample WHERE at < ?", (cutoff,))
         self.db.execute("DELETE FROM probe_sample WHERE at < ?", (cutoff,))
         self.db.execute("DELETE FROM destination_day WHERE day < ?", (cutoff,))
+        self.db.execute("DELETE FROM device_day WHERE day < ?", (cutoff // 86400,))
+        self.db.execute("DELETE FROM device_day_done WHERE day < ?", (cutoff // 86400,))
         return self.db.total_changes - before
 
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
                       'device_label', 'gateway_sample', 'probe_sample', 'destination_day', 'harvest_state',
-                      'run_log'):
+                      'device_day', 'device_day_done', 'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
         self.db.execute("VACUUM")

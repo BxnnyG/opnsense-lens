@@ -176,9 +176,7 @@ def seed(path, days, now):
                 else:
                     window[1] = hour_at + HOUR - 60
             elif window is not None:
-                store.db.execute(
-                    "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
-                    " VALUES (?, ?, ?, ?, ?)", (mac, address, interface, window[0], window[1]))
+                store.record_window(mac, address, interface, window[0], window[1])
                 window = None
 
             if here and daily_mb and hour_at < now - now % HOUR:
@@ -200,25 +198,17 @@ def seed(path, days, now):
 
         last = window[1] if window else None
         if window is not None:
-            store.db.execute(
-                "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
-                " VALUES (?, ?, ?, ?, ?)", (mac, address, interface, window[0], now))
+            store.record_window(mac, address, interface, window[0], now)
             last = now
         store.db.execute("UPDATE device SET last_seen = ? WHERE mac = ?",
                          (last or first + HOUR, mac))
 
     # a lease that moved: the MacBook also held a second address a week ago
-    store.db.execute(
-        "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
-        " VALUES (?, ?, ?, ?, ?)",
-        ('3c:22:fb:10:20:30', 'fd00:10:20::11', 'vtnet1_vlan20', now - 8 * DAY, now - 6 * DAY))
+    store.record_window('3c:22:fb:10:20:30', 'fd00:10:20::11', 'vtnet1_vlan20', now - 8 * DAY, now - 6 * DAY)
 
     # two plugs answering for one address for an afternoon: a DHCP conflict (§4.36)
-    store.db.execute(
-        "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
-        " VALUES (?, ?, ?, ?, ?)",
-        ('a4:cf:12:00:00:02', '10.10.21.11', 'vtnet1_vlan21', now - 4 * DAY + 14 * HOUR,
-         now - 4 * DAY + 16 * HOUR))
+    store.record_window('a4:cf:12:00:00:02', '10.10.21.11', 'vtnet1_vlan21', now - 4 * DAY + 14 * HOUR,
+                        now - 4 * DAY + 16 * HOUR)
 
     # a transit network nobody on it was seen holding (§4.31)
     for hour_at in range(now - 2 * DAY - (now % HOUR), now - now % HOUR, HOUR):

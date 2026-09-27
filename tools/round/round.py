@@ -37,7 +37,6 @@ import datetime
 import json
 import os
 import re
-import shlex
 import ssl
 import subprocess
 import sys
@@ -84,7 +83,18 @@ section cpu;       top -b -o cpu -d 2 12 2>&1 | tail -16
 section uptime;    uptime 2>&1
 section dns;       configctl unbound qstats totals 10 2>&1
 section ipv6;      start=$(date +%s); ping -6 -c 3 -t 4 -q 2620:fe::fe > /dev/null 2>&1; code=$?; echo "exit=$code seconds=$(( $(date +%s) - start ))"
+# what each page waits for, measured on the box itself (stage 41)
+section timings
+for duty in devices status 'traffic 24' 'traffic 168' baseline 'events 7' 'events 30' 'presence 24' 'segments 24'; do
+    real=$( { /usr/bin/time -p configctl lens $duty > /dev/null 2>&1; } 2>&1 | awk '/^real/ {print $2}' )
+    echo "$duty=$real"
+done
+section end
 '''
+
+# a duty the pages wait for: fine, worth a look, or the cause of "Reading..."
+DUTY_OK = 2.0
+DUTY_SLOW = 10.0
 
 
 def boxes():
@@ -100,17 +110,23 @@ def boxes():
 
 def ssh_sections(box):
     socket = '/tmp/lens-round-%s.sock' % box['name']
+    # The script travels on stdin to `sh -s`. root's login shell on OPNsense is
+    # csh, and handing it the script as a quoted argument failed silently: csh
+    # cannot quote across lines, so no section ran and the report read "not
+    # installed, never run" on a box where Lens was installed and running.
     argv = ['ssh', '-p', box['port'], '-o', 'ConnectTimeout=8', '-o', 'ControlMaster=auto',
             '-o', 'ControlPath=' + socket, '-o', 'ControlPersist=60',
-            'root@' + box['host'], 'sh -c ' + shlex.quote(REMOTE)]
+            'root@' + box['host'], 'sh -s']
     try:
-        out = subprocess.run(argv, capture_output=True, text=True, timeout=180).stdout
+        done = subprocess.run(argv, input=REMOTE, capture_output=True, text=True, timeout=600)
     except FileNotFoundError:
         return None, 'ssh is not installed on this machine'
     except (OSError, subprocess.SubprocessError) as failure:
         return None, str(failure)
+    out = done.stdout
     if not out.strip():
-        return None, 'no answer from root@%s:%s (key, password or network?)' % (box['host'], box['port'])
+        return None, 'no answer from root@%s:%s (key, password or network?) %s' % (
+            box['host'], box['port'], done.stderr.strip()[-200:])
     sections, name = {}, None
     for line in out.splitlines():
         match = re.match(r'^@@(\w+)@@$', line)
@@ -119,6 +135,11 @@ def ssh_sections(box):
             sections[name] = []
         elif name:
             sections[name].append(line)
+    if 'end' not in sections:
+        # something answered, but the script did not run to its end: say so,
+        # instead of reading every missing section as "not installed"
+        return None, 'the remote script did not finish: %s' % (
+            (done.stderr or out).strip()[-300:] or 'no output')
     return {k: '\n'.join(v).strip() for k, v in sections.items()}, None
 
 
@@ -238,6 +259,17 @@ def judge_ssh(report, sec, expected_version):
     seconds = re.search(r'seconds=(\d+)', ipv6)
     report.check('ping -6 -t is a deadline', 'ok' if seconds and int(seconds.group(1)) <= 6 else 'look',
                  ipv6 + ' (≤ 6 s means IPv6 probe targets can be allowed, BACKLOG #35)')
+
+    for line in sec.get('timings', '').splitlines():
+        duty, _, real = line.partition('=')
+        try:
+            seconds = float(real)
+        except ValueError:
+            report.check('duty %s' % duty, 'FAIL', 'did not answer')
+            continue
+        report.check('duty %s' % duty,
+                     'ok' if seconds <= DUTY_OK else ('look' if seconds <= DUTY_SLOW else 'FAIL'),
+                     '%.2f s on the box' % seconds)
 
     for name in ('cpu', 'uptime', 'segments', 'settings'):
         if sec.get(name):

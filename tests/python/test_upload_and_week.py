@@ -68,9 +68,7 @@ class PreviousWeekTest(unittest.TestCase):
     def seed(self, since):
         mac = 'aa:00:00:00:00:01'
         self.store.see_device(mac, since, False, False, None, None)
-        self.store.db.execute(
-            "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
-            " VALUES (?, '10.0.0.5', 'em1', ?, ?)", (mac, since, self.now))
+        self.store.record_window(mac, '10.0.0.5', 'em1', since, self.now)
         self.store.store_buckets('FlowSourceAddrTotals', [
             (self.now - 7 * 86400 - 2 * HOUR, 'em1', '10.0.0.5', 'in', 300, 1),
             (self.now - 7 * 86400 - 2 * HOUR, 'em1', '10.0.0.5', 'out', 700, 1),
