@@ -1,0 +1,1 @@
+{"last_sync":1788000030,"aggregators":{"FlowInterfaceTotals":{"resolutions":[30,300,3600,86400]},"FlowDstPortTotals":{"resolutions":[300,3600,86400]},"FlowSourceAddrDetails":{"resolutions":[86400]},"FlowSourceAddrTotals":{"resolutions":[300,3600,86400]}}}

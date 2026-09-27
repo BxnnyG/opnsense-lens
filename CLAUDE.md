@@ -62,6 +62,7 @@ It lives in its own repository and is not going upstream (§4.1, §4.2).
 | Lint / style | `tests/gates/run.sh` — the upstream gates without `bmake` or a core checkout |
 | Build & install | on the router: `make package` / `make upgrade` in `net-mgmt/lens` |
 | Live-test without installing | on the router: `make mount` … `make umount` |
+| Look at every page without a router | `tools/preview/` — real views and controllers, core's theme, seeded store; see its README |
 | Check what ships | `make plist` — everything under `src/` installs into `/usr/local` |
 | Release bookkeeping | bump `PLUGIN_REVISION` in the `Makefile`, add a changelog line to `pkg-descr`, update `ROADMAP` status and `DESIGN §1b` |
 

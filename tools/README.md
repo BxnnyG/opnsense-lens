@@ -33,3 +33,9 @@ python3 lens-observe-summary.py /root/lens-observations.log
 # stop observing
 pkill -f lens-observe
 ```
+
+## preview/
+
+Not a tool for the box: [`preview/`](preview/README.md) renders every Lens page
+in a browser on a laptop, through Lens's real controllers and core's own theme,
+for looking at a design change before it goes anywhere near a router.

@@ -1,0 +1,209 @@
+<?php
+
+/*
+ * Just enough of OPNsense for Lens's own controllers to run unchanged.
+ *
+ * The controllers do input and output only (DESIGN §4.21), so the framework
+ * they touch is small: a request, configd, and config.xml. Each is replaced
+ * here by the thing it stands for -- configd by the real collector against a
+ * seeded store (commands built from actions_lens.conf exactly as configd would
+ * build them), core's own commands by recorded or plausible fixtures, and
+ * config.xml by a fixture shaped like the operator's box. Nothing in
+ * net-mgmt/lens is touched to make it work.
+ */
+
+namespace {
+    class PreviewRequest
+    {
+        private $body = null;
+
+        public function get($name = null, $filter = null, $default = null)
+        {
+            return $name === null ? $_GET : ($_GET[$name] ?? $default);
+        }
+
+        public function getPost($name = null, $filter = null, $default = null)
+        {
+            if ($this->body === null) {
+                $decoded = json_decode((string)file_get_contents('php://input'), true);
+                $this->body = is_array($decoded) ? $decoded : $_POST;
+            }
+            return $name === null ? $this->body : ($this->body[$name] ?? $default);
+        }
+
+        public function isPost()
+        {
+            return ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+        }
+    }
+
+    class PreviewResponse
+    {
+        public $headers = [];
+
+        public function setRawHeader($header)
+        {
+            $this->headers[] = $header;
+        }
+
+        public function setContent($content)
+        {
+            echo $content;
+        }
+    }
+}
+
+namespace OPNsense\Base {
+    class ApiControllerBase
+    {
+        public $request;
+        public $response;
+
+        public function __construct()
+        {
+            $this->request = new \PreviewRequest();
+            $this->response = new \PreviewResponse();
+        }
+    }
+
+    class IndexController
+    {
+    }
+}
+
+namespace OPNsense\Core {
+    class Backend
+    {
+        public function configdpRun($event, $params = [], $detach = false)
+        {
+            foreach ((array)$params as $param) {
+                $event .= ' ' . escapeshellarg($param ?? '');
+            }
+            return $this->configdRun($event);
+        }
+
+        public function configdRun($event, $detach = false)
+        {
+            $words = \PreviewConfigd::split($event);
+            if (($words[0] ?? '') === 'lens') {
+                return \PreviewConfigd::lens(array_slice($words, 1));
+            }
+            return \PreviewConfigd::core($words);
+        }
+    }
+
+    class Config
+    {
+        private static $instance = null;
+        private $xml;
+
+        public static function getInstance()
+        {
+            if (self::$instance === null) {
+                self::$instance = new self();
+            }
+            return self::$instance;
+        }
+
+        public function object()
+        {
+            if ($this->xml === null) {
+                $this->xml = simplexml_load_file(PREVIEW_FIXTURES . '/config.xml');
+            }
+            return $this->xml;
+        }
+
+        public function save()
+        {
+        }
+    }
+}
+
+namespace {
+    class PreviewConfigd
+    {
+        /** configd's own word split: spaces, with shell single quotes honoured */
+        public static function split(string $event): array
+        {
+            preg_match_all("/'((?:[^']|'\\\\'')*)'|(\\S+)/", $event, $m, PREG_SET_ORDER);
+            $words = [];
+            foreach ($m as $match) {
+                $words[] = isset($match[2]) && $match[2] !== ''
+                    ? $match[2] : str_replace("'\\''", "'", $match[1]);
+            }
+            return $words;
+        }
+
+        /** an action from actions_lens.conf, built and run the way configd does */
+        public static function lens(array $words): string
+        {
+            $actions = parse_ini_string(
+                preg_replace('/^([a-z_]+):/m', '$1=', (string)file_get_contents(PREVIEW_LENS . '/service/conf/actions.d/actions_lens.conf')),
+                true,
+                INI_SCANNER_RAW
+            );
+            $name = array_shift($words);
+            if (!isset($actions[$name])) {
+                return 'Action not found';
+            }
+            $action = $actions[$name];
+            $command = str_replace(
+                '/usr/local/opnsense/scripts/lens/collect.py',
+                'python3 ' . escapeshellarg(PREVIEW_LENS . '/scripts/lens/collect.py'),
+                $action['command']
+            );
+            $parameters = (string)($action['parameters'] ?? '');
+            while (strpos($parameters, '%s') !== false) {
+                $parameters = preg_replace('/%s/', escapeshellarg((string)array_shift($words)), $parameters, 1);
+            }
+
+            $env = 'LENS_DB=' . escapeshellarg(PREVIEW_DB) . ' ';
+            exec($env . $command . ' ' . $parameters . ' 2>/dev/null', $out, $code);
+            $output = implode("\n", $out) . "\n";
+
+            if (($action['type'] ?? '') === 'script') {
+                return $code === 0 ? "OK\n" : sprintf('Error (%d)', $code);
+            }
+            if ($code !== 0 && strtolower(trim($action['errors'] ?? '')) !== 'no') {
+                return 'Execute error';
+            }
+            return $output;
+        }
+
+        /** core's commands: a fixture, or something that moves like the real thing */
+        public static function core(array $words): string
+        {
+            $event = implode(' ', $words);
+            $now = microtime(true);
+
+            if ($event === 'interface show traffic') {
+                /* counters that grow, so two readings five seconds apart give a rate */
+                return json_encode(['time' => $now, 'interfaces' => ['wan' => [
+                    'name' => 'WAN',
+                    'bytes received' => (int)($now * 2.9e6) % PHP_INT_MAX,
+                    'bytes transmitted' => (int)($now * 4.1e5) % PHP_INT_MAX,
+                ]]]);
+            }
+            if (strpos($event, 'system sysctl values') === 0) {
+                return json_encode([
+                    'kern.boottime' => sprintf('{ sec = %d, usec = 0 }', (int)$now - 6 * 86400 - 5 * 3600),
+                    'vm.loadavg' => '{ 0.42 0.51 0.48 }',
+                    'kern.smp.cpus' => '2',
+                    'hw.physmem' => '4294967296',
+                    'vm.stats.vm.v_page_count' => '1000000',
+                    'vm.stats.vm.v_inactive_count' => '260000',
+                    'vm.stats.vm.v_cache_count' => '0',
+                    'vm.stats.vm.v_laundry_count' => '30000',
+                    'vm.stats.vm.v_free_count' => '220000',
+                ]);
+            }
+
+            $file = PREVIEW_FIXTURES . '/' . preg_replace('/[^a-z0-9]+/', '-', $event) . '.json';
+            if (is_file($file)) {
+                return (string)file_get_contents($file);
+            }
+            $file = PREVIEW_FIXTURES . '/' . preg_replace('/[^a-z0-9]+/', '-', $event) . '.txt';
+            return is_file($file) ? (string)file_get_contents($file) : '';
+        }
+    }
+}
