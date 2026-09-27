@@ -55,7 +55,7 @@ this one inherits, and 23 stages of experience with it.
 | 37 | **Find anything, filter everything** — Ctrl-K palette over devices, networks and pages; one network/tag filter followed by Devices, Who's home, Events and DNS ([plan](plans/stage-37-palette-filter.md), §4.65) | S11, S6 | 🔨 built 2026-09-27 as `0.23_1` · looked at in `tools/preview` · **awaiting router round** |
 | 38 | **Upload on its own, last week beside this one, how sure a type is** ([plan](plans/stage-38-upload-week-confidence.md), §4.66) | S8, S6, S1 | 🔨 built 2026-09-27 as `0.24_1` · looked at in `tools/preview` · **awaiting router round** |
 | 39 | **Who's home by person, and the week on one page** — an owner per device, strips per person from what they carry, a printable weekly report ([plan](plans/stage-39-people-weekly.md), §4.67) | S1, S5, S6 | 🔨 built 2026-09-27 as `0.25_1` · looked at and printed in `tools/preview` · **awaiting router round** |
-| — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
+| 40 | **Package feed** — CI builds the package and a pkg repository on FreeBSD; publishing waits on the operator's hosting and signing decision ([plan](plans/stage-40-package-feed.md), §4.68) | S0 | 🔨 build ✅ verified 2026-09-27 (Actions run 1) · **publishing: operator's decision** |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
 knows what the operator's box is collecting; every week it collects nothing is

@@ -9,6 +9,11 @@ name: package
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'build os-lens rather than os-lens-devel'
+        type: boolean
+        default: false
   push:
     tags: ['v*']
 
@@ -36,8 +41,14 @@ jobs:
             git config --global --add safe.directory "$(pwd)"
             cd net-mgmt/lens
             # Lens ships scripts, no binaries: any FreeBSD ABI may install it,
-            # so an OPNsense on a newer base does not refuse it
-            make package PLUGIN_NO_ABI=yes
+            # so an OPNsense on a newer base does not refuse it. Mk/devel.mk
+            # names every build os-lens-devel, as `make package` on the box
+            # does; a tag or release=true builds os-lens instead (§4.68)
+            if [ "${{ startsWith(github.ref, 'refs/tags/v') || inputs.release }}" = "true" ]; then
+              make package PLUGIN_NO_ABI=yes PLUGIN_DEVEL=
+            else
+              make package PLUGIN_NO_ABI=yes
+            fi
             cd ../..
             mkdir -p feed/All
             cp net-mgmt/lens/work/pkg/*.pkg feed/All/

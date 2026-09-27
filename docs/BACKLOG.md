@@ -208,7 +208,8 @@ data Lens already keeps; none is planned before the router round.
 
 ## 3. P2 — Worth doing
 
-- **#7 — A package feed.** Local `make package` is fine for the first stages
+- **#7 — A package feed.** 🔨 the build half done 2026-09-27 as stage 40
+  (§4.68); hosting and signing are the operator's. Local `make package` is fine for the first stages
   and painful by stage 8. Not urgent, but it changes how the plugin is tested
   once there is something to test.
 - **#8 — Lift the netbird gate runner across.** `tests/gates/run.sh` there

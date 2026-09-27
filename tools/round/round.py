@@ -71,7 +71,8 @@ SLOW_MS = 2000
 # the remote part, in POSIX sh: the root shell is csh (ROADMAP operations notes)
 REMOTE = r'''
 section() { printf '\n@@%s@@\n' "$1"; }
-section version;   pkg query '%v' os-lens 2>&1
+# os-lens-devel is what `make package` from this repository builds (Mk/devel.mk)
+section version;   pkg query '%v' os-lens os-lens-devel 2>/dev/null | head -1
 section cron;      grep -n 'configctl -d lens' /var/cron/tabs/root 2>&1
 section status;    configctl lens status 2>&1
 section identity;  configctl lens identity 2>&1

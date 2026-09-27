@@ -25,6 +25,15 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.26_1
+
+* the package is built on FreeBSD by the repository's own CI, with a pkg
+  repository around it, so it no longer has to be built on the firewall.
+  Where that feed is served from, and the key it is signed with, is still to
+  be decided
+* the router round finds the plugin whether it was built as os-lens or as
+  os-lens-devel
+
 0.25_1
 
 * say whose a device is - Belongs to, beside its name - and Who's home draws

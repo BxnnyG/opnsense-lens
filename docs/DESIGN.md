@@ -226,13 +226,13 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.25_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.26_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
 | System | Status | Rest / note |
 |---|---|---|
-| S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
+| S0 · Package skeleton & walking skeleton | ✅ (stage 1) · 🔨 (40) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1`; CI builds the package and a pkg repository on FreeBSD since stage 40 (§4.68) — every build from this repository is `os-lens-devel` unless tagged; publishing waits on the operator |
 | S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 9, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
@@ -1874,4 +1874,7 @@ secret. Core's firmware check upgrades from every configured repository
 System: Firmware with nothing else to build.
 **Consequences:** until the operator decides, the artifact's `.pkg` replaces
 building on the box (`pkg add`). The package is marked ABI-independent
-(`PLUGIN_NO_ABI`) because Lens ships no binaries.
+(`PLUGIN_NO_ABI`) because Lens ships no binaries. The first run showed every
+build from this repository is named `os-lens-devel` (`Mk/devel.mk`); a tag
+builds `os-lens`, and moving the box from one to the other is a one-time
+delete and install, since both own the same files.
