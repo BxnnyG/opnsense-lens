@@ -62,6 +62,17 @@ DEVICES = [
     ('00:11:32:aa:bb:cc', 'vtnet1_vlan30', '10.10.30.10', 'nas', 'dnsmasq', 'always', 3200, 0.55),
 ]
 
+# One phone that rotated its private MAC twice (§4.61): three MACs, one name,
+# never two at once. The operator saw exactly this "three or four times".
+ROTATING = {
+    'e6:11:22:33:44:01': (0, 11),
+    'e6:11:22:33:44:02': (11, 21),
+    'e6:11:22:33:44:03': (21, 99),
+}
+for index, mac in enumerate(ROTATING):
+    DEVICES.append((mac, 'vtnet1_vlan20', '10.10.20.%d' % (60 + index), 'Pixel-8', 'dnsmasq',
+                    'evening', 1100, 0.12))
+
 # a hypervisor's guests: one vendor, one segment, a herd (§4.33)
 for n in range(1, 9):
     DEVICES.append(('bc:24:11:1b:58:%02x' % n, 'vtnet1_vlan30', '10.10.30.%d' % (100 + n),
@@ -123,6 +134,8 @@ def seed(path, days, now):
     buckets = []
     for mac, interface, address, hostname, source, profile, daily_mb, up_share in DEVICES:
         first = start + (rng.randrange(0, 6 * HOUR) if profile != 'guest' else 5 * DAY)
+        if mac in ROTATING:
+            first = start + ROTATING[mac][0] * DAY
         store.see_device(mac, first, randomised=parse.is_randomised(mac),
                          is_local=profile == 'firewall', hostname=hostname, source=source)
 
@@ -133,6 +146,9 @@ def seed(path, days, now):
             hour = (hour_at % DAY) // HOUR
             weekday = (day + 3) % 7                             # 1970-01-01 was a Thursday
             here = hour_at >= first and present(day - start // DAY, hour, profile, weekday, rng)
+            if mac in ROTATING:
+                active_from, active_to = ROTATING[mac]
+                here = here and active_from <= day - start // DAY < active_to
 
             if here:
                 seen_from = hour_at + (rng.randrange(0, 1800) if window is None else 0)

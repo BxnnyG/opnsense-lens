@@ -78,7 +78,15 @@ class DevicesController extends ApiControllerBase
             ? (int)$status['runs']['observe']['at']
             : null;
 
-        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time(), SegmentsController::names());
+        $report = DeviceReport::describe(
+            $devices,
+            $macdb,
+            $traffic,
+            $observedAt,
+            time(),
+            SegmentsController::names(),
+            (bool)($status['fold_randomised'] ?? true)
+        );
         $report['baseline'] = BaselineReport::describe(
             self::decode($backend, 'lens baseline', $calls),
             self::names($report['devices'])
@@ -128,17 +136,25 @@ class DevicesController extends ApiControllerBase
         $status = self::decode($backend, 'lens status', $calls);
         $macdb = self::decode($backend, 'interface list macdb', $calls);
         $traffic = self::decode($backend, 'lens traffic ' . Window::DEFAULT_HOURS, $calls);
-        $raw = self::decode($backend, 'lens profile ' . $mac, $calls);
-
         $observedAt = isset($status['runs']['observe']['at'])
             ? (int)$status['runs']['observe']['at']
             : null;
 
         $names = SegmentsController::names();
-        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time(), $names);
+        $report = DeviceReport::describe(
+            $devices,
+            $macdb,
+            $traffic,
+            $observedAt,
+            time(),
+            $names,
+            (bool)($status['fold_randomised'] ?? true)
+        );
 
+        /* any MAC of a folded row opens the whole device (§4.61) */
         foreach ($report['devices'] as $row) {
-            if ($row['mac'] === $mac) {
+            if (in_array($mac, $row['macs'], true)) {
+                $raw = self::decode($backend, 'lens profile ' . implode(',', $row['macs']), $calls);
                 $profile = DeviceProfile::describe($row, $raw, $observedAt, time(), $names);
                 $profile['kinds'] = $report['kinds'];
                 $profile['status'] = 'ok';
@@ -172,7 +188,15 @@ class DevicesController extends ApiControllerBase
             ? (int)$status['runs']['observe']['at']
             : null;
 
-        $rows = DeviceReport::describe($devices, $macdb, [], $observedAt, time())['devices'];
+        $rows = DeviceReport::describe(
+            $devices,
+            $macdb,
+            [],
+            $observedAt,
+            time(),
+            [],
+            (bool)($status['fold_randomised'] ?? true)
+        )['devices'];
 
         $report = PresenceReport::describe($rows, $raw, time());
         $report['window'] = Window::describe($hours, $raw['start'] ?? null, time());
@@ -201,8 +225,8 @@ class DevicesController extends ApiControllerBase
      */
     public function historyAction()
     {
-        $mac = (string)$this->request->get('mac', null, '');
-        if (!preg_match('/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/', $mac)) {
+        $mac = DeviceReport::macList((string)$this->request->get('mac', null, ''));
+        if ($mac === null) {
             return ['status' => 'failed', 'message' => gettext('not a MAC address')];
         }
 
@@ -224,8 +248,8 @@ class DevicesController extends ApiControllerBase
      */
     public function momentAction()
     {
-        $mac = (string)$this->request->get('mac', null, '');
-        if (!preg_match('/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/', $mac)) {
+        $mac = DeviceReport::macList((string)$this->request->get('mac', null, ''));
+        if ($mac === null) {
             return ['status' => 'failed', 'message' => gettext('not a MAC address')];
         }
 

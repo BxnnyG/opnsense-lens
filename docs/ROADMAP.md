@@ -47,6 +47,8 @@ this one inherits, and 23 stages of experience with it.
 | 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
 | 30 | **Settings** — retention, ceiling, *gone after*, probes and their targets, gateway history, the three baseline guards, and purge with a button ([plan](plans/stage-30-settings.md), §4.58) | S14, S16, S8 | 🔨 built 2026-09-27 as `0.17_1` · **awaiting router test** |
 | 31 | **Design** — one stylesheet, both themes, phone layouts, colour by job, time axes, network names everywhere ([plan](plans/stage-31-design.md), §4.59) | S5, S6, S10, S3 | 🔨 built 2026-09-27 as `0.18_1` · looked at in `tools/preview` · **awaiting router test** |
+| 32 | **The router round as a script** — SSH, API and screenshots per box, one report ([plan](plans/stage-32-round-script.md), §4.60) | S15 | ✅ 2026-09-27 · tools only, tested against the preview |
+| 33 | **One phone, not four** — rotating private MACs folded by name and time; the menu stays open on a device page ([plan](plans/stage-33-one-phone.md), §4.61) | S1 | 🔨 built 2026-09-27 as `0.19_1` · **awaiting router round** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

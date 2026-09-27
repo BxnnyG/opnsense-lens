@@ -226,14 +226,14 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.18_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.19_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
 | System | Status | Rest / note |
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
-| S1 · Identity service | ✅ (stages 5, 6) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
+| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested. Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 6, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe, not router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
@@ -1729,3 +1729,20 @@ click-test PROCESS asks for, minus the clicking.
 the environment. Nothing on the box is changed, so the one measurement that
 would need a change — observe with the probes switched off — is reported as the
 cost it has rather than as a comparison.
+
+### §4.61 — A phone that rotates its MAC is one device, when the evidence says so (2026-09-27, operator)
+**Question:** the operator sees phones with randomised MACs "three or four times"
+and asks whether hostname and time could join them. §4.17 keyed identity on the
+MAC and said randomisation would be measured (§4.36); it is, and it happens.
+**Decision:** randomised MACs are folded into one device when all of these hold:
+they announce the same hostname (not a generic one — `iPhone`, `iPad`,
+`android`, `localhost`, `wlan0`, `*`, `unknown`), they share a segment, the
+operator has not given them different names, and **no two of them ever held an
+address at the same time**. The newest MAC leads; traffic, addresses and presence
+are the sum; first seen is the earliest, so a rotation is not a new device.
+**Display, not data:** the store keeps a row per MAC and the fold is derived on
+every read, behind a setting that is on by default. Switching it off shows the
+MACs as the collector saw them.
+**Known limit, stated on the row:** two phones of one model that were never home
+at the same time are indistinguishable by this evidence and would fold together.
+Being home together once splits them for good.

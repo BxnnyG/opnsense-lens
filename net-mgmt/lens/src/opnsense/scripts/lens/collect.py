@@ -329,18 +329,31 @@ def gateways(store, now, hours):
             'sampling': store.settings()['gateway_samples']}
 
 
+def mac_list(raw):
+    """
+    One MAC, or several separated by commas: a device folded from rotating
+    private addresses is every one of them (§4.61).
+
+    :return: list of normalised MACs, never empty (an unknown MAC finds nothing)
+    """
+    macs = [parse.normalise_mac(part) for part in (raw or '').split(',') if part.strip()]
+    return macs or ['']
+
+
 def profile(store, now, mac):
     """Everything the device page needs that the list does not already have."""
-    mac = parse.normalise_mac(mac or '')
+    macs = mac_list(mac)
+    mac = macs[0]
     since = now - HEATMAP_DAYS * 86400
 
     return {
         'mac': mac,
-        'heatmap': [[r['dow'], r['hour'], r['octets']] for r in store.device_heatmap(mac, since)],
+        'macs': macs,
+        'heatmap': [[r['dow'], r['hour'], r['octets']] for r in store.device_heatmap(macs, since)],
         'windows': [
             {'address': r['address'], 'interface': r['interface'],
              'first_seen': r['first_seen'], 'last_seen': r['last_seen']}
-            for r in store.device_windows(mac)
+            for r in store.device_windows(macs)
         ],
         'heatmap_days': HEATMAP_DAYS,
     }
@@ -475,10 +488,11 @@ def configure(encoded):
 
 def moment(store, mac, at, step):
     """One slice of one device's chart, broken into the addresses behind it."""
-    mac = parse.normalise_mac(mac or '')
+    macs = mac_list(mac)
+    mac = macs[0]
     rows = {}
 
-    for row in store.device_moment(mac, at, max(3600, step)):
+    for row in store.device_moment(macs, at, max(3600, step)):
         key = (row['address'], row['interface'])
         entry = rows.setdefault(key, {
             'address': row['address'], 'interface': row['interface'],
@@ -543,7 +557,8 @@ def device(store, now, mac, hours):
     series says which by starting where the store's history starts, not where
     the requested window starts.
     """
-    mac = parse.normalise_mac(mac or '')
+    macs = mac_list(mac)
+    mac = macs[0]
 
     # Beyond three days an hourly chart is more bars than a screen has pixels,
     # so it is drawn per day instead. The step is reported, because a chart
@@ -554,7 +569,7 @@ def device(store, now, mac, hours):
     since -= since % step
 
     totals = {}
-    for row in store.device_traffic(mac, since):
+    for row in store.device_traffic(macs, since):
         at = row['bucket'] - (row['bucket'] % step)
         bucket = totals.setdefault(at, {'sent': 0, 'received': 0})
         # 'in' entered the interface, so the device sent it (DESIGN 1.4)
@@ -582,7 +597,7 @@ def device(store, now, mac, hours):
         'series': series,
         'sent': sum(point['sent'] for point in series),
         'received': sum(point['received'] for point in series),
-        'interfaces': store.device_interfaces_of(mac),
+        'interfaces': store.device_interfaces_of(macs),
         'history_starts': first,
         'step': step,
     }

@@ -442,6 +442,18 @@ class Store:
         """
         return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since))
 
+    @staticmethod
+    def _macs(mac):
+        """
+        One MAC or several: a folded device is asked about all of its rotating
+        private addresses at once (§4.61). Each bucket still resolved to exactly
+        one of them in the attribution join, so the union only adds.
+
+        :return: (placeholders, values) for `mac IN (...)`
+        """
+        macs = [mac] if isinstance(mac, str) else list(mac)
+        return ','.join('?' * len(macs)), tuple(macs)
+
     def device_traffic(self, mac, since, bucket_seconds=3600):
         """
         One device's hourly totals, by direction.
@@ -451,14 +463,15 @@ class Store:
         point: a detail view whose total disagrees with the row that opened it
         is worse than no detail view, and two copies of a join drift.
         """
+        marks, macs = self._macs(mac)
         return self.db.execute(
             """SELECT bucket, direction,
                       sum(octets) AS octets, sum(packets) AS packets
                FROM (%s)
-               WHERE macs = 1 AND mac = ?
+               WHERE macs = 1 AND mac IN (%s)
                GROUP BY bucket, direction
-               ORDER BY bucket""" % ATTRIBUTION_SQL,
-            (bucket_seconds, since, mac),
+               ORDER BY bucket""" % (ATTRIBUTION_SQL, marks),
+            (bucket_seconds, since) + macs,
         )
 
     def device_moment(self, mac, at, step, bucket_seconds=3600):
@@ -470,14 +483,15 @@ class Store:
         after seeing the bar. Same attribution query as everything else, so the
         parts add up to the bar exactly (§4.32).
         """
+        marks, macs = self._macs(mac)
         return self.db.execute(
             """SELECT address, interface, direction,
                       sum(octets) AS octets, sum(packets) AS packets
                FROM (%s)
-               WHERE macs = 1 AND mac = ? AND bucket >= ? AND bucket < ?
+               WHERE macs = 1 AND mac IN (%s) AND bucket >= ? AND bucket < ?
                GROUP BY address, interface, direction
-               ORDER BY octets DESC""" % ATTRIBUTION_SQL,
-            (bucket_seconds, at, mac, at, at + step),
+               ORDER BY octets DESC""" % (ATTRIBUTION_SQL, marks),
+            (bucket_seconds, at) + macs + (at, at + step),
         )
 
     def daily_totals(self, since, bucket_seconds=3600):
@@ -532,14 +546,15 @@ class Store:
         Local time on purpose: a heatmap in UTC puts the evening at the wrong
         end of the row for everyone not in London.
         """
+        marks, macs = self._macs(mac)
         return self.db.execute(
             """SELECT CAST(strftime('%%w', bucket, 'unixepoch', 'localtime') AS INTEGER) AS dow,
                       CAST(strftime('%%H', bucket, 'unixepoch', 'localtime') AS INTEGER) AS hour,
                       sum(octets) AS octets
                FROM (%s)
-               WHERE macs = 1 AND mac = ?
-               GROUP BY dow, hour""" % ATTRIBUTION_SQL,
-            (bucket_seconds, since, mac),
+               WHERE macs = 1 AND mac IN (%s)
+               GROUP BY dow, hour""" % (ATTRIBUTION_SQL, marks),
+            (bucket_seconds, since) + macs,
         )
 
     def network_heatmap(self, since):
@@ -557,10 +572,11 @@ class Store:
 
     def device_windows(self, mac):
         """Every address window one device has ever had, oldest first."""
+        marks, macs = self._macs(mac)
         return self.db.execute(
             """SELECT address, interface, first_seen, last_seen
-               FROM address_observation WHERE mac = ? ORDER BY first_seen""",
-            (mac,),
+               FROM address_observation WHERE mac IN (%s) ORDER BY first_seen""" % marks,
+            macs,
         )
 
     def interface_timeline(self, since, step):
@@ -639,12 +655,13 @@ class Store:
 
     def device_interfaces_of(self, mac):
         """:return: interfaces this device has held an address on, most recent first"""
+        marks, macs = self._macs(mac)
         return [
             row['interface']
             for row in self.db.execute(
                 """SELECT interface, max(last_seen) AS seen FROM address_observation
-                   WHERE mac = ? GROUP BY interface ORDER BY seen DESC""",
-                (mac,),
+                   WHERE mac IN (%s) GROUP BY interface ORDER BY seen DESC""" % marks,
+                macs,
             )
         ]
 
@@ -740,6 +757,7 @@ class Store:
             'ceiling_mb': self.setting_int('disk_ceiling_mb'),
             'retention_days': self.setting_int('retention_days'),
             'baseline_days': self.settings()['baseline_days'],
+            'fold_randomised': self.settings()['fold_randomised'],
             'runs': runs,
         }
 

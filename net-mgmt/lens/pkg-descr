@@ -25,6 +25,16 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.19_1
+
+* a phone that rotates its private MAC address is one device, not one row per
+  address: same announced name, same network, never two at once. The row says
+  so, sums the traffic, and a rotation no longer counts as a new device
+* the device page covers every address such a phone has used, whichever one
+  the link was for
+* Settings can switch this off, to see the addresses as the collector saw them
+* the menu stays open on a device's own page
+
 0.18_1
 
 * one stylesheet for every page, in both of OPNsense's themes: the dark theme

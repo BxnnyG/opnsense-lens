@@ -238,6 +238,13 @@
                     openEditor(device);
                 }));
             $name.append($('<span/>').addClass('lens-mac').text(device.mac));
+            if (device.folded) {
+                /* one phone, several private MACs, folded by evidence (§4.61) */
+                const $fold = $('<span/>').addClass('lens-tag lens-fold')
+                    .text(device.macs.length + ' {{ lang._("private addresses") }}');
+                Lens.tip($fold[0], [{ label: device.folded }]);
+                $name.append($fold);
+            }
             if (device.role) {
                 $name.append($('<span/>').addClass('lens-role').text(device.role));
             }

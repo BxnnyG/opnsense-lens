@@ -362,6 +362,7 @@ tr:hover .lens-edit { opacity: 1; }
     border: 1px solid var(--lens-border); border-radius: 8px; font-size: 85%;
 }
 .lens-tag + .lens-tag { margin-left: 0; }
+.lens-fold { border-color: var(--lens-warn); cursor: help; }
 .lens-note { display: block; margin-left: 22px; font-size: 90%; color: var(--lens-muted); }
 .lens-chart { width: 100%; height: 140px; display: block; }
 tr.lens-group > td { background: var(--lens-hover); }

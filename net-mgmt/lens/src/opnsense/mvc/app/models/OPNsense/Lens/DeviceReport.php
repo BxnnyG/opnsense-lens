@@ -61,6 +61,7 @@ class DeviceReport
      * @param int $now
      * @param array $names interface device to the operator's name for it, as
      *                     Networks already shows them (`vtnet1_vlan20` => `HOME`)
+     * @param bool $fold whether a phone's rotating private MACs are one row (§4.61)
      * @return array
      */
     public static function describe(
@@ -69,7 +70,8 @@ class DeviceReport
         array $traffic,
         ?int $observedAt,
         int $now,
-        array $names = []
+        array $names = [],
+        bool $fold = true
     ): array {
         $totals = is_array($traffic['devices'] ?? null) ? $traffic['devices'] : [];
 
@@ -83,6 +85,10 @@ class DeviceReport
             $row = array_merge($row, self::traffic($totals[$row['mac']] ?? []));
             $measured += $row['octets'];
             $rows[] = $row;
+        }
+
+        if ($fold) {
+            $rows = self::fold($rows, IdentityFold::groups($devices), $now);
         }
 
         usort($rows, function ($left, $right) use ($measured) {
@@ -109,6 +115,30 @@ class DeviceReport
             'summary' => self::summary($rows, $measured, $now),
             'segment_names' => self::segmentNames($rows, $names),
         ];
+    }
+
+    /** a device folded from rotating MACs is asked about all of them at once */
+    public const MACS_PER_DEVICE = 16;
+
+    /**
+     * A comma-separated list of MAC addresses from a request, normalised, or
+     * null when any part of it is not one. The device page asks about every MAC
+     * a folded row stands for (§4.61), and the list travels to configd as one
+     * parameter, so it is checked here rather than trusted.
+     */
+    public static function macList(string $raw): ?string
+    {
+        $macs = array_values(array_filter(array_map('trim', explode(',', strtolower($raw)))));
+        if ($macs === [] || count($macs) > self::MACS_PER_DEVICE) {
+            return null;
+        }
+        foreach ($macs as $mac) {
+            if (!preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/', $mac)) {
+                return null;
+            }
+        }
+
+        return implode(',', array_unique($macs));
     }
 
     /**
@@ -302,7 +332,113 @@ class DeviceReport
                 : Duration::ago($now - (int)($device['last_seen'] ?? $now)),
             'known_for' => Duration::span($now - (int)($device['first_seen'] ?? $now)),
             'caveat' => self::caveat($device),
+            /* every MAC this row stands for; more than one once folded (§4.61) */
+            'macs' => [$mac],
+            'folded' => null,
         ];
+    }
+
+    /**
+     * One row per device, not per private MAC (§4.61). The newest MAC leads;
+     * traffic, addresses and presence are the sum of all of them, and the first
+     * sighting is the earliest -- so a phone that rotated today is not a new
+     * device today. The name the operator gave any of them wins.
+     */
+    private static function fold(array $rows, array $groups, int $now): array
+    {
+        if ($groups === []) {
+            return $rows;
+        }
+
+        $byMac = [];
+        foreach ($rows as $index => $row) {
+            $byMac[$row['mac']] = $index;
+        }
+
+        $drop = [];
+        foreach ($groups as $group) {
+            $members = [];
+            foreach ($group['macs'] as $mac) {
+                if (isset($byMac[$mac])) {
+                    $members[] = $rows[$byMac[$mac]];
+                }
+            }
+            if (count($members) < 2) {
+                continue;
+            }
+
+            $primary = $byMac[$members[0]['mac']];
+            $rows[$primary] = self::merge($members, $group, $now);
+            foreach (array_slice($members, 1) as $member) {
+                $drop[$byMac[$member['mac']]] = true;
+            }
+        }
+
+        return array_values(array_filter($rows, function ($index) use ($drop) {
+            return !isset($drop[$index]);
+        }, ARRAY_FILTER_USE_KEY));
+    }
+
+    private static function merge(array $members, array $group, int $now): array
+    {
+        $row = $members[0];
+
+        /* the operator's name, wherever they wrote it */
+        foreach ($members as $member) {
+            if ($member['label']['name'] !== '') {
+                foreach (['name', 'named_by', 'named_short', 'label', 'tags', 'kind', 'group'] as $key) {
+                    $row[$key] = $member[$key];
+                }
+                break;
+            }
+        }
+
+        $sent = $received = 0;
+        $addresses = $interfaces = $haystack = [];
+        $firstSeen = PHP_INT_MAX;
+        $lastSeen = 0;
+        $here = false;
+        foreach ($members as $member) {
+            $sent += $member['sent'];
+            $received += $member['received'];
+            $addresses = array_merge($addresses, $member['addresses']);
+            $interfaces = array_merge($interfaces, $member['interfaces']);
+            $haystack[] = $member['haystack'];
+            $firstSeen = min($firstSeen, $member['first_seen'] ?: PHP_INT_MAX);
+            $lastSeen = max($lastSeen, $member['last_seen']);
+            $here = $here || $member['here'];
+        }
+        usort($addresses, function ($left, $right) {
+            if ($left['current'] !== $right['current']) {
+                return $left['current'] ? -1 : 1;
+            }
+            return $right['last_seen'] <=> $left['last_seen'];
+        });
+
+        $row = array_merge($row, self::traffic(['in' => ['octets' => $sent], 'out' => ['octets' => $received]]));
+        $row['addresses'] = $addresses;
+        $row['interfaces'] = array_values(array_unique($interfaces));
+        $row['haystack'] = implode(' ', array_unique($haystack));
+        $row['first_seen'] = $firstSeen === PHP_INT_MAX ? 0 : $firstSeen;
+        $row['last_seen'] = $lastSeen;
+        $row['here'] = $here;
+        $row['presence'] = $here ? gettext('here now') : Duration::ago($now - $lastSeen);
+        $row['known_for'] = Duration::span($now - $row['first_seen']);
+        $row['macs'] = array_map(function ($member) {
+            return $member['mac'];
+        }, $members);
+        $row['folded'] = sprintf(
+            gettext(
+                'One device, %d private MAC addresses since %s: each announced "%s" and none was here '
+                . 'at the same time as another. Two phones of the same model that were never home '
+                . 'together would look the same. Settings can switch this off.'
+            ),
+            count($members),
+            date('j M', $row['first_seen'] ?: $now),
+            $group['hostname']
+        );
+
+        return $row;
     }
 
     /**

@@ -41,6 +41,8 @@ SPEC = {
     'probe_targets': ('targets', ','.join('%s=%s' % t for t in DEFAULT_TARGETS), 1, 3),
     # dpinger's readings stored for the history chart; the live card reads core
     'gateway_samples': ('flag', '1', None, None),
+    # a phone's rotating private MACs shown as one device (§4.61)
+    'fold_randomised': ('flag', '1', None, None),
     # the three guards on "unusual" (§4.50)
     'baseline_days': ('int', str(baseline.NEEDS_DAYS), 7, 90),
     'baseline_factor': ('float', repr(baseline.FACTOR), 1.5, 20.0),

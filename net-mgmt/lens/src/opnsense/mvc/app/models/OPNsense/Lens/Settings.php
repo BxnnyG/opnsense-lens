@@ -49,6 +49,7 @@ class Settings
         'probe_enabled',
         'probe_targets',
         'gateway_samples',
+        'fold_randomised',
         'baseline_days',
         'baseline_factor',
         'baseline_floor_mb',
@@ -145,6 +146,25 @@ class Settings
                             gettext(
                                 'Up to three public IPv4 addresses. With one target, its own bad minute looks '
                                 . 'like an outage; three on different operators\' networks do not.'
+                            )
+                        ),
+                    ],
+                ],
+                [
+                    'id' => 'identity',
+                    'title' => gettext('Telling devices apart'),
+                    'intro' => '',
+                    'fields' => [
+                        self::field(
+                            $raw,
+                            'fold_randomised',
+                            'flag',
+                            gettext('One phone, not one row per private address'),
+                            '',
+                            gettext(
+                                'Phones rotate their private MAC address. On: addresses that announce the same '
+                                . 'name, share a network and were never here at the same time are shown as one '
+                                . 'device, and say so. Off: every address is its own row, as the collector saw it.'
                             )
                         ),
                     ],

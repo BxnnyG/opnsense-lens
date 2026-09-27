@@ -35,6 +35,8 @@
         let hours = 24;
         let kinds = {};
         let device = null;
+        /* every MAC this device is, once a phone's rotating addresses are one row (§4.61) */
+        const macs = () => (device && device.macs ? device.macs : [mac]).join(',');
         /* interface to the name Networks uses, from this device's own history */
         let segmentOf = {};
 
@@ -69,7 +71,7 @@
                 $(this).toggleClass('lens-chip-on', parseInt($(this).data('hours'), 10) === hours);
             });
 
-            ajaxGet('/api/lens/devices/history', { mac: mac, hours: hours }, (detail, status) => {
+            ajaxGet('/api/lens/devices/history', { mac: macs(), hours: hours }, (detail, status) => {
                 const node = document.getElementById('dvChart');
                 while (node.firstChild) {
                     node.removeChild(node.firstChild);
@@ -133,7 +135,7 @@
             $('#dvMomentWhen').text(Lens.when(point.bucket, detail.step, true));
             const $rows = $('#dvMomentRows').empty();
             $('#dvMoment').show();
-            ajaxGet('/api/lens/devices/moment', { mac: mac, at: point.bucket, step: detail.step },
+            ajaxGet('/api/lens/devices/moment', { mac: macs(), at: point.bucket, step: detail.step },
                     (data, status) => {
                 if (status !== 'success' || !data || !data.addresses) {
                     return;
@@ -215,7 +217,12 @@
             if (device.role) {
                 $pills.append($('<span/>').addClass('dv-pill').text(device.role));
             }
-            if (device.randomised) {
+            if (device.folded) {
+                const $fold = $('<span/>').addClass('dv-pill warn')
+                    .text(device.macs.length + ' {{ lang._("private addresses, one device") }}');
+                Lens.tip($fold[0], [{ label: device.folded }]);
+                $pills.append($fold);
+            } else if (device.randomised) {
                 $pills.append($('<span/>').addClass('dv-pill warn').attr('title', device.caveat)
                     .text('{{ lang._("randomised MAC") }}'));
             }

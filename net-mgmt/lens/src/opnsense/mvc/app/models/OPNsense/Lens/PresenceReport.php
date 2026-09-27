@@ -68,8 +68,17 @@ class PresenceReport
         $absent = 0;
 
         foreach ($rows as $row) {
-            $spans = (array)($found[$row['mac']]['spans'] ?? []);
-            $seconds = (int)($found[$row['mac']]['seconds'] ?? 0);
+            /* a folded row is every MAC it stands for (§4.61); their windows
+               never overlap, so the seconds simply add */
+            $spans = [];
+            $seconds = 0;
+            foreach ((array)($row['macs'] ?? [$row['mac']]) as $mac) {
+                $spans = array_merge($spans, (array)($found[$mac]['spans'] ?? []));
+                $seconds += (int)($found[$mac]['seconds'] ?? 0);
+            }
+            usort($spans, function ($left, $right) {
+                return ((int)$left[0]) <=> ((int)$right[0]);
+            });
 
             if ($spans === []) {
                 $absent++;

@@ -67,7 +67,15 @@ class MetricsController extends ApiControllerBase
 
         $observedAt = isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null;
 
-        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+        $report = DeviceReport::describe(
+            $devices,
+            $macdb,
+            $traffic,
+            $observedAt,
+            time(),
+            SegmentsController::names(),
+            (bool)($status['fold_randomised'] ?? true)
+        );
 
         $names = [];
         foreach ($report['devices'] as $row) {

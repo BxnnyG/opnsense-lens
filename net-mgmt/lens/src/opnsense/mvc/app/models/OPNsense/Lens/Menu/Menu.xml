@@ -8,7 +8,12 @@
     <Reporting>
         <Lens order="40" cssClass="fa fa-eye fa-fw">
             <Dashboard order="5" VisibleName="Dashboard" url="/ui/lens/dashboard"/>
-            <Devices order="10" VisibleName="Devices" url="/ui/lens/overview"/>
+            <Devices order="10" VisibleName="Devices" url="/ui/lens/overview">
+                <!-- a device's own page belongs under Devices; without this core
+                     selects nothing there and the sidebar collapses (stage 33),
+                     the way core keeps system_authservers.php* under Servers -->
+                <Device VisibleName="Device" url="/ui/lens/device*" visibility="hidden"/>
+            </Devices>
             <Presence order="15" VisibleName="Who's home" url="/ui/lens/presence"/>
             <Segments order="20" VisibleName="Networks" url="/ui/lens/segments"/>
             <Wallboard order="30" VisibleName="Wallboard" url="/ui/lens/wall"/>
