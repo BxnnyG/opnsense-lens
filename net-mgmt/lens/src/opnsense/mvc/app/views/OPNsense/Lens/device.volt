@@ -209,7 +209,9 @@
             $('#dvMeta').empty()
                 .append(document.createTextNode((device.vendor || '{{ lang._("unknown vendor") }}') + ' · '))
                 .append($('<code/>').text(device.mac))
-                .append(document.createTextNode(' · ' + device.kind.type));
+                .append(document.createTextNode(' · ' + device.kind.type))
+                /* how sure, in words (§4.66) */
+                .append($('<span/>').addClass('dv-sub').text(' (' + device.kind.basis + ')'));
 
             const $pills = $('#dvPills').empty();
             $pills.append($('<span/>').addClass('dv-pill ' + (device.here ? 'home' : 'away'))

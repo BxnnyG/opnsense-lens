@@ -30,8 +30,8 @@ NOW = 1790000000 - 1790000000 % DAY + 12 * 3600
 
 class UnusualDaysTest(unittest.TestCase):
     def history(self, today, spike_day, spike, days=30):
-        rows = [('aa', day, 100 * MB) for day in range(today - days, today + 1)]
-        return [(mac, day, spike if day == spike_day else octets) for mac, day, octets in rows]
+        rows = [('aa', day, 100 * MB, 10 * MB) for day in range(today - days, today + 1)]
+        return [(mac, day, spike if day == spike_day else octets, sent) for mac, day, octets, sent in rows]
 
     def test_a_past_day_is_judged_on_the_days_before_it(self):
         today = 20000

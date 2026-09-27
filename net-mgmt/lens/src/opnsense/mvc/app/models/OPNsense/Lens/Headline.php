@@ -123,7 +123,9 @@ class Headline
             $first = $unusual[0];
             $sentence = count($unusual) === 1
                 ? sprintf(
-                    gettext('One thing is unusual today: %s moved %s, %s times its usual day.'),
+                    ($first['direction'] ?? 'total') === 'sent'
+                        ? gettext('One thing is unusual today: %s sent %s, %s times its usual upload.')
+                        : gettext('One thing is unusual today: %s moved %s, %s times its usual day.'),
                     $first['name'],
                     $first['today'],
                     self::times($first['times'] ?? 0)

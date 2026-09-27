@@ -75,6 +75,50 @@ def assess(rows, today, needs_days=NEEDS_DAYS, factor=FACTOR, floor=FLOOR):
     }
 
 
+def assess_both(rows, today, needs_days=NEEDS_DAYS, factor=FACTOR, floor=FLOOR):
+    """
+    The day's total and what the device sent, each through the same three
+    guards (§4.66). Upload is the direction worth a look -- a camera streaming
+    out, a NAS copying off-site -- so a device unusual on upload is told as that,
+    and one unusual only in total is told with its uploads ordinary.
+
+    :param rows: (mac, day, octets, sent)
+    :return: assess()'s shape; each unusual entry also carries 'direction'
+             ('sent' or 'total') and, for 'sent', the upload figures
+    """
+    rows = list(rows)
+    total = assess([(mac, day, octets) for mac, day, octets, _ in rows], today, needs_days, factor, floor)
+    upload = assess([(mac, day, sent) for mac, day, _, sent in rows], today, needs_days, factor, floor)
+    sent = {entry['mac']: entry for entry in upload['unusual']}
+
+    unusual = []
+    for entry in total['unusual']:
+        entry = dict(entry, direction='total')
+        if entry['mac'] in sent:
+            entry.update(direction='sent', sent=sent[entry['mac']]['today'],
+                         sent_usual=sent[entry['mac']]['usual'], sent_times=sent[entry['mac']]['times'])
+        unusual.append(entry)
+
+    listed = {entry['mac'] for entry in unusual}
+    days = fold([(mac, day, octets) for mac, day, octets, _ in rows])
+    for mac, entry in sent.items():
+        if mac in listed:
+            continue
+        past = sorted(octets for day, octets in days.get(mac, {}).items() if day < today)
+        usual = _median(past) if past else 0
+        now = days.get(mac, {}).get(today, 0)
+        unusual.append({
+            'mac': mac, 'today': now, 'usual': usual,
+            'times': round(now / usual, 1) if usual else None,
+            'direction': 'sent', 'sent': entry['today'], 'sent_usual': entry['usual'],
+            'sent_times': entry['times'],
+        })
+
+    unusual.sort(key=lambda entry: max(entry['today'], entry.get('sent', 0)), reverse=True)
+    total['unusual'] = unusual
+    return total
+
+
 def _median(values):
     """:param values: sorted, non-empty"""
     middle = len(values) // 2

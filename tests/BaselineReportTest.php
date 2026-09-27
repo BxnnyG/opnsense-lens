@@ -102,6 +102,19 @@ class BaselineReportTest extends TestCase
         $this->assertStringStartsWith('Nothing unusual today', $report['headline']);
     }
 
+    public function testAnUploadVerdictIsToldInItsOwnFigures()
+    {
+        $report = BaselineReport::describe(['days' => 25, 'needs_days' => 21, 'unusual' => [[
+            'mac' => 'aa', 'name' => 'Camera', 'today' => 5000 * self::MB, 'usual' => 4000 * self::MB,
+            'times' => 1.3, 'direction' => 'sent', 'sent' => 4000 * self::MB,
+            'sent_usual' => 500 * self::MB, 'sent_times' => 8.0,
+        ]]]);
+
+        $this->assertSame('sent', $report['unusual'][0]['direction']);
+        $this->assertSame(8.0, $report['unusual'][0]['times']);
+        $this->assertStringStartsWith('Sent 3.9 GB today against a usual upload of 500 MB', $report['unusual'][0]['says']);
+    }
+
     public function testAWholeMultipleDoesNotReadAsFourPointZero()
     {
         $report = BaselineReport::describe([

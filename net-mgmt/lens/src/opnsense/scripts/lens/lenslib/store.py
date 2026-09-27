@@ -518,7 +518,7 @@ class Store:
             for row in self.db.execute("SELECT DISTINCT interface FROM address_observation")
         }
 
-    def traffic_rows(self, since, bucket_seconds=3600):
+    def traffic_rows(self, since, bucket_seconds=3600, until=None):
         """
         Every traffic bucket since `since`, with who held its address at the time.
 
@@ -531,7 +531,10 @@ class Store:
         Grouping is on traffic_hour's own primary key, so the join can never
         multiply the octets it is counting.
         """
-        return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since))
+        if until is None:
+            return self.db.execute(ATTRIBUTION_SQL, (bucket_seconds, since))
+        return self.db.execute(
+            "SELECT * FROM (%s) WHERE bucket < ?" % ATTRIBUTION_SQL, (bucket_seconds, since, until))
 
     @staticmethod
     def _macs(mac):
@@ -594,7 +597,8 @@ class Store:
         A median of three is not a baseline, it is a coincidence.
         """
         return self.db.execute(
-            """SELECT mac, bucket / 86400 AS day, sum(octets) AS octets
+            """SELECT mac, bucket / 86400 AS day, sum(octets) AS octets,
+                      sum(CASE WHEN direction = 'in' THEN octets ELSE 0 END) AS sent
                FROM (%s)
                WHERE macs = 1
                GROUP BY mac, day

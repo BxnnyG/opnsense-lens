@@ -463,12 +463,12 @@ def baseline(store, now):
     # a day more than the baseline needs, so the median always has a full set
     since = (today - conf['baseline_days'] - 1) * 86400
 
-    rows = [(row['mac'], row['day'], row['octets']) for row in store.daily_totals(since)]
+    rows = [(row['mac'], row['day'], row['octets'], row['sent']) for row in store.daily_totals(since)]
 
     # No names here. A device's name depends on the vendor table, which is read
     # at display time (§4.23); resolving it here gave a Proxmox guest one name in
     # the list and a bare MAC in the verdict. DeviceReport names it, once.
-    report = baselib.assess(
+    report = baselib.assess_both(
         rows, today,
         needs_days=conf['baseline_days'],
         factor=conf['baseline_factor'],
@@ -501,7 +501,7 @@ def events(store, now, days):
 
     # the baseline window before the first day, so that day is judged as it was
     first_day = since // 86400
-    totals = [(row['mac'], row['day'], row['octets'])
+    totals = [(row['mac'], row['day'], row['octets'], row['sent'])
               for row in store.daily_totals((first_day - conf['baseline_days'] - 1) * 86400)]
     floor = conf['baseline_floor_mb'] * settingslib.MB
     unusual = eventlib.unusual_days(totals, first_day, today, conf['baseline_days'],
@@ -804,10 +804,9 @@ def traffic(store, now, hours):
     """
     since = now - hours * 3600
     status = store.status()
+    interfaces = store.device_interfaces()
     rows = store.traffic_rows(since)
-    per_mac, unattributed, worst = attribute.classify(
-        rows, store.device_interfaces(), status['first_observation']
-    )
+    per_mac, unattributed, worst = attribute.classify(rows, interfaces, status['first_observation'])
 
     return {
         'since': since,
@@ -817,6 +816,29 @@ def traffic(store, now, hours):
         'unexplained': worst,
         'first_bucket': status['first_bucket'],
         'watching_since': status['first_observation'],
+        'previous': previous_week(store, since, hours, status, interfaces),
+    }
+
+
+def previous_week(store, since, hours, status, interfaces):
+    """
+    The same range one week earlier -- for a day, the same weekday, because a
+    household is weekly (§4.66) -- and only when Lens watched all of it: a
+    delta against half a week is a wrong number that looks like a right one.
+    """
+    offset = max(hours, 168) * 3600
+    start, end = since - offset, since - offset + hours * 3600
+    watched = status['first_observation'] is not None and status['first_bucket'] is not None \
+        and status['first_observation'] <= start and status['first_bucket'] <= start
+    if not watched:
+        return {'covered': False, 'since': start, 'until': end}
+
+    per_mac, _, _ = attribute.classify(store.traffic_rows(start, until=end), interfaces, status['first_observation'])
+    return {
+        'covered': True, 'since': start, 'until': end,
+        'devices': {mac: {'octets': sum(side['octets'] for side in sides.values()),
+                          'sent': sides['in']['octets']}
+                    for mac, sides in per_mac.items()},
     }
 
 

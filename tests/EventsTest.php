@@ -129,7 +129,20 @@ class EventsTest extends TestCase
 
         $this->assertSame('day', $report['events'][0]['grain']);
         $this->assertSame('NAS has moved 4.0 GB so far today', $report['events'][0]['title']);
-        $this->assertSame('4 times its usual day of 1.0 GB.', $report['events'][0]['detail']);
+        $this->assertSame('4 times its usual day of 1.0 GB; its uploads were ordinary.', $report['events'][0]['detail']);
+    }
+
+    public function testAnUploadIsToldAsOne()
+    {
+        /* the camera streaming out, not the laptop pulling updates (§4.66) */
+        $report = $this->describe(['unusual' => [
+            ['mac' => 'aa:00:00:00:00:01', 'day' => self::NOW - 86400, 'octets' => 5 * 1024 ** 3,
+             'usual' => 4 * 1024 ** 3, 'times' => 1.3, 'direction' => 'sent', 'sent' => 4 * 1024 ** 3,
+             'sent_usual' => 512 * 1024 ** 2, 'sent_times' => 8.0, 'partial' => false],
+        ]], [$this->row('aa:00:00:00:00:01', 'Garden camera')]);
+
+        $this->assertSame('Garden camera sent 4.0 GB', $report['events'][0]['title']);
+        $this->assertSame('8 times its usual upload of 512 MB.', $report['events'][0]['detail']);
     }
 
     public function testAMutedDeviceFoldsAwayAndIsCounted()

@@ -53,6 +53,7 @@ this one inherits, and 23 stages of experience with it.
 | 35 | **What happened while I was away** — Events: new devices, unusual days, outages, the line, address overlaps, rotations; a mute per device ([plan](plans/stage-35-events.md), §4.63) | S9, S1, S8, S16 | 🔨 built 2026-09-27 as `0.21_1` · looked at in `tools/preview` · **awaiting router round** |
 | 36 | **What the network looks up** — DNS page and a device's DNS card from Unbound's own store, per device at the time asked, under its own privilege ([plan](plans/stage-36-dns.md), §4.64) | S12, S5 | 🔨 built 2026-09-27 as `0.22_1` from core's source · looked at in `tools/preview` · **awaiting a real `qstats` capture** |
 | 37 | **Find anything, filter everything** — Ctrl-K palette over devices, networks and pages; one network/tag filter followed by Devices, Who's home, Events and DNS ([plan](plans/stage-37-palette-filter.md), §4.65) | S11, S6 | 🔨 built 2026-09-27 as `0.23_1` · looked at in `tools/preview` · **awaiting router round** |
+| 38 | **Upload on its own, last week beside this one, how sure a type is** ([plan](plans/stage-38-upload-week-confidence.md), §4.66) | S8, S6, S1 | 🔨 built 2026-09-27 as `0.24_1` · looked at in `tools/preview` · **awaiting router round** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

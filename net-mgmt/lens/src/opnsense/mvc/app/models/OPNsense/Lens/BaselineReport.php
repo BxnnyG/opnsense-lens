@@ -64,19 +64,30 @@ class BaselineReport
             $today = (int)($entry['today'] ?? 0);
             $usual = (int)($entry['usual'] ?? 0);
 
+            $sent = ($entry['direction'] ?? 'total') === 'sent';
             $rows[] = [
                 'mac' => (string)($entry['mac'] ?? ''),
                 'name' => (string)($names[$entry['mac'] ?? ''] ?? ($entry['name'] ?? ($entry['mac'] ?? ''))),
-                'today' => Bytes::human($today),
-                'usual' => Bytes::human($usual),
-                'times' => (float)($entry['times'] ?? 0),
+                /* upload is judged on its own (§4.66): for an upload verdict the
+                   figures are the upload's, and the verb says so */
+                'direction' => $sent ? 'sent' : 'total',
+                'today' => Bytes::human($sent ? (int)($entry['sent'] ?? 0) : $today),
+                'usual' => Bytes::human($sent ? (int)($entry['sent_usual'] ?? 0) : $usual),
+                'times' => (float)($sent ? ($entry['sent_times'] ?? 0) : ($entry['times'] ?? 0)),
                 'muted' => in_array((string)($entry['mac'] ?? ''), $muted, true),
-                'says' => sprintf(
-                    gettext('%s today against a usual day of %s - %s times as much.'),
-                    Bytes::human($today),
-                    Bytes::human($usual),
-                    rtrim(rtrim(number_format((float)($entry['times'] ?? 0), 1), '0'), '.')
-                ),
+                'says' => $sent
+                    ? sprintf(
+                        gettext('Sent %s today against a usual upload of %s - %s times as much.'),
+                        Bytes::human((int)($entry['sent'] ?? 0)),
+                        Bytes::human((int)($entry['sent_usual'] ?? 0)),
+                        self::times((float)($entry['sent_times'] ?? 0))
+                    )
+                    : sprintf(
+                        gettext('%s today against a usual day of %s - %s times as much; its uploads were ordinary.'),
+                        Bytes::human($today),
+                        Bytes::human($usual),
+                        self::times((float)($entry['times'] ?? 0))
+                    ),
             ];
         }
 
@@ -89,6 +100,11 @@ class BaselineReport
                 return !$row['muted'];
             })), $days, $needs),
         ];
+    }
+
+    private static function times(float $times): string
+    {
+        return rtrim(rtrim(number_format($times, 1), '0'), '.');
     }
 
     private static function headline(array $rows, int $days, int $needs): string

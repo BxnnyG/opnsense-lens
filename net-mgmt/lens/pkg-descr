@@ -25,6 +25,18 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.24_1
+
+* uploads are judged on their own: a camera or a NAS sending far more than it
+  usually sends is told as "sent X, N times its usual upload", and a day that
+  is unusual only in total says its uploads were ordinary. Events too
+* Devices and the dashboard put each figure beside the same range a week
+  earlier - the same weekday for a day - as a signed percentage in grey. It is
+  withheld until Lens has watched all of that earlier range
+* a device's type says how sure it is: you said so, likely from the name it
+  announces, a guess from the maker alone, or not recognised. The name is now
+  asked before the maker; TVs and cameras are recognised
+
 0.23_1
 
 * Ctrl-K, Cmd-K or / on any Lens page finds a device by name, MAC, any

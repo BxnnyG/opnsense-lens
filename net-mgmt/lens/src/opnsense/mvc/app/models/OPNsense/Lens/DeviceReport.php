@@ -74,22 +74,31 @@ class DeviceReport
         bool $fold = true
     ): array {
         $totals = is_array($traffic['devices'] ?? null) ? $traffic['devices'] : [];
+        $previous = (array)($traffic['previous'] ?? []);
+        $before = !empty($previous['covered']) ? (array)($previous['devices'] ?? []) : null;
 
         $rows = [];
         $measured = 0;
+        $measuredBefore = 0;
         foreach ($devices as $device) {
             if (!is_array($device) || empty($device['mac'])) {
                 continue;
             }
             $row = self::device($device, $macdb, $observedAt, $now, $names);
             $row = array_merge($row, self::traffic($totals[$row['mac']] ?? []));
+            $row['before'] = $before === null ? null : (int)($before[$row['mac']]['octets'] ?? 0);
             $measured += $row['octets'];
+            $measuredBefore += (int)$row['before'];
             $rows[] = $row;
         }
 
         if ($fold) {
             $rows = self::fold($rows, IdentityFold::groups($devices), $now);
         }
+        foreach ($rows as &$row) {
+            $row['compare'] = $row['before'] === null ? null : Comparison::delta($row['octets'], $row['before']);
+        }
+        unset($row);
 
         usort($rows, function ($left, $right) use ($measured) {
             /* the question this page exists to answer is "who used 4 GB", so
@@ -114,6 +123,7 @@ class DeviceReport
             'groups' => self::groups($rows),
             'summary' => self::summary($rows, $measured, $now),
             'segment_names' => self::segmentNames($rows, $names),
+            'compare' => Comparison::describe($previous, $measured, $measuredBefore, (int)($traffic['hours'] ?? 24)),
         ];
     }
 
@@ -424,6 +434,7 @@ class DeviceReport
         }
 
         $sent = $received = 0;
+        $before = null;
         $addresses = $interfaces = $haystack = [];
         $firstSeen = PHP_INT_MAX;
         $lastSeen = 0;
@@ -432,6 +443,7 @@ class DeviceReport
         foreach ($members as $member) {
             $sent += $member['sent'];
             $received += $member['received'];
+            $before = $member['before'] === null ? $before : (int)$before + $member['before'];
             $addresses = array_merge($addresses, $member['addresses']);
             $interfaces = array_merge($interfaces, $member['interfaces']);
             $haystack[] = $member['haystack'];
@@ -449,6 +461,7 @@ class DeviceReport
 
         $row = array_merge($row, self::traffic(['in' => ['octets' => $sent], 'out' => ['octets' => $received]]));
         $row['addresses'] = $addresses;
+        $row['before'] = $before;
         $row['interfaces'] = array_values(array_unique($interfaces));
         /* muted as a whole, so the next rotation stays quiet too */
         $row['muted'] = $muted;

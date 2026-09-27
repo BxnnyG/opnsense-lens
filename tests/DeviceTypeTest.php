@@ -86,6 +86,27 @@ class DeviceTypeTest extends TestCase
         $this->assertFalse($kind['guessed']);
     }
 
+    public function testHowSureIsSaidInWords()
+    {
+        /* §4.66: the name a device announces before the maker of its chip */
+        $this->assertSame('likely', DeviceType::of('Apple, Inc.', 'Annas-iPhone', false)['confidence']);
+        $this->assertSame('fa-mobile', DeviceType::of('Apple, Inc.', 'Annas-iPhone', false)['icon']);
+        $this->assertSame('vendor', DeviceType::of('Apple, Inc.', null, false)['confidence']);
+        $this->assertSame('certain', DeviceType::chosen('phone')['confidence']);
+        $this->assertSame('you said so', DeviceType::chosen('phone')['basis']);
+        $this->assertSame('certain', DeviceType::of(null, null, true)['confidence']);
+        $this->assertSame('none', DeviceType::of('Some Startup Ltd', 'thing-4', false)['confidence']);
+    }
+
+    public function testTheNameWinsWhenItDisagreesWithTheMaker()
+    {
+        /* an LG panel with a network chip from a module maker is still a TV */
+        $kind = DeviceType::of('Intel Corporate', 'LG-webOS-TV', false);
+
+        $this->assertSame('fa-television', $kind['icon']);
+        $this->assertSame('likely', $kind['confidence']);
+    }
+
     public function testAnUnknownVendorIsNotForcedIntoTheNearestCategory()
     {
         $this->assertSame('fa-circle-o', DeviceType::of('Some Startup Ltd', 'thing-4', false)['icon']);

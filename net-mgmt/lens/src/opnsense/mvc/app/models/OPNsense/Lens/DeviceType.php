@@ -60,6 +60,11 @@ class DeviceType
         return [
             ['printer', 'fa-print', 'Printer',
              'brother', 'lexmark', 'kyocera', 'laserjet', 'officejet', 'printer'],
+            ['tv', 'fa-television', 'TV or media player',
+             'webos', 'bravia', 'roku', 'chromecast', 'firetv', 'fire-tv', 'appletv', 'apple-tv',
+             'androidtv', 'android-tv', 'smarttv', 'smart-tv'],
+            ['camera', 'fa-video-camera', 'Camera',
+             'camera', 'ipcam', 'reolink', 'hikvision', 'dahua', 'wyze', 'axis communications'],
             ['phone', 'fa-mobile', 'Phone or tablet',
              'iphone', 'ipad', 'pixel', 'galaxy', 'oneplus', 'xiaomi', 'oppo',
              'redmi', 'huawei', 'motorola', 'android', '-phone'],
@@ -73,7 +78,7 @@ class DeviceType
              'fujitsu', 'supermicro', 'hewlett packard', 'dell inc', 'synology',
              'qnap', 'nas'],
             ['iot', 'fa-lightbulb-o', 'Smart home device',
-             'tuya', 'espressif', 'shelly', 'sonoff', 'sonos', 'signify',
+             'tuya', 'espressif', 'shelly', 'sonoff', 'tasmota', 'sonos', 'signify',
              'philips lighting', 'nest', 'ring inc', 'tado'],
             ['computer', 'fa-desktop', 'Computer',
              'asustek', 'micro-star', 'gigabyte', 'lenovo', 'intel corporate',
@@ -82,34 +87,39 @@ class DeviceType
     }
 
     /**
+     * The name a device announces is asked before its maker (§4.66): "iPhone"
+     * is what the device says it is, "Apple" is who made its network chip.
+     *
      * @param string|null $vendor from the OUI table
      * @param string|null $hostname whatever the device announced
      * @param bool $isLocal an address configured on this firewall
-     * @return array ['icon' => fa class, 'type' => human label, 'guessed' => bool]
+     * @return array ['icon', 'type', 'guessed' => bool, 'confidence' => certain|likely|vendor|none, 'basis']
      */
     public static function of(?string $vendor, ?string $hostname, bool $isLocal): array
     {
         if ($isLocal) {
             /* not a guess: a permanent ARP entry is this box's own address */
-            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false);
+            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false, 'certain');
         }
 
-        $haystack = strtolower(trim(($vendor ?? '') . ' ' . ($hostname ?? '')));
-
-        if ($haystack !== '') {
+        foreach ([[$hostname, 'likely'], [$vendor, 'vendor']] as list($text, $confidence)) {
+            $haystack = strtolower(trim((string)$text));
+            if ($haystack === '') {
+                continue;
+            }
             foreach (self::rules() as $rule) {
                 $key = array_shift($rule);
                 $icon = array_shift($rule);
                 $label = array_shift($rule);
                 foreach ($rule as $needle) {
                     if (strpos($haystack, $needle) !== false) {
-                        return self::kind($key, $icon, gettext($label), true);
+                        return self::kind($key, $icon, gettext($label), true, $confidence);
                     }
                 }
             }
         }
 
-        return self::kind('unknown', 'fa-circle-o', gettext('Unrecognised'), false);
+        return self::kind('unknown', 'fa-circle-o', gettext('Unrecognised'), false, 'none');
     }
 
     /**
@@ -121,12 +131,12 @@ class DeviceType
     public static function chosen(string $key): ?array
     {
         if ($key === 'firewall') {
-            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false);
+            return self::kind('firewall', 'fa-shield', gettext('This firewall'), false, 'chosen');
         }
 
         foreach (self::rules() as $rule) {
             if ($rule[0] === $key) {
-                return self::kind($key, $rule[1], gettext($rule[2]), false);
+                return self::kind($key, $rule[1], gettext($rule[2]), false, 'chosen');
             }
         }
 
@@ -147,8 +157,24 @@ class DeviceType
         return $choices;
     }
 
-    private static function kind(string $key, string $icon, string $type, bool $guessed): array
+    private static function kind(string $key, string $icon, string $type, bool $guessed, string $confidence): array
     {
-        return ['key' => $key, 'icon' => $icon, 'type' => $type, 'guessed' => $guessed];
+        /* four words, never a percentage: Lens has no model that could produce one (§4.66) */
+        $basis = [
+            'chosen' => gettext('you said so'),
+            'certain' => gettext('its own address on this firewall'),
+            'likely' => gettext('likely, from the name it announces'),
+            'vendor' => gettext('a guess from the maker alone'),
+            'none' => gettext('not recognised'),
+        ];
+
+        return [
+            'key' => $key,
+            'icon' => $icon,
+            'type' => $type,
+            'guessed' => $guessed,
+            'confidence' => $confidence === 'chosen' ? 'certain' : $confidence,
+            'basis' => $basis[$confidence],
+        ];
     }
 }

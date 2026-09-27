@@ -127,6 +127,11 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       it folds away behind "1 from devices you muted", its page says *muted*,
       and the one sentence on the dashboard no longer leads with it. Unmute from
       its page. Note the page's load time from the round report
+- [ ] **upload, last week, type** (stage 38): Devices at 24 hours shows a
+      grey +/−% beside each traffic figure once Lens has watched eight days;
+      `configctl lens baseline` — does any verdict now read *sent*? Is it the
+      camera or the NAS you would expect? The device page says how sure its
+      type is
 - [ ] **palette and filter** (stage 37): Ctrl-K on any Lens page, type part
       of an address — the device that holds it comes first; Enter opens it.
       Pick IOT on Devices, then open Who's home and Events from the menu: both

@@ -197,13 +197,13 @@ data Lens already keeps; none is planned before the router round.
   events Lens already detects — new device, unusual day, outage, degraded
   gateway, identity fragmenting — each opening the page that proves it, with a
   per-device mute. Most of S9 without a new source.
-- **#38 — Judge upload separately.** A camera sending 4 GB out is not the same
+- **#38 — Judge upload separately.** 🔨 built 2026-09-27 as stage 38 (§4.66). A camera sending 4 GB out is not the same
   event as a laptop downloading an update; the baseline currently cannot tell.
-- **#39 — Compared with last week.** A delta beside every figure, withheld when
+- **#39 — Compared with last week.** 🔨 built 2026-09-27 as stage 38 (§4.66). A delta beside every figure, withheld when
   the previous period is not fully covered (§4.43).
 - **#40 — Who's home by person.** Presence grouped by an owner tag: one strip
   per person, the devices underneath.
-- **#41 — Say how sure the device type is.** Certain, likely, vendor only —
+- **#41 — Say how sure the device type is.** 🔨 built 2026-09-27 as stage 38 (§4.66). Certain, likely, vendor only —
   never a percentage Lens has no model to produce.
 
 ## 3. P2 — Worth doing

@@ -96,6 +96,9 @@
         let devices = [];
         /* vtnet1_vlan20 -> HOME, decided in DeviceReport so every page agrees */
         let segmentNames = {};
+        /* this range beside the same range a week earlier (§4.66) */
+        let compare = { covered: false };
+        let compareLabel = '';
 
         /* the chips are the global filter (§4.65): ?segment= from the Networks
            page, and whatever was chosen on another Lens page in this tab */
@@ -217,7 +220,8 @@
             const $name = $('<td/>');
             $name.append($('<i/>')
                 .addClass('fa fa-fw lens-icon ' + device.kind.icon)
-                .attr('title', device.kind.type));
+                .toggleClass('lens-icon-guess', device.kind.confidence === 'vendor')
+                .attr('title', device.kind.type + ' \u2014 ' + device.kind.basis));
             /* the name opens the device's own page (§4.54) */
             $name.append($('<a/>').addClass('lens-name')
                 .attr('href', '/ui/lens/device?mac=' + encodeURIComponent(device.mac))
@@ -253,6 +257,11 @@
                     'width', largest ? Math.max(2, (device.octets / largest) * 100) + '%' : 0
                 ));
                 $traffic.append($('<span/>').addClass('lens-bytes').text(device.traffic));
+            }
+            /* beside last week, in words: more is not worse (§4.66) */
+            if (device.compare && device.compare.text) {
+                $traffic.append($('<span/>').addClass('lens-delta').text(device.compare.text)
+                    .attr('title', compareLabel));
             }
 
             const $addresses = $('<td/>');
@@ -397,7 +406,9 @@
 
             $strip.append(cell(
                 summary.moved,
-                '{{ lang._("attributed to a device in 24 hours") }}'));
+                '{{ lang._("attributed to a device in 24 hours") }}'
+                    + (compare.covered && compare.total.text
+                        ? ' \u00b7 ' + compare.total.text + ' ' + compare.label : '')));
 
             if (summary.busiest) {
                 $strip.append(cell(summary.busiest.what, summary.busiest.name));
@@ -553,12 +564,15 @@
             devices = report.devices;
             segmentNames = report.segment_names || {};
             kinds = report.kinds || {};
+            compare = report.compare || { covered: false };
+            compareLabel = compare.covered ? compare.label + ': ' + compare.before + ' {{ lang._("in all") }}' : '';
             drawRange(report.window || {});
             drawSummary(report.summary || {});
             drawBaseline(report.baseline || {});
             groups = report.groups || [];
             $('#lensGroupWrap').toggle(groups.length > 0);
-            $('#lensDevicesHeadline').text(report.headline || '');
+            $('#lensDevicesHeadline').text((report.headline || '')
+                + (compare.note ? ' ' + compare.note : ''));
 
             if (report.note) {
                 $('#lensDevicesNote').text(report.note).show();

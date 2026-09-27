@@ -427,6 +427,12 @@ tr.lens-group > td { background: var(--lens-hover); }
 .dv-num-cell { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dv-peer-svc { display: none; }
 
+/* last week beside this one (§4.66): a word and a number, never a colour */
+.lens-delta { margin-left: 8px; font-size: 11px; color: var(--lens-muted); font-variant-numeric: tabular-nums;
+              white-space: nowrap; cursor: help; }
+/* a type guessed from the maker alone is drawn fainter than one the device announced */
+.lens-icon-guess { opacity: 0.55; }
+
 /* ------------------------------------------------------- filter bar (§4.65) */
 .lens-filterbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px;

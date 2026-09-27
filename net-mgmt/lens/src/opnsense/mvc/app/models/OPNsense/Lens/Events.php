@@ -260,19 +260,31 @@ class Events
             $mac = (string)($entry['mac'] ?? '');
             $row = $byMac[$mac] ?? null;
             $name = $row['name'] ?? $mac;
-            $times = rtrim(rtrim(number_format((float)($entry['times'] ?? 0), 1), '0'), '.');
-            $moved = Bytes::human((int)($entry['octets'] ?? 0));
-            $usual = Bytes::human((int)($entry['usual'] ?? 0));
+            $sent = ($entry['direction'] ?? 'total') === 'sent';
+            $times = (float)($sent ? ($entry['sent_times'] ?? 0) : ($entry['times'] ?? 0));
+            $times = rtrim(rtrim(number_format($times, 1), '0'), '.');
+            $moved = Bytes::human((int)($sent ? ($entry['sent'] ?? 0) : ($entry['octets'] ?? 0)));
+            $usual = Bytes::human((int)($sent ? ($entry['sent_usual'] ?? 0) : ($entry['usual'] ?? 0)));
+
+            if ($sent) {
+                $title = !empty($entry['partial'])
+                    ? sprintf(gettext('%s has sent %s so far today'), $name, $moved)
+                    : sprintf(gettext('%s sent %s'), $name, $moved);
+                $detail = sprintf(gettext('%s times its usual upload of %s.'), $times, $usual);
+            } else {
+                $title = !empty($entry['partial'])
+                    ? sprintf(gettext('%s has moved %s so far today'), $name, $moved)
+                    : sprintf(gettext('%s moved %s'), $name, $moved);
+                $detail = sprintf(gettext('%s times its usual day of %s; its uploads were ordinary.'), $times, $usual);
+            }
 
             $events[] = self::event(
                 'unusual',
                 (int)($entry['day'] ?? 0),
                 'notice',
                 gettext('Unusual'),
-                !empty($entry['partial'])
-                    ? sprintf(gettext('%s has moved %s so far today'), $name, $moved)
-                    : sprintf(gettext('%s moved %s'), $name, $moved),
-                sprintf(gettext('%s times its usual day of %s.'), $times, $usual),
+                $title,
+                $detail,
                 $row,
                 self::page($row, $mac),
                 ['grain' => 'day']

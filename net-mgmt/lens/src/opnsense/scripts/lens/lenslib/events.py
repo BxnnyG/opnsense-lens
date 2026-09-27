@@ -26,14 +26,14 @@ def unusual_days(rows, first_day, today, needs_days, factor, floor):
     Each day in [first_day, today] judged the way the live verdict judged it that
     evening: against the needs_days + 1 days before it, never with hindsight.
 
-    :param rows: (mac, day, octets), day a whole-day number
+    :param rows: (mac, day, octets, sent), day a whole-day number
     :return: list of {'mac', 'day', 'octets', 'usual', 'times', 'partial'}, oldest first
     """
-    rows = [(mac, int(day), octets) for mac, day, octets in rows]
+    rows = [(mac, int(day), octets, sent) for mac, day, octets, sent in rows]
     found = []
     for day in range(int(first_day), int(today) + 1):
         window = [row for row in rows if day - needs_days - 1 <= row[1] <= day]
-        report = baselib.assess(window, day, needs_days=needs_days, factor=factor, floor=floor)
+        report = baselib.assess_both(window, day, needs_days=needs_days, factor=factor, floor=floor)
         for entry in report['unusual']:
             found.append({
                 'mac': entry['mac'],
@@ -41,6 +41,10 @@ def unusual_days(rows, first_day, today, needs_days, factor, floor):
                 'octets': entry['today'],
                 'usual': entry['usual'],
                 'times': entry['times'],
+                'direction': entry['direction'],
+                'sent': entry.get('sent'),
+                'sent_usual': entry.get('sent_usual'),
+                'sent_times': entry.get('sent_times'),
                 'partial': day == today,
             })
     return found

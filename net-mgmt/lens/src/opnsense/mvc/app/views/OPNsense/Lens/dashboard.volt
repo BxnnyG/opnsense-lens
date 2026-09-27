@@ -94,7 +94,10 @@
             const summary = report.summary || {};
             $('#factHere').text((summary.here || 0) + ' / ' + (summary.known || 0));
             $('#factMoved').text(summary.moved || '0 B');
-            $('#factMovedSub').text('{{ lang._("attributed over") }} ' + LABELS[hours]);
+            const compare = report.compare || {};
+            $('#factMovedSub').text('{{ lang._("attributed over") }} ' + LABELS[hours]
+                + (compare.covered && compare.total && compare.total.text
+                    ? ' \u00b7 ' + compare.total.text + ' ' + compare.label : ''));
 
             if (summary.new_yet) {
                 $('#factNew').text((summary.new || []).length)

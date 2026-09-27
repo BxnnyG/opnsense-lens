@@ -291,7 +291,7 @@ class JoinTest(unittest.TestCase):
 
         original = Store.daily_totals
         Store.daily_totals = lambda self, since: [
-            {'mac': m, 'day': d, 'octets': o} for m, d, o in rows
+            {'mac': m, 'day': d, 'octets': o, 'sent': o // 10} for m, d, o in rows
         ]
         try:
             before = collect.baseline(self.reopened(), now)

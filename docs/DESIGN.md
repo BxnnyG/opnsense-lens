@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.23_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.24_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -240,7 +240,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
-| S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
+| S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
@@ -1827,3 +1827,19 @@ out — they concern every network.
 **Consequences:** the dashboard, Networks and the wallboard stay unfiltered and
 say nothing about it; a filter chosen on Devices is still there on Events,
 visibly, with one click to clear.
+
+### §4.66 — Upload has its own baseline; last week is compared only when it was watched (2026-09-27)
+**Question:** BACKLOG #38, #39, #41 — judge uploads apart from the total, put
+last week beside this week, and say how sure a device type is.
+**Decision:** the three guards of §4.50 run twice, on the total and on what the
+device *sent*. Upload is the direction worth a look — a camera streaming out,
+a NAS copying off-site — so an upload verdict is told as one, and a total
+verdict without an upload verdict says the uploads were ordinary. The
+comparison is **the same range one week earlier** (for 24 hours the same
+weekday, since households are weekly), withheld unless Lens was collecting for
+all of it (§4.43), and shown as a signed percentage in words, never in green or
+red: more traffic is not worse. Device types carry one of four confidences —
+certain, likely (from the announced name), from the maker only, not recognised
+— and the name is consulted before the maker.
+**Consequences:** the Devices page runs one more attribution join when the
+comparison is possible. A device new since last week says "new", not "+∞%".
