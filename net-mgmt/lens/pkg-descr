@@ -15,11 +15,199 @@ the operator's own names and tags, and computed baselines.
 - It does not replace Reporting: Insight, Health, NetFlow or Unbound DNS
 - It supplies widgets to the dashboard OPNsense already has
 
-Lens reads. The one exception, always triggered by the operator and never on
-install, is switching on the data sources it needs.
+Lens reads, with two things it does itself. It switches on a data source it
+needs only when the operator presses the button offered for it, never on
+install. And every five minutes it pings Quad9, Cloudflare and Google, three
+echoes each - about 2,600 small packets a day - to tell whether the internet is
+there. Removing the package stops both.
 
 Plugin Changelog
 ================
+
+0.16_1
+
+* the dashboard opens with the internet: whether it is there, the WAN's IPv4
+  and IPv6, the rate right now, the round trip to Quad9, Cloudflare and Google,
+  the uptime, and the last outages with how long each lasted
+* these are the first packets Lens sends itself: three echoes to each resolver
+  every five minutes, in parallel. A round counts as down only when all three
+  stay silent
+* "the internet is unreachable" now outranks everything the one-line summary
+  can say
+
+0.15_1
+
+* a card for the line: each monitored gateway's state, latency, jitter and
+  loss, and its latency over the chosen range with loss marked along the floor
+* whether the line is slow is decided by the thresholds configured on that
+  gateway under System: Gateways, not by Lens
+* gateways are sampled into the store with every observation (schema 5)
+
+0.14_3
+
+* /api/lens/metrics/prometheus for Grafana: devices, presence, traffic per
+  device and per network, baseline progress, store size and the age of each
+  collector duty, as gauges carrying their window as a label
+
+0.14_2
+
+* Networks is a grid of cards: traffic, up and down, addresses, a sparkline,
+  and a ring for how much of it Lens can put a device to
+
+0.14_1
+
+* every device has its own page, linked from every name: icon, name, vendor and
+  status, editing in place, five figures, the traffic chart with drill-down, its
+  week as a 7x24 heatmap, every address and segment it has held, and its
+  presence over seven days
+* the dashboard carries the same heatmap for the whole network
+
+0.13_2
+
+* who's home: one presence strip per device. Devices that were there the whole
+  time fold away, so the ones that come and go lead
+* one sentence on the dashboard and the wallboard, in a fixed order: a stopped
+  collector, then something unusual, then something new, and only then calm
+* verdicts name a device the way every page does, instead of by its bare MAC
+
+0.13_1
+
+* Reporting: Lens opens with a dashboard: five fact tiles, the network over
+  time, top devices, networks, and this firewall's load, memory, disk and uptime
+  computed with core's own formulas. Every card opens the page behind it
+
+0.12_1
+
+* the first judgement: a device whose day is at least four times its median day
+  and 100 MB above it is called unusual, with both numbers in the sentence
+* no verdict before 21 complete days for that device; until then the page says
+  which day of the 21 it is on
+
+0.11_2
+
+* the far end of the line is totalled rather than listed address by address,
+  so the unattributed rows that can be acted on are visible
+
+0.11_1
+
+* where a name came from is one word per row - dnsmasq, isc-dhcp, vendor, you,
+  nothing - with the explanation as a tooltip
+* the wallboard fills the screen it is given, scales its type, and folds groups
+  of identical devices
+
+0.10_4
+
+* data sources, capture, store and retention are shown only on Services: Lens.
+  The Reporting page drops from nine configd calls to three
+* every block is an OPNsense panel, and the controls sit on one toolbar line
+
+0.10_3
+
+* tags filter the device list, beside the segment chips
+* Devices and Networks export to CSV, built from exactly the rows on screen
+
+0.10_2
+
+* a network opens the devices on it, and a bar on a device's chart opens the
+  addresses behind that hour. The parts add up to what was clicked
+
+0.10_1
+
+* 24 hours, 7 days or 30 days on Devices, Networks and the device chart. A range
+  longer than Lens has been collecting is shown, and says so
+* above 72 hours the chart is drawn per day, and says so
+
+0.9_2
+
+* Services: Lens warns when the store will reach its disk ceiling before the
+  retention period it promises
+
+0.9_1
+
+* Reporting: Lens is Devices, Networks and Wallboard. Networks shows the traffic
+  per segment and how much of it has a device
+
+0.8_2
+
+* a wallboard: the same figures larger, refreshed every minute, and a plain
+  warning when what it shows is no longer current
+
+0.8_1
+
+* a dashboard widget with the top five devices and the summary line
+* fixes the pages for a user holding only the Reporting: Lens privilege: four
+  API endpoints had no ACL pattern and answered nothing
+
+0.7_2
+
+* Services: Lens measures whether keying identity on the MAC still holds: an
+  address held by two devices at once, and randomised addresses that come and go
+
+0.7_1
+
+* where NetFlow does not capture an interface, a button beside the finding
+  offers to capture it, names the setting, and shows it before and after
+
+0.6_3
+
+* four sentences above the device list: here of known, traffic attributed, the
+  heaviest device, new since yesterday, gone for over a day
+* "new" is withheld until Lens has watched for two days
+
+0.6_2
+
+* thirty virtual NICs from one hypervisor fold into one row, except while a
+  search is running
+
+0.6_1
+
+* click a device for its traffic hour by hour, its busiest hour and the
+  segments it was seen on
+
+0.5_3
+
+* the unattributed traffic lists its heaviest 25 addresses behind a toggle
+
+0.5_2
+
+* a name, a kind, tags and a note per device, kept against the MAC in a table
+  the collector never writes, and removed with the device by retention and purge
+
+0.5_1
+
+* search over name, MAC, vendor, address and interface, segment chips, a
+  traffic bar, and one icon per device, marked as a guess
+
+0.4_2
+
+* isc-dhcp leases are read. "No DHCP server" is only said once all three have
+  been checked
+* traffic from before the first observation is its own class, not "a gap in
+  collection"
+
+0.4_1
+
+* the device list carries traffic, attributed to whoever held the address in
+  the hour it was measured, not whoever holds it now
+* traffic without a device is shown with its reason, never dropped (schema 3)
+
+0.3_3
+
+* installing and removing the package now writes the crontab. The collector
+  was declared but never scheduled
+
+0.3_2
+
+* an address is listed once rather than once per window, and the firewall's own
+  addresses are labelled as such
+
+0.3_1
+
+* Reporting: Lens lists devices instead of addresses: name, vendor, every
+  address and segment, whether it is here, and how long Lens has known it
+* presence is judged against the last observation, and a stalled collector is
+  said out loud
+* the vendor comes from core's own MAC database at display time
 
 0.2_3
 

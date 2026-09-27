@@ -27,7 +27,7 @@ this one inherits, and 23 stages of experience with it.
 | 9 | **The four sentences before the table** — state of the network at a glance ([plan](plans/stage-09-overview.md)) | S6 | 🔨 built 2026-08-30 |
 | 10 | **Dashboard widget** — the top five, on the dashboard (§4.37) | S7 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 11 | DNS view | S12 | ⏳ |
-| 12 | **Baseline** — three weeks of learning, then three guards before anything is called unusual (§4.50) | S8 | 🔨 built 2026-09-14 · **first real verdicts once the boxes pass day 21** |
+| 12 | **Baseline** — three weeks of learning, then three guards before anything is called unusual (§4.50) | S8 | 🔨 built 2026-09-14 · day 21 passed on router-01 around 2026-09-20 · **first real verdicts exist, unread** |
 | 13 | Correlation timeline | S9 | ⏳ |
 | 14 | **Wallboard** — the same numbers, for a screen nobody stands at (§4.40) | S10 | 🔨 built 2026-09-12 · **awaiting router test** |
 | 15 | Command palette | S11 | ⏳ |
@@ -43,8 +43,8 @@ this one inherits, and 23 stages of experience with it.
 | 25 | **One calm sentence** — on the dashboard and the wall, in a fixed order of what outranks what (§4.53) | S6 | 🔨 built 2026-09-24 · **awaiting router test** |
 | 26 | **The device page** — a real page per device: hero, figures, chart with drill-down, its week as a heatmap, where it has been, presence (§4.54) | S5 | 🔨 built 2026-09-24 · **awaiting router test** |
 | 27 | **`/metrics` for Grafana** — gauges over a named window, and the collector's age to alert on (§4.55) | S7 | 🔨 built 2026-09-25 · **awaiting a scrape** |
-| 28 | **The line** — latency, jitter and loss per gateway, now and over time, judged by core's own thresholds (§4.56) | new | 🔨 built 2026-09-25 · **awaiting router test** |
-| 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | new | 🔨 built 2026-09-25 · **awaiting router test** |
+| 28 | **The line** — latency, jitter and loss per gateway, now and over time, judged by core's own thresholds (§4.56) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
+| 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -60,6 +60,7 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
+| — | **Router round for everything built since 0.5_2** — seventeen stages built on tests alone | all | ⏳ **the next thing that matters**, 2026-09-27 |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |
@@ -71,7 +72,7 @@ against observations from the operator's own network, which stage 4 produces.
 | 16 | Legibility: search, segment filters, icons, traffic bars (BACKLOG #17) | S6 | ✅ router-tested 2026-08-30 |
 | — | One-click fix beside each "needs attention" (BACKLOG #18) | S3 | 🔨 built 2026-08-30 (§4.35) · **awaiting router test** |
 | — | Group the hypervisor's guests (BACKLOG #19) | S1 | 🔨 built 2026-08-30 (§4.33) |
-| — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | new system | gateway half built as stage 28 (§4.56); public targets built as stage 29 (§4.57) |
+| — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | S16 | gateway half built as stage 28 (§4.56); public targets built as stage 29 (§4.57) |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | ~~Setup wizard~~ | S3 | ⛔ closed 2026-09-12 (§4.39) |
 | — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
@@ -121,7 +122,6 @@ against observations from the operator's own network, which stage 4 produces.
 | Measured store growth | **0.4 MB** after one day → roughly **130 MB a year** at the 365 day default | comfortably under the 500 MB ceiling, and now measured rather than guessed |
 | Measured page load cost | 0.1_1: **~2 s**, five calls · 0.1_2: **550–600 ms**, seven calls | the 1.4 s was `unbound qstats totals`, removed for a different reason |
 | Slowest calls | `unbound status` 149–187 ms · `interface list arp json` 1–123 ms (30 s configd cache) · `netflow aggregate metadata` 63–231 ms | measured on the box 2026-08-30 |
-| Retention defaults | — | to be set at stage 4 (S14) |
 
 ### The observe job is not firing (open, 2026-08-30)
 

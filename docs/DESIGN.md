@@ -226,24 +226,29 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
+*Brought up to date 2026-09-27 against `os-lens-0.16_1`. "Router-tested" means
+the operator clicked it on a box; "built" means tests only — PROCESS calls that
+"plausible".*
+
 | System | Status | Rest / note |
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
-| S1 · Identity service | ⏳ | the spine; nothing before it is meaningful |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, observe every 5 min, harvest every 30 |
-| S3 · Preflight & setup wizard | ⏳ | hand-run scripts exist in `tools/` (2026-08-29) as the spec |
-| S4 · Traffic attribution | ⏳ | joins §1.4 onto S1 |
-| S5 · Client profile page | ⏳ | |
-| S6 · Reporting overview | ⏳ | |
-| S7 · Dashboard widgets | ⏳ | |
-| S8 · Baseline & verdicts | ⏳ | needs weeks of S2 data before it may speak |
+| S1 · Identity service | ✅ (stages 5, 6) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 6, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe, not router-tested |
+| S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
+| S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested. Missing from the plan: top destinations and services (needs #31), DNS activity (needs S12) |
+| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested |
+| S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
+| S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | ⏳ | IDS slot left open (§4.6) |
-| S10 · Wallboard / kiosk | ⏳ | |
+| S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | ⏳ | needs S1 as its index |
-| S12 · DNS view | ⏳ | needs Unbound reporting on (S3) |
-| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3 |
-| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5 |
+| S12 · DNS view | ⏳ | blocked on seeing one real `qstats` output (ROADMAP) |
+| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Purge works from the shell only; no settings page yet |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
+| S16 · Line & reachability | 🔨 (stages 28, 29) | gateways from dpinger (§4.56), three public resolvers probed by Lens itself (§4.57); built, not router-tested |
 
 ## 2. Systems & gaps
 
@@ -495,6 +500,18 @@ not make it accidental.
 **Rule:** recorded fixtures for every external API shape, so behaviour is
 provable without a router. PHPUnit for derivation, and the same style/lint gate
 discipline the netbird plugin arrived at.
+
+### S16 · Line & reachability
+**Purpose:** "is the internet all right, and is it slow" — the question every
+kind of user asks eventually, and the one a bandwidth chart cannot answer.
+**Today:** two halves, both built 2026-09-25. The gateways are read from core's
+own `gateway_status.php` and judged by the thresholds configured on each gateway
+in System: Gateways (§4.56). The public half is the only traffic Lens sends
+itself: Quad9, Cloudflare and Google, three echoes each per observation, into
+`probe_sample` (§4.57). Both are sampled on the five-minute observe duty and
+feed the internet panel, the line card, the one sentence and `/metrics`.
+**Open:** the setting §4.57 deferred — whether the probes run, and against which
+targets.
 
 ## 2b. Idea store (unprioritised)
 
