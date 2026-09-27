@@ -164,6 +164,21 @@ class IdentityFoldTest extends TestCase
         $this->assertSame('e6:00:00:00:00:03', $row['mac']);
     }
 
+    public function testAMuteOnAnyOfThemMutesTheWholePhone()
+    {
+        /* the next rotation stays quiet (§4.63) */
+        $devices = $this->rotated();
+        $devices[2]['label'] = ['name' => '', 'kind' => '', 'tags' => '', 'note' => '', 'muted' => true];
+
+        $rows = DeviceReport::describe($devices, [], [], self::NOW, self::NOW)['devices'];
+
+        $this->assertTrue($rows[0]['muted']);
+        $this->assertSame(
+            ['e6:00:00:00:00:03', 'e6:00:00:00:00:02', 'e6:00:00:00:00:01'],
+            DeviceReport::mutedMacs($rows)
+        );
+    }
+
     public function testSwitchedOffEveryMacIsItsOwnRow()
     {
         $report = DeviceReport::describe($this->rotated(), [], [], self::NOW, self::NOW, [], false);

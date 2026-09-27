@@ -8,6 +8,7 @@
     <Reporting>
         <Lens order="40" cssClass="fa fa-eye fa-fw">
             <Dashboard order="5" VisibleName="Dashboard" url="/ui/lens/dashboard"/>
+            <Events order="8" VisibleName="Events" url="/ui/lens/events"/>
             <Devices order="10" VisibleName="Devices" url="/ui/lens/overview">
                 <!-- a device's own page belongs under Devices; without this core
                      selects nothing there and the sidebar collapses (stage 33),

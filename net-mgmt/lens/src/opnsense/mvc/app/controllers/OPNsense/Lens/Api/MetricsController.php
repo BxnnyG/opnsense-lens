@@ -81,7 +81,11 @@ class MetricsController extends ApiControllerBase
         foreach ($report['devices'] as $row) {
             $names[$row['mac']] = $row['name'];
         }
-        $report['baseline'] = BaselineReport::describe(self::decode($backend, 'lens baseline'), $names);
+        $report['baseline'] = BaselineReport::describe(
+            self::decode($backend, 'lens baseline'),
+            $names,
+            DeviceReport::mutedMacs($report['devices'])
+        );
 
         $segments = SegmentReport::describe(self::decode($backend, 'lens segments 24'), SegmentsController::names());
 

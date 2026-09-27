@@ -128,6 +128,16 @@ class DeviceReport
      */
     public static function macList(string $raw): ?string
     {
+        $macs = self::macs($raw);
+
+        return $macs === null ? null : implode(',', $macs);
+    }
+
+    /**
+     * @return array|null the same list as an array, or null when it is not one
+     */
+    public static function macs(string $raw): ?array
+    {
         $macs = array_values(array_filter(array_map('trim', explode(',', strtolower($raw)))));
         if ($macs === [] || count($macs) > self::MACS_PER_DEVICE) {
             return null;
@@ -138,7 +148,25 @@ class DeviceReport
             }
         }
 
-        return implode(',', array_unique($macs));
+        return array_values(array_unique($macs));
+    }
+
+    /**
+     * Every MAC of every muted row (§4.63): a folded phone is muted whole.
+     *
+     * @param array $rows DeviceReport's device rows
+     * @return array
+     */
+    public static function mutedMacs(array $rows): array
+    {
+        $muted = [];
+        foreach ($rows as $row) {
+            if (!empty($row['muted'])) {
+                $muted = array_merge($muted, (array)($row['macs'] ?? [$row['mac']]));
+            }
+        }
+
+        return $muted;
     }
 
     /**
@@ -305,6 +333,8 @@ class DeviceReport
                 'note' => trim((string)($label['note'] ?? '')),
             ],
             'tags' => $tags,
+            /* the operator's mute (§4.63): hides news, never figures */
+            'muted' => !empty($label['muted']),
             'vendor' => $vendor,
             'hostname' => $hostname === '' ? null : $hostname,
             'addresses' => $addresses,
@@ -398,6 +428,7 @@ class DeviceReport
         $firstSeen = PHP_INT_MAX;
         $lastSeen = 0;
         $here = false;
+        $muted = false;
         foreach ($members as $member) {
             $sent += $member['sent'];
             $received += $member['received'];
@@ -407,6 +438,7 @@ class DeviceReport
             $firstSeen = min($firstSeen, $member['first_seen'] ?: PHP_INT_MAX);
             $lastSeen = max($lastSeen, $member['last_seen']);
             $here = $here || $member['here'];
+            $muted = $muted || $member['muted'];
         }
         usort($addresses, function ($left, $right) {
             if ($left['current'] !== $right['current']) {
@@ -418,6 +450,8 @@ class DeviceReport
         $row = array_merge($row, self::traffic(['in' => ['octets' => $sent], 'out' => ['octets' => $received]]));
         $row['addresses'] = $addresses;
         $row['interfaces'] = array_values(array_unique($interfaces));
+        /* muted as a whole, so the next rotation stays quiet too */
+        $row['muted'] = $muted;
         $row['haystack'] = implode(' ', array_unique($haystack));
         $row['first_seen'] = $firstSeen === PHP_INT_MAX ? 0 : $firstSeen;
         $row['last_seen'] = $lastSeen;
@@ -596,7 +630,7 @@ class DeviceReport
         foreach ($rows as $row) {
             $earliest = min($earliest, $row['first_seen'] ?: $now);
 
-            if ($row['first_seen'] > 0 && $now - $row['first_seen'] < self::AWAY_AFTER) {
+            if ($row['first_seen'] > 0 && $now - $row['first_seen'] < self::AWAY_AFTER && empty($row['muted'])) {
                 $new[] = $row['name'];
             }
             if ($row['last_seen'] > 0 && $now - $row['last_seen'] >= self::AWAY_AFTER) {

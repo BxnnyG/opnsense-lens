@@ -13,7 +13,7 @@ import sqlite3
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # every key, its default and its bounds live in lenslib.settings (§4.58)
 DEFAULT_SETTINGS = settingslib.defaults()
@@ -141,6 +141,11 @@ MIGRATIONS = {
             PRIMARY KEY (day, interface, address, peer, port, protocol, direction)
         )""",
         "CREATE INDEX destination_day_by_address ON destination_day(address, interface, day)",
+    ],
+    # The operator's mute (§4.63): kept with the rest of what they said about a
+    # device, in the table the collector never writes.
+    8: [
+        "ALTER TABLE device_label ADD COLUMN muted INTEGER NOT NULL DEFAULT 0",
     ],
 }
 
@@ -305,7 +310,7 @@ class Store:
             }
 
         for row in self.db.execute(
-            "SELECT mac, name, kind, tags, note FROM device_label"
+            "SELECT mac, name, kind, tags, note, muted FROM device_label"
         ):
             if row['mac'] in devices:
                 devices[row['mac']]['label'] = {
@@ -313,6 +318,7 @@ class Store:
                     'kind': row['kind'],
                     'tags': row['tags'],
                     'note': row['note'],
+                    'muted': bool(row['muted']),
                 }
 
         for row in self.db.execute(
@@ -335,23 +341,34 @@ class Store:
         rather than storing an empty string, so "no name of my own" and "a name
         that happens to be blank" cannot be confused later.
 
-        :param fields: any of name, kind, tags, note
+        A field that is not in `fields` keeps its value: the label editor sends
+        all four texts and no mute, the mute button sends only the mute (§4.63),
+        and neither may undo the other.
+
+        :param fields: any of name, kind, tags, note, muted
         """
         columns = ('name', 'kind', 'tags', 'note')
-        values = [(fields.get(key) or '').strip() or None for key in columns]
+        row = self.db.execute(
+            "SELECT name, kind, tags, note, muted FROM device_label WHERE mac = ?", (mac,)
+        ).fetchone()
+        values = [
+            ((fields.get(key) or '').strip() or None) if key in fields else (row[key] if row else None)
+            for key in columns
+        ]
+        muted = (1 if fields['muted'] else 0) if 'muted' in fields else (row['muted'] if row else 0)
 
-        if not any(values):
+        if not any(values) and not muted:
             self.db.execute("DELETE FROM device_label WHERE mac = ?", (mac,))
             return 'cleared'
 
         self.db.execute(
-            """INSERT INTO device_label (mac, name, kind, tags, note, updated)
-               VALUES (?, ?, ?, ?, ?, ?)
+            """INSERT INTO device_label (mac, name, kind, tags, note, muted, updated)
+               VALUES (?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(mac) DO UPDATE SET
                    name = excluded.name, kind = excluded.kind,
                    tags = excluded.tags, note = excluded.note,
-                   updated = excluded.updated""",
-            (mac, values[0], values[1], values[2], values[3], now),
+                   muted = excluded.muted, updated = excluded.updated""",
+            (mac, values[0], values[1], values[2], values[3], muted, now),
         )
         return 'saved'
 
@@ -405,6 +422,49 @@ class Store:
                        GROUP BY address, interface HAVING count(DISTINCT mac) > 1
                    )"""),
         }
+
+    # ------------------------------------------------------------ events
+
+    def watching_since(self):
+        """:return: the first device's first sighting, as DeviceReport counts it (§4.34)"""
+        row = self.db.execute("SELECT min(first_seen) AS at FROM device").fetchone()
+        return row['at'] if row else None
+
+    def devices_since(self, since):
+        """:return: devices first seen at or after `since`, not this firewall's own"""
+        return self.db.execute(
+            """SELECT mac, first_seen FROM device
+               WHERE first_seen >= ? AND is_local = 0 ORDER BY first_seen""",
+            (since,),
+        )
+
+    def address_overlaps(self, since):
+        """
+        Each address two devices held at the same time (§4.36), and from when:
+        the later of the two windows' starts, which is when it began.
+        """
+        return self.db.execute(
+            """SELECT a.address, a.interface, a.mac AS one, b.mac AS other,
+                      max(a.first_seen, b.first_seen) AS at
+               FROM address_observation a
+               JOIN address_observation b
+                 ON a.address = b.address AND a.interface = b.interface
+                AND a.mac < b.mac
+                AND a.first_seen <= b.last_seen
+                AND b.first_seen <= a.last_seen
+               WHERE max(a.first_seen, b.first_seen) >= ?
+               GROUP BY a.address, a.interface, a.mac, b.mac
+               ORDER BY at""",
+            (since,),
+        )
+
+    def gateway_states(self, since):
+        """:return: (name, at, status) per sample, oldest first"""
+        return self.db.execute(
+            """SELECT name, at, status, loss, delay FROM gateway_sample
+               WHERE at >= ? ORDER BY name, at""",
+            (since,),
+        )
 
     # ----------------------------------------------------------- traffic
 

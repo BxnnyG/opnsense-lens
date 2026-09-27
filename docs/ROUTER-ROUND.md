@@ -122,6 +122,11 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       times is one row with "3 addresses"; its device page covers all of them;
       Settings → *One phone, not one row per private address* off brings the rows back.
       Open a device from Devices — the menu on the left stays open
+- [ ] **Events** (stage 35): 7 days lists what you remember happening — the
+      last outage, a new device, the NAS's night. Mute one device from an event:
+      it folds away behind "1 from devices you muted", its page says *muted*,
+      and the one sentence on the dashboard no longer leads with it. Unmute from
+      its page. Note the page's load time from the round report
 - [ ] **where it talks** (stage 34): the card on a device page says it is off
       and links to Settings. Switch *Keep who each device talks to* on, then
       `time configctl lens harvest` — note the seconds (the first run fetches up

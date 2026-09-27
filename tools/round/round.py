@@ -52,6 +52,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
 ENDPOINTS = [
     'devices/list?hours=24',
     'devices/presence?hours=24',
+    'events/list?days=7',
     'dashboard/timeline?hours=24',
     'dashboard/internet?hours=24',
     'dashboard/line?hours=24',

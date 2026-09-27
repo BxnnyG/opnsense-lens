@@ -30,6 +30,7 @@ try {
 
 const PAGES = {
     dashboard: '/ui/lens/dashboard',
+    events: '/ui/lens/events?days=30',
     overview: '/ui/lens/overview',
     device: '/ui/lens/device?mac=00:11:32:aa:bb:cc',
     presence: '/ui/lens/presence',

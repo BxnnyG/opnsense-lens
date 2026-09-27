@@ -25,6 +25,19 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.21_1
+
+* Reporting: Lens: Events - what happened over 24 hours, 7 or 30 days, newest
+  first: new devices, unusual days, the internet unreachable, a gateway down or
+  struggling, an address held by two devices at once, and a phone switching to
+  a new private address. Each opens the page that proves it
+* an unusual day in the past is judged as it was that evening, never with
+  hindsight; a gateway counts as struggling after fifteen minutes, not one
+  sample; a gateway down during an outage is its reason, not a second event
+* mute a device, from its page or from an event: its events fold away behind a
+  count and the one sentence never leads with it. Its figures stay. A phone
+  with rotating addresses is muted as a whole (schema 8)
+
 0.20_1
 
 * a device's page says where it talks: each destination, the service by its

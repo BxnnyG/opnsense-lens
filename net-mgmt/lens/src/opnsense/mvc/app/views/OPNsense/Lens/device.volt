@@ -226,9 +226,21 @@
                 $pills.append($('<span/>').addClass('dv-pill warn').attr('title', device.caveat)
                     .text('{{ lang._("randomised MAC") }}'));
             }
+            if (device.muted) {
+                $pills.append($('<span/>').addClass('dv-pill')
+                    .attr('title', '{{ lang._("Its events fold away on Events, and the one sentence never leads with it. Its figures stay.") }}')
+                    .text('{{ lang._("muted") }}'));
+            }
             for (const tag of device.tags) {
                 $pills.append($('<span/>').addClass('dv-pill').text(tag));
             }
+            $('#dvMute').empty()
+                .append($('<i/>').addClass('fa ' + (device.muted ? 'fa-bell' : 'fa-bell-slash')))
+                .append(document.createTextNode(' ' + (device.muted
+                    ? '{{ lang._("Unmute") }}' : '{{ lang._("Mute") }}')))
+                .attr('title', device.muted
+                    ? '{{ lang._("Tell me about this device again") }}'
+                    : '{{ lang._("Stop telling me about this device: its events fold away, its figures stay") }}');
             if (device.label.note) {
                 $pills.append($('<div/>').addClass('dv-sub').text(device.label.note));
             }
@@ -355,6 +367,16 @@
             });
         });
 
+        /* the mute (§4.63): every MAC of a folded phone, so a rotation stays quiet */
+        $('#dvMute').on('click', (event) => {
+            event.preventDefault();
+            ajaxCall('/api/lens/devices/mute', { mac: macs(), muted: device.muted ? '0' : '1' }, (reply, status) => {
+                if (status === 'success' && reply && reply.status === 'ok') {
+                    load();
+                }
+            });
+        });
+
         $('#dvRange').on('click', '.lens-chip', function (event) {
             event.preventDefault();
             hours = parseInt($(this).data('hours'), 10);
@@ -386,9 +408,12 @@
             <div class="dv-meta" id="dvMeta"></div>
             <div class="dv-pills" id="dvPills"></div>
         </div>
-        <a href="#" id="dvEdit" class="btn btn-default btn-sm dv-hero-edit">
-            <i class="fa fa-pencil"></i> {{ lang._('Name it') }}
-        </a>
+        <div class="dv-hero-edit">
+            <a href="#" id="dvMute" class="btn btn-default btn-sm"></a>
+            <a href="#" id="dvEdit" class="btn btn-default btn-sm">
+                <i class="fa fa-pencil"></i> {{ lang._('Name it') }}
+            </a>
+        </div>
     </div>
 
     <div id="dvEditBox" class="content-box dv-card" style="display: none; margin-bottom: 14px;">

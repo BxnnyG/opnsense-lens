@@ -90,7 +90,8 @@ class DevicesController extends ApiControllerBase
         );
         $report['baseline'] = BaselineReport::describe(
             self::decode($backend, 'lens baseline', $calls),
-            self::names($report['devices'])
+            self::names($report['devices']),
+            DeviceReport::mutedMacs($report['devices'])
         );
         $report['window'] = Window::describe(
             $hours,
@@ -329,6 +330,33 @@ class DevicesController extends ApiControllerBase
 
         return in_array($reply, ['saved', 'cleared'], true)
             ? ['status' => 'ok', 'result' => $reply]
+            : ['status' => 'failed', 'message' => $reply];
+    }
+
+    /**
+     * Mute or unmute one device (§4.63): every MAC of a folded row, so the
+     * next rotation stays quiet. Lens's own table, like the label.
+     *
+     * @return array
+     */
+    public function muteAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'message' => gettext('POST only')];
+        }
+
+        $macs = DeviceReport::macList((string)$this->request->getPost('mac', null, ''));
+        if ($macs === null) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+
+        $muted = in_array((string)$this->request->getPost('muted', null, ''), ['1', 'true'], true);
+        $encoded = rtrim(strtr(base64_encode(json_encode(['muted' => $muted])), '+/', '-_'), '=');
+
+        $reply = trim((string)(new Backend())->configdpRun('lens label', [$macs, $encoded]));
+
+        return in_array($reply, ['saved', 'cleared'], true)
+            ? ['status' => 'ok', 'muted' => $muted]
             : ['status' => 'failed', 'message' => $reply];
     }
 

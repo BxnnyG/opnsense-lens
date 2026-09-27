@@ -389,7 +389,7 @@ tr.lens-group > td { background: var(--lens-hover); }
 .dv-pill.home { border-color: var(--lens-good); color: var(--lens-good-ink); }
 .dv-pill.away { color: var(--lens-muted); }
 .dv-pill.warn { border-color: var(--lens-warn); color: var(--lens-warn-ink); }
-.dv-hero-edit { margin-left: auto; align-self: flex-start; }
+.dv-hero-edit { margin-left: auto; align-self: flex-start; display: flex; gap: 6px; flex-wrap: wrap; }
 
 .dv-facts { display: grid; gap: 14px; margin-bottom: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .dv-fact { padding: 12px 14px; margin: 0; }
@@ -422,6 +422,33 @@ tr.lens-group > td { background: var(--lens-hover); }
 .dv-talk-bar { width: 30%; }
 .dv-num-cell { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dv-peer-svc { display: none; }
+
+/* ------------------------------------------------------------ events (§4.63) */
+.ev-headline { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.ev-groups { margin: 0 -3px 6px -3px; }
+.ev-day {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--lens-muted); margin: 16px 0 4px 0;
+}
+.ev-row {
+    display: grid; grid-template-columns: 4.5em 6.5em 1fr auto; gap: 12px; align-items: baseline;
+    padding: 8px 0 8px 10px; border-top: 1px solid var(--lens-hairline);
+    border-left: 3px solid transparent;
+}
+.ev-alert { border-left-color: var(--lens-bad); }
+.ev-notice { border-left-color: var(--lens-warn); }
+.ev-info { border-left-color: var(--lens-border); }
+.ev-time { color: var(--lens-muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
+.ev-word { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.ev-alert .ev-word { color: var(--lens-bad-ink); }
+.ev-notice .ev-word { color: var(--lens-warn-ink); }
+.ev-info .ev-word { color: var(--lens-muted); }
+.ev-title { color: inherit; font-weight: 600; }
+.ev-title:hover { color: var(--lens-accent); }
+.ev-mute { color: var(--lens-muted); padding: 0 4px; }
+.ev-mute:hover { color: var(--lens-accent); }
+.ev-muted { opacity: 0.55; }
+.ev-empty { padding: 12px 0; }
 .dv-strip { position: relative; height: 18px; border-radius: 4px; background: var(--lens-track); }
 .dv-span { position: absolute; top: 0; height: 18px; border-radius: 4px; background: var(--lens-data); min-width: 2px; }
 
@@ -567,6 +594,10 @@ tr.lens-group > td { background: var(--lens-hover); }
        an IPv6 one may, at its colons */
     .dv-peer-svc { display: block; white-space: normal; }
     .dv-peer { white-space: normal; overflow-wrap: anywhere; }
+    /* time and word on one line, the sentence under them, the bell top right */
+    .ev-row { grid-template-columns: auto 1fr auto; gap: 2px 10px; }
+    .ev-body { grid-column: 1 / -1; }
+    .ev-mute { grid-row: 1; grid-column: 3; }
 
     .who-name { flex-basis: 9em; }
     .who-meta { display: none; }

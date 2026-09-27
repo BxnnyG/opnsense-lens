@@ -226,22 +226,22 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.20_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.21_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
 | System | Status | Rest / note |
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
-| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested. Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 7, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
+| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 8, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in. Missing from the plan: DNS activity (needs S12) |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
-| S9 · Correlation timeline | ⏳ | IDS slot left open (§4.6) |
+| S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | ⏳ | needs S1 as its index |
 | S12 · DNS view | ⏳ | blocked on seeing one real `qstats` output (ROADMAP) |
@@ -1762,3 +1762,27 @@ is refused.
 **Consequences:** the device page answers "to whom" as well as "how much", and
 says the grain is a day, because core's is. Reverse DNS is not attempted: a
 lookup per destination is load on every page and a leak to whoever answers.
+
+### §4.63 — Events are derived, and a mute hides news, not facts (2026-09-27)
+**Question:** BACKLOG #37 — one chronological feed of what Lens already detects.
+Does it need an event table the collector writes, and what does muting a device
+do?
+**Decision:** **derived at read time**, no event table. Every event is a fact the
+store already holds with its time — `first_seen`, probe rounds, gateway samples,
+address windows, daily totals — so a table would be a second copy that can
+disagree with the first, and one more thing retention and purge must know. An
+unusual day in the past is judged the way it would have been judged that
+evening: `baseline.assess` over the window before it, not with hindsight.
+A gateway is "struggling" only for three samples or more (fifteen minutes); one
+lossy sample is the chart's business, not news. A rotation of a folded phone
+(§4.61) is its own quiet event, never "a new device".
+**Mute** is per device, in the operator's own table (`device_label.muted`,
+schema 8), and does two things only: the device's events fold away on Events
+behind a count, and it is never the subject of the one sentence. Its figures,
+its verdict on Devices and its page are unchanged — muting hides news, not
+facts. A folded phone is muted as a whole: every MAC of it, and a row is muted
+when any of its MACs is, so the next rotation stays quiet.
+**Consequences:** the feed can never say something the pages behind it do not;
+it costs one configd call per page load and nothing on the collector. What it
+cannot show is anything the store does not keep — DHCP churn, DNS blocks, IDS —
+which is S9's remaining lanes.

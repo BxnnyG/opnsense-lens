@@ -156,6 +156,17 @@ class HeadlineTest extends TestCase
             'the new device is still mentioned, just second');
     }
 
+    public function testAMutedDeviceIsNeverTheSubject()
+    {
+        /* §4.63: the NAS's nightly backup, muted, leaves the line calm */
+        $said = $this->compose([], ['unusual' => [
+            ['name' => 'NAS', 'today' => '40 GB', 'times' => 9.5, 'muted' => true],
+        ]]);
+
+        $this->assertSame('calm', $said['tone']);
+        $this->assertStringNotContainsString('NAS', $said['sentence']);
+    }
+
     public function testANewDeviceIsNamed()
     {
         $said = $this->compose(['new' => ['Unknown phone']]);

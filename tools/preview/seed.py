@@ -211,6 +211,13 @@ def seed(path, days, now):
         " VALUES (?, ?, ?, ?, ?)",
         ('3c:22:fb:10:20:30', 'fd00:10:20::11', 'vtnet1_vlan20', now - 8 * DAY, now - 6 * DAY))
 
+    # two plugs answering for one address for an afternoon: a DHCP conflict (§4.36)
+    store.db.execute(
+        "INSERT INTO address_observation (mac, address, interface, first_seen, last_seen)"
+        " VALUES (?, ?, ?, ?, ?)",
+        ('a4:cf:12:00:00:02', '10.10.21.11', 'vtnet1_vlan21', now - 4 * DAY + 14 * HOUR,
+         now - 4 * DAY + 16 * HOUR))
+
     # a transit network nobody on it was seen holding (§4.31)
     for hour_at in range(now - 2 * DAY - (now % HOUR), now - now % HOUR, HOUR):
         buckets.append((hour_at, 'wt0', '100.80.%d.%d' % (hour_at % 7, hour_at % 200), 'in',
@@ -243,6 +250,8 @@ def seed(path, days, now):
 
     for mac, fields in LABELS.items():
         store.set_label(mac, fields, now - 20 * DAY)
+    # a guest's phone, muted: its arrival folds away on Events (§4.63)
+    store.set_label('fa:16:3e:ab:cd:ef', {'muted': True}, now - 20 * DAY)
 
     # the line and the internet, every five minutes
     at = now - days * DAY
@@ -253,9 +262,13 @@ def seed(path, days, now):
         delay = rng.gauss(14 if not evening else 19, 2.5)
         loss = 0.0 if rng.random() > 0.01 else rng.choice([5.0, 10.0, 20.0])
         down = outage[0] <= at < outage[1]
+        # a bad evening on the line three days ago: dpinger's loss alarm (§4.63)
+        lossy = now - 3 * DAY + 20 * HOUR <= at < now - 3 * DAY + 20 * HOUR + 45 * 60
+        if lossy:
+            loss = rng.choice([12.0, 18.0, 25.0])
         gateway_rows.append((at, 'WAN_PPPOE', None if down else round(delay, 1),
                              None if down else round(abs(rng.gauss(1.5, 0.6)), 1),
-                             100.0 if down else loss, 'down' if down else 'none'))
+                             100.0 if down else loss, 'down' if down else ('loss' if lossy else 'none')))
         if at >= now - 8 * DAY:
             for target, base in (('Quad9', 11.0), ('Cloudflare', 9.5), ('Google', 12.5)):
                 rtt = None if down else round(rng.gauss(base + (4 if evening else 0), 1.2), 1)

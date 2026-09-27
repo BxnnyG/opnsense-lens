@@ -191,7 +191,8 @@ data Lens already keeps; none is planned before the router round.
 - **#36 — One filter bar for every page.** Palo Alto's ACC: any chip, bar or
   slice becomes a filter pill in the page header, carried in the query string,
   and every Lens page follows it.
-- **#37 — What happened while I was away.** One chronological feed of the five
+- **#37 — What happened while I was away.** 🔨 built 2026-09-27 as stage 35
+  (§4.63). One chronological feed of the five
   events Lens already detects — new device, unusual day, outage, degraded
   gateway, identity fragmenting — each opening the page that proves it, with a
   per-device mute. Most of S9 without a new source.

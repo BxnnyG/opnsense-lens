@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lenslib import attribute                                   # noqa: E402
 from lenslib import baseline as baselib                         # noqa: E402
+from lenslib import events as eventlib                          # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib import presence as presencelib                     # noqa: E402
 from lenslib import settings as settingslib                     # noqa: E402
@@ -443,6 +444,59 @@ def baseline(store, now):
     return report
 
 
+# Events reach back at most this far: the unusual days behind them cost the
+# attribution join over EVENT_DAYS + baseline_days + 1 days (§4.63, rule 7)
+EVENT_DAYS = 30
+
+
+def events(store, now, days):
+    """
+    What happened over the last `days` days, per kind, in the store's own terms
+    (§4.63). Nothing is written; PHP puts the kinds on one time line.
+    """
+    days = max(1, min(EVENT_DAYS, int(days or 7)))
+    since = now - days * 86400
+    today = now // 86400
+    conf = store.settings()
+
+    watching_since = store.watching_since()
+    new, new_from = eventlib.new_devices(
+        [(row['mac'], row['first_seen']) for row in store.devices_since(since)],
+        watching_since, since)
+
+    # the baseline window before the first day, so that day is judged as it was
+    first_day = since // 86400
+    totals = [(row['mac'], row['day'], row['octets'])
+              for row in store.daily_totals((first_day - conf['baseline_days'] - 1) * 86400)]
+    floor = conf['baseline_floor_mb'] * settingslib.MB
+    unusual = eventlib.unusual_days(totals, first_day, today, conf['baseline_days'],
+                                    conf['baseline_factor'], floor)
+
+    rounds = [(row['at'], row['best_loss']) for row in store.probe_rounds(since)]
+    outages = [{'from': start, 'to': end, 'ongoing': end == now}
+               for start, end in uptime.assess(rounds, since, now, 1)['outages']]
+
+    samples = [(row['name'], row['at'], row['status'], row['loss']) for row in store.gateway_states(since)]
+
+    return {
+        'days': days,
+        'since': since,
+        'now': now,
+        'watching_since': watching_since,
+        'new_from': new_from,
+        'new': new,
+        'unusual': unusual,
+        'baseline': {'needs_days': conf['baseline_days'], 'factor': conf['baseline_factor'], 'floor': floor},
+        'outages': outages,
+        'probing': conf['probe_enabled'],
+        'gateways': eventlib.gateway_runs(samples, now),
+        'sampling': conf['gateway_samples'],
+        'overlaps': [{'address': row['address'], 'interface': row['interface'],
+                      'macs': [row['one'], row['other']], 'at': row['at']}
+                     for row in store.address_overlaps(since)],
+    }
+
+
 def decode_fields(encoded):
     """
     base64url of a JSON object, as the label and configure duties receive it.
@@ -623,10 +677,17 @@ def label(mac, encoded):
         print('label fields must be a base64url JSON object', file=sys.stderr)
         return 1
 
+    # several MACs only for the mute: a folded phone is muted as a whole (§4.63)
+    macs = mac_list(mac)
+    if len(macs) > 1 and set(fields) != {'muted'}:
+        print('only a mute applies to several devices at once', file=sys.stderr)
+        return 1
+
     store = Store(DB_PATH)
-    outcome = store.set_label(parse.normalise_mac(mac), fields, int(time.time()))
+    now = int(time.time())
+    outcomes = [store.set_label(one, fields, now) for one in macs]
     store.commit()
-    print(outcome)
+    print('saved' if 'saved' in outcomes else 'cleared')
     return 0
 
 
@@ -834,14 +895,14 @@ def main():
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
-                 'segments', 'moment', 'label',
+                 'segments', 'moment', 'label', 'events',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
     parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
     parser.add_argument('--fields', help='base64url of a JSON object of label or setting fields')
-    parser.add_argument('--days', type=int, default=30, help='how far back destinations reach')
+    parser.add_argument('--days', type=int, default=30, help='how far back destinations and events reach')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
         help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
@@ -862,6 +923,10 @@ def main():
 
     if args.duty == 'destinations':
         print(json.dumps(destinations(Store(DB_PATH), int(time.time()), args.mac, args.days)))
+        return 0
+
+    if args.duty == 'events':
+        print(json.dumps(events(Store(DB_PATH), int(time.time()), args.days)))
         return 0
 
     if args.duty == 'settings':

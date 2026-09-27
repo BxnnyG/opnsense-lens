@@ -50,9 +50,11 @@ class BaselineReport
      *                     up at display time (§4.23) -- so without this a
      *                     Proxmox guest was "Proxmox Server Solutions GmbH
      *                     1B5816" in the list and a bare MAC in the verdict.
+     * @param array $muted MACs the operator muted (§4.63): their verdicts stay,
+     *                     marked, and the headline does not count them
      * @return array
      */
-    public static function describe(array $raw, array $names = []): array
+    public static function describe(array $raw, array $names = [], array $muted = []): array
     {
         $days = (int)($raw['days'] ?? 0);
         $needs = (int)($raw['needs_days'] ?? 21);
@@ -68,6 +70,7 @@ class BaselineReport
                 'today' => Bytes::human($today),
                 'usual' => Bytes::human($usual),
                 'times' => (float)($entry['times'] ?? 0),
+                'muted' => in_array((string)($entry['mac'] ?? ''), $muted, true),
                 'says' => sprintf(
                     gettext('%s today against a usual day of %s - %s times as much.'),
                     Bytes::human($today),
@@ -82,7 +85,9 @@ class BaselineReport
             'learning' => $days < $needs,
             'days' => $days,
             'needs_days' => $needs,
-            'headline' => self::headline($rows, $days, $needs),
+            'headline' => self::headline(array_values(array_filter($rows, function ($row) {
+                return !$row['muted'];
+            })), $days, $needs),
         ];
     }
 

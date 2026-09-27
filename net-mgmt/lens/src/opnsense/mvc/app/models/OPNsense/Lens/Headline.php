@@ -65,7 +65,10 @@ class Headline
         array $line = [],
         array $probes = []
     ): array {
-        $unusual = (array)($baseline['unusual'] ?? []);
+        /* a device the operator muted is never the subject of this line (§4.63) */
+        $unusual = array_values(array_filter((array)($baseline['unusual'] ?? []), function ($row) {
+            return empty($row['muted']);
+        }));
         $new = !empty($summary['new_yet']) ? (array)($summary['new'] ?? []) : [];
         $also = [];
 
