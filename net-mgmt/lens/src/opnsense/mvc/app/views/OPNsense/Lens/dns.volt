@@ -80,12 +80,26 @@
             }
             $('#dnsNoBlocked').toggle(!report.blocked.length);
 
+            clients = report.clients;
+            drawClients();
+            $('#dnsReport').show();
+        });
+
+        /* only the devices follow the filter: the names above are the whole
+           resolver's, and say so in their titles (§4.65) */
+        let clients = null;
+        const drawClients = () => {
             const $clients = $('#dnsClients').empty();
-            for (const row of report.clients) {
+            const shown = clients.filter(row => Lens.filter.matches(row.placed ? row : { interfaces: [], tags: [] }));
+            for (const row of shown) {
                 $clients.append(ranked(row.name, row.sub, row.bar, row.queries, { link: row.link }));
             }
-            $('#dnsNoClients').toggle(!report.clients.length);
-            $('#dnsReport').show();
+            $('#dnsNoClients').toggle(!shown.length);
+        };
+        Lens.filter.mount(document.getElementById('dnsClients'), () => {
+            if (clients) {
+                drawClients();
+            }
         });
     });
 </script>
@@ -120,11 +134,11 @@
 
     <div class="dv-grid">
         <div class="content-box dv-card">
-            <div class="dv-title"><span>{{ lang._('Asked most') }}</span></div>
+            <div class="dv-title"><span>{{ lang._('Asked most, the whole network') }}</span></div>
             <div id="dnsTop"></div>
         </div>
         <div class="content-box dv-card">
-            <div class="dv-title"><span>{{ lang._('Blocked most') }}</span></div>
+            <div class="dv-title"><span>{{ lang._('Blocked most, the whole network') }}</span></div>
             <div id="dnsTopBlocked"></div>
             <div id="dnsNoBlocked" class="dv-sub">{{ lang._('Nothing was blocked - or no blocklist is switched on.') }}</div>
         </div>

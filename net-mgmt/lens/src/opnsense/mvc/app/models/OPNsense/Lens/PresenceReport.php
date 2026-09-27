@@ -91,6 +91,9 @@ class PresenceReport
                 'name' => $row['name'],
                 'icon' => $row['kind']['icon'] ?? 'fa-circle-o',
                 'here' => (bool)$row['here'],
+                /* what the filter bar narrows by (§4.65) */
+                'interfaces' => array_values((array)($row['interfaces'] ?? [])),
+                'tags' => array_values((array)($row['tags'] ?? [])),
                 'spans' => array_map(function ($span) {
                     return [(int)$span[0], (int)$span[1]];
                 }, $spans),

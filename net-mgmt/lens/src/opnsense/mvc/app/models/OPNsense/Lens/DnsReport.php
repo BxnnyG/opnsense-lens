@@ -158,6 +158,8 @@ class DnsReport
                     'placed' => $row !== null,
                     'link' => $row !== null ? '/ui/lens/device?mac=' . rawurlencode($row['mac']) : null,
                     'icon' => $row['kind']['icon'] ?? 'fa-question-circle-o',
+                    'interfaces' => array_values((array)($row['interfaces'] ?? [])),
+                    'tags' => array_values((array)($row['tags'] ?? [])),
                     'queries' => 0,
                     'addresses' => [],
                 ];

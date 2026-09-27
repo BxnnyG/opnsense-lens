@@ -91,31 +91,47 @@
                 .append($('<div/>').addClass('who-meta').text(entry.present));
         };
 
-        ajaxGet('/api/lens/devices/presence', { hours: hours }, (report, status) => {
+        let report = null;
+
+        /* drawn again when the filter bar changes (§4.65) */
+        const draw = () => {
+            const moving = report.moving.filter(entry => Lens.filter.matches(entry));
+            const always = report.always.filter(entry => Lens.filter.matches(entry));
+
+            const $moving = $('#whoMoving').empty().append(ticks(report.start, report.now));
+            for (const entry of moving) {
+                $moving.append(row(entry, report.start, report.now));
+            }
+            if (!moving.length) {
+                $moving.append($('<div/>').addClass('text-muted').text(Lens.filter.active()
+                    ? '{{ lang._("Nothing on the chosen networks and tags came and went.") }}'
+                    : '{{ lang._("Every device was here the whole time.") }}'));
+            }
+
+            const $always = $('#whoAlways').empty().append(ticks(report.start, report.now));
+            for (const entry of always) {
+                $always.append(row(entry, report.start, report.now));
+            }
+            $('#whoAlwaysCount').text(always.length);
+            $('#whoAlwaysBox').toggle(always.length > 0);
+        };
+
+        Lens.filter.mount(document.getElementById('whoNote'), () => {
+            if (report) {
+                draw();
+            }
+        });
+
+        ajaxGet('/api/lens/devices/presence', { hours: hours }, (reply, status) => {
             $('#whoLoading').hide();
-            if (status !== 'success' || !report || !report.moving) {
+            if (status !== 'success' || !reply || !reply.moving) {
                 $('#whoError').show();
                 return;
             }
 
+            report = reply;
             $('#whoNote').toggle(!!report.note).text(report.note || '');
-
-            const $moving = $('#whoMoving').empty().append(ticks(report.start, report.now));
-            for (const entry of report.moving) {
-                $moving.append(row(entry, report.start, report.now));
-            }
-            if (!report.moving.length) {
-                $moving.append($('<div/>').addClass('text-muted')
-                    .text('{{ lang._("Every device was here the whole time.") }}'));
-            }
-
-            const $always = $('#whoAlways').empty().append(ticks(report.start, report.now));
-            for (const entry of report.always) {
-                $always.append(row(entry, report.start, report.now));
-            }
-            $('#whoAlwaysCount').text(report.always.length);
-            $('#whoAlwaysBox').toggle(report.always.length > 0);
-
+            draw();
             $('#whoReport').show();
         });
 

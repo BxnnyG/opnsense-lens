@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.22_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.23_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -243,7 +243,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
-| S11 · Command palette | ⏳ | needs S1 as its index |
+| S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
 | S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: a per-device hour-of-week heatmap, the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
@@ -1811,3 +1811,19 @@ the newest 500 queries of each address window are seen — core's action allows
 no more — and the card says when that cap was reached. Switching Unbound's
 statistics on stays the operator's act in core; a fix button like §4.35's is a
 later decision.
+
+### §4.65 — One palette, one filter, both only where they are true (2026-09-27)
+**Question:** BACKLOG #36 and S11 — a global filter like Palo Alto's ACC and a
+command palette. Core already has a menu search; what does Lens add, and which
+pages must obey a filter?
+**Decision:** the palette searches **devices** — by name, MAC, any address,
+vendor, tag or network — and Lens's own pages; core's menu search stays the
+way to find core's pages. It opens with Ctrl-K, ⌘K or `/`, which core leaves
+free. The filter is networks and tags, kept in the address and carried in the
+tab, and it is shown **only on pages that apply it** (Devices, Who's home,
+Events, DNS): a filter bar above a chart that ignores it would be a lie in the
+page's own header. Events about the line and the internet are never filtered
+out — they concern every network.
+**Consequences:** the dashboard, Networks and the wallboard stay unfiltered and
+say nothing about it; a filter chosen on Devices is still there on Events,
+visibly, with one click to clear.

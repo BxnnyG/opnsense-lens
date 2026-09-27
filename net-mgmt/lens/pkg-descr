@@ -25,6 +25,16 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.23_1
+
+* Ctrl-K, Cmd-K or / on any Lens page finds a device by name, MAC, any
+  address, vendor, tag or network, and Lens's own pages; Enter opens it.
+  Core's menu search still finds core's pages
+* one filter for networks and tags: chosen on Devices, it follows to Who's
+  home, Events and DNS in the same tab, in the address and as pills with one
+  click to clear. It sits only above what it filters; events about the line
+  and the internet are never filtered away
+
 0.22_1
 
 * Reporting: Lens: DNS - what the devices asked Unbound for and what its

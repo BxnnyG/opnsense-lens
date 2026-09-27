@@ -108,6 +108,10 @@
                 if ((group !== 'all' && event.group !== group) || (event.muted && !showMuted)) {
                     continue;
                 }
+                /* the line and the internet concern every network: no filter hides them (§4.65) */
+                if (!Lens.filter.matches(event.device)) {
+                    continue;
+                }
                 const label = dayLabel(event.at);
                 if (label !== day) {
                     day = label;
@@ -162,6 +166,11 @@
             draw();
         });
 
+        Lens.filter.mount(document.getElementById('evLoading'), () => {
+            if (report) {
+                draw();
+            }
+        });
         load();
     });
 </script>

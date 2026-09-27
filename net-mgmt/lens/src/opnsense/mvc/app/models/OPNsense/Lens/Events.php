@@ -184,6 +184,8 @@ class Events
                 'macs' => array_values((array)($row['macs'] ?? [$row['mac']])),
                 'name' => $row['name'],
                 'muted' => !empty($row['muted']),
+                'interfaces' => array_values((array)($row['interfaces'] ?? [])),
+                'tags' => array_values((array)($row['tags'] ?? [])),
             ],
             'muted' => $row !== null && !empty($row['muted']),
             'link' => $link,

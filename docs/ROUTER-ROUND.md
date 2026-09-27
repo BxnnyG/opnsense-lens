@@ -127,6 +127,10 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       it folds away behind "1 from devices you muted", its page says *muted*,
       and the one sentence on the dashboard no longer leads with it. Unmute from
       its page. Note the page's load time from the round report
+- [ ] **palette and filter** (stage 37): Ctrl-K on any Lens page, type part
+      of an address — the device that holds it comes first; Enter opens it.
+      Pick IOT on Devices, then open Who's home and Events from the menu: both
+      say "Filtered to Network: IOT", and *clear* clears it everywhere
 - [ ] **where it talks** (stage 34): the card on a device page says it is off
       and links to Settings. Switch *Keep who each device talks to* on, then
       `time configctl lens harvest` — note the seconds (the first run fetches up

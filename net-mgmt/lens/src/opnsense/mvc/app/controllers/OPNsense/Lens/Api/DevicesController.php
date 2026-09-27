@@ -38,6 +38,7 @@ use OPNsense\Lens\DeviceProfile;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Headline;
 use OPNsense\Lens\LineQuality;
+use OPNsense\Lens\Palette;
 use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\Window;
 
@@ -331,6 +332,31 @@ class DevicesController extends ApiControllerBase
         return in_array($reply, ['saved', 'cleared'], true)
             ? ['status' => 'ok', 'result' => $reply]
             : ['status' => 'failed', 'message' => $reply];
+    }
+
+    /**
+     * What Ctrl-K can find (§4.65): no traffic, so three light calls.
+     *
+     * @return array
+     */
+    public function indexAction()
+    {
+        $backend = new Backend();
+        $calls = [];
+        $status = self::decode($backend, 'lens status', $calls);
+        $names = SegmentsController::names();
+
+        $report = DeviceReport::describe(
+            self::decode($backend, 'lens devices', $calls),
+            self::decode($backend, 'interface list macdb', $calls),
+            [],
+            isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,
+            time(),
+            $names,
+            (bool)($status['fold_randomised'] ?? true)
+        );
+
+        return Palette::index($report['devices'], $names);
     }
 
     /**

@@ -97,10 +97,8 @@
         /* vtnet1_vlan20 -> HOME, decided in DeviceReport so every page agrees */
         let segmentNames = {};
 
-        /* arriving from the Networks page with one segment already chosen */
-        const asked = new URLSearchParams(location.search).get('segment');
-        let segments = new Set(asked ? [asked] : []);
-        let tags = new Set();
+        /* the chips are the global filter (§4.65): ?segment= from the Networks
+           page, and whatever was chosen on another Lens page in this tab */
         let lastShown = [];
         let kinds = {};
         let groups = [];
@@ -118,15 +116,9 @@
                 if (onlyBusy && !device.octets) {
                     return false;
                 }
-                if (segments.size && !device.interfaces.some(i => segments.has(i))) {
-                    return false;
-                }
                 /* two dimensions, and they narrow together: any of the chosen
                    segments, and any of the chosen tags */
-                if (tags.size && !device.tags.some(t => tags.has(t))) {
-                    return false;
-                }
-                return true;
+                return Lens.filter.matches(device);
             });
 
             /* the bar is relative to what is on screen, so filtering to one
@@ -488,22 +480,17 @@
             download(rows, 'lens-devices-' + stamp + '-' + chosenHours() + 'h.csv');
         };
 
-        const drawChips = ($bar, counts, chosen, shown) => {
+        const drawChips = ($bar, counts, kind, shown) => {
             $bar.empty();
             const label = shown || (name => name);
             for (const [name, count] of [...counts.entries()].sort((a, b) => label(a[0]).localeCompare(label(b[0])))) {
+                Lens.filter.name(kind, name, label(name));
                 $('<a/>').addClass('lens-chip').attr('href', '#')
-                    .toggleClass('lens-chip-on', chosen.has(name))
+                    .toggleClass('lens-chip-on', Lens.filter.has(kind, name))
                     .text(label(name) + ' (' + count + ')')
                     .on('click', function (event) {
                         event.preventDefault();
-                        if (chosen.has(name)) {
-                            chosen.delete(name);
-                        } else {
-                            chosen.add(name);
-                        }
-                        $(this).toggleClass('lens-chip-on', chosen.has(name));
-                        render();
+                        Lens.filter.toggle(kind, name, label(name));
                     })
                     .appendTo($bar);
             }
@@ -525,7 +512,7 @@
                groups devices under a directory user, and this is the same idea
                without needing a directory (BACKLOG #25) */
             const counts = countBy(device => device.tags);
-            $('#lensTagWrap').toggle(drawChips($('#lensTags'), counts, tags) > 0);
+            $('#lensTagWrap').toggle(drawChips($('#lensTags'), counts, 'tag') > 0);
         };
 
         const drawBaseline = (baseline) => {
@@ -551,7 +538,7 @@
         };
 
         const drawSegments = () => {
-            drawChips($('#lensSegments'), countBy(device => device.interfaces), segments,
+            drawChips($('#lensSegments'), countBy(device => device.interfaces), 'segment',
                       name => segmentNames[name] || name);
             $('#lensSegments').show();
         };
@@ -619,6 +606,13 @@
             $(this).text($('#lensUnexplainedList').is(':visible')
                 ? '{{ lang._("Hide the addresses") }}'
                 : '{{ lang._("Show which addresses those are") }}');
+        });
+        /* above the list, not the page: the figures above the list are the
+           whole network's, and a bar over them would claim otherwise (§4.65) */
+        Lens.filter.mount(document.getElementById('lensControls'), () => {
+            drawSegments();
+            drawTags();
+            render();
         });
         $('#lensSearch').on('input', render);
         $('#lensOnlyTraffic').on('change', render);
