@@ -1,0 +1,52 @@
+# os-lens built on FreeBSD, and a pkg repository around it (stage 40, §4.68).
+#
+# Nothing is published. The feed is an artifact of this run until the operator
+# decides where it is served from and whether it is signed; both are theirs to
+# decide (§4.68). Runs on demand and on a version tag, never on every push: a
+# FreeBSD VM costs minutes.
+
+name: package
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: make package on FreeBSD, then pkg repo
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.3"
+          usesh: true
+          prepare: |
+            pkg install -y git
+          run: |
+            set -e
+            git config --global --add safe.directory "$(pwd)"
+            cd net-mgmt/lens
+            # Lens ships scripts, no binaries: any FreeBSD ABI may install it,
+            # so an OPNsense on a newer base does not refuse it
+            make package PLUGIN_NO_ABI=yes
+            cd ../..
+            mkdir -p feed/All
+            cp net-mgmt/lens/work/pkg/*.pkg feed/All/
+            pkg repo feed
+            pkg info -F feed/All/*.pkg
+            ls -lR feed
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: os-lens-feed
+          path: feed/
+          if-no-files-found: error

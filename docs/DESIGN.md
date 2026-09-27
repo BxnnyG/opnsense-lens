@@ -1858,3 +1858,20 @@ not an e-mail: Lens has no mail path, and adding one would be a second product
 PDF. It reads the pages it summarises, nothing new.
 **Consequences:** a person with a desktop and no phone is "home whenever the
 desktop is on", and says so; the owner field goes with the label on purge.
+
+### §4.68 — The feed is built by CI; where it is served and how it is signed is the operator's (2026-09-27)
+**Question:** ROADMAP's package feed and BACKLOG #7 — how does `os-lens` reach
+the box as a firmware update, and who decides what?
+**Decision:** a GitHub Actions workflow builds the package on a FreeBSD VM and
+wraps it in a pkg repository, kept as a run artifact. Publishing is **not**
+done by the agent: the URL a firewall trusts and the key that proves a package
+came from this repository are security decisions with no safe default — an
+unsigned feed on a URL someone else can write to is a root shell for them. They
+are recorded as open in the plan (stage 40 §4) with a recommendation: GitHub
+Pages if the repository may be public, signed with a key kept as an Actions
+secret. Core's firmware check upgrades from every configured repository
+(`pkg upgrade -Un`, no `-r`), so once served, updates arrive through
+System: Firmware with nothing else to build.
+**Consequences:** until the operator decides, the artifact's `.pkg` replaces
+building on the box (`pkg add`). The package is marked ABI-independent
+(`PLUGIN_NO_ABI`) because Lens ships no binaries.
