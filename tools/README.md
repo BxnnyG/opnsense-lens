@@ -39,3 +39,9 @@ pkill -f lens-observe
 Not a tool for the box: [`preview/`](preview/README.md) renders every Lens page
 in a browser on a laptop, through Lens's real controllers and core's own theme,
 for looking at a design change before it goes anywhere near a router.
+
+## round/
+
+[`round/`](round/README.md) runs the router round from a laptop against every
+box in `lens-deploy.sh` — SSH checks, API timings, a screenshot of every page —
+and writes one report per box outside the repository.

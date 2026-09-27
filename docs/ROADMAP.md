@@ -62,7 +62,7 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
-| — | **Router round for everything built since 0.5_2** — nineteen stages built on tests alone, stages 30 and 31 included ([checklist](ROUTER-ROUND.md)) · the pages themselves can now be looked at without a box: `tools/preview` | all | ⏳ **the next thing that matters**, 2026-09-27 |
+| — | **Router round for everything built since 0.5_2** — nineteen stages built on tests alone, stages 30 and 31 included ([checklist](ROUTER-ROUND.md)) · the pages themselves can now be looked at without a box: `tools/preview` · most of the round is one command since stage 32: `tools/round/round.py` | all | ⏳ **the next thing that matters**, 2026-09-27 |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |

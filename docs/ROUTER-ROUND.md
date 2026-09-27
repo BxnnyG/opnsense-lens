@@ -12,6 +12,14 @@
 >
 > The root shell is **csh**: no `$(...)`, no `2>&1`. Every command below is
 > written for it.
+>
+> **Most of this list is now one command** (stage 32, §4.60):
+> `tools/round/round.py --insecure` with an API key and a GUI login in the
+> environment — see [tools/round/README.md](../tools/round/README.md). It checks
+> sections 0, 1, 3 and the API and page load of 2, screenshots every page at
+> desktop and 390 px, and writes one report per box. What is left for a person
+> is reading that report, looking at the pictures, and the few items that change
+> something on purpose: the Settings round trip, the fix button, purge.
 
 ## 0. Install
 

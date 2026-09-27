@@ -1714,3 +1714,18 @@ The theme is read from the surface Lens is drawn on, because core switches
 themes by swapping stylesheets, not by setting a class. The segment name
 (`HOME`, not `vtnet1_vlan20`) is decided in PHP and reaches every page that
 shows an interface.
+
+### §4.60 — The router round is a script, and a person reads its report (2026-09-27, operator)
+**Question:** the operator does not want to click through forty checks per box.
+What still needs a person?
+**Decision:** `tools/round/round.py` runs what a machine can — the installed
+version, the crontab, the collector's last runs and cost, store size, identity,
+today's verdicts, CPU, the endpoints against the two-second budget, a Prometheus
+scrape, and a screenshot of every page at desktop and 390 px with its script
+errors and width — and writes one report per box with **ok / look / FAIL** and
+the evidence. The person reads the report and looks at the pictures; that is the
+click-test PROCESS asks for, minus the clicking.
+**Consequences:** the output lives outside the repository and secrets come from
+the environment. Nothing on the box is changed, so the one measurement that
+would need a change — observe with the probes switched off — is reported as the
+cost it has rather than as a comparison.
