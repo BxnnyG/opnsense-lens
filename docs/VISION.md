@@ -188,6 +188,13 @@ Priority order, all recorded in [BACKLOG.md](BACKLOG.md):
   statement, not a limitation to grow out of.
 - **Tiering itself.** There is nothing to withhold.
 
+## Against UniFi, Palo Alto and Firewalla as well (2026-09-27)
+
+A second, wider comparison — what each product's best screen does, what Lens
+can take from data it already keeps, and what it cannot have without DPI — is
+in [PAGE-REVIEW.md](PAGE-REVIEW.md). It adds BACKLOG #36–#41 and one warning:
+none of it before the eighteen unclicked stages have been on a router.
+
 ## Self-check: what would make each kind of person say "oh" (2026-09-24)
 
 Written after the dashboard shipped, by asking of each audience the operator

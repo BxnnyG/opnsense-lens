@@ -183,6 +183,27 @@ Filtern."* Recorded as given, ordered by my judgement.
   verified for IPv4 on FreeBSD and not for IPv6. One command on the box settles
   it (see the router round checklist).
 
+### From the page review against UniFi, Palo Alto, Zenarmor and Firewalla, 2026-09-27
+
+Reasoning and sources in [PAGE-REVIEW.md](PAGE-REVIEW.md). All of these stand on
+data Lens already keeps; none is planned before the router round.
+
+- **#36 — One filter bar for every page.** Palo Alto's ACC: any chip, bar or
+  slice becomes a filter pill in the page header, carried in the query string,
+  and every Lens page follows it.
+- **#37 — What happened while I was away.** One chronological feed of the five
+  events Lens already detects — new device, unusual day, outage, degraded
+  gateway, identity fragmenting — each opening the page that proves it, with a
+  per-device mute. Most of S9 without a new source.
+- **#38 — Judge upload separately.** A camera sending 4 GB out is not the same
+  event as a laptop downloading an update; the baseline currently cannot tell.
+- **#39 — Compared with last week.** A delta beside every figure, withheld when
+  the previous period is not fully covered (§4.43).
+- **#40 — Who's home by person.** Presence grouped by an owner tag: one strip
+  per person, the devices underneath.
+- **#41 — Say how sure the device type is.** Certain, likely, vendor only —
+  never a percentage Lens has no model to produce.
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages

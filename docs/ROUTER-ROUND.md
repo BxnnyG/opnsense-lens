@@ -1,0 +1,140 @@
+# Router round for `os-lens-0.17_1` (2026-09-27)
+
+> Why this exists: eighteen stages, stage 30 included, have been built since the
+> last click-test on a box (`0.5_2`, 2026-08-31). PROCESS calls each of them
+> "plausible" until a human has clicked it on a router and the load has been
+> measured. This is that, in one sitting, in the order that finds the expensive
+> failures first.
+>
+> Tick a box when it holds. When one does not, write what the box said
+> underneath it — the exact output, not a paraphrase — and stop there: that line
+> becomes the fixture for the fix (CLAUDE.md rule 5).
+>
+> The root shell is **csh**: no `$(...)`, no `2>&1`. Every command below is
+> written for it.
+
+## 0. Install
+
+    tools/lens-deploy.sh            # both boxes, from a checkout of this branch
+
+- [ ] router-01: `pkg info os-lens` says `0.17_1`
+- [ ] second box: the same
+- [ ] `grep -n lens /var/cron/tabs/root` prints two lines, `*/5` and `*/30` (§4.25)
+- [ ] `configctl lens status` answers JSON, `schema_version` is `6`
+- [ ] the hand-run observation loop from 2026-08-29 is gone:
+      `ps ax | grep lens-observe` shows only the grep. If it runs:
+      `pkill -f lens-observe` (tools/README.md). The collector replaced it at stage 4.
+
+## 1. The box is still a firewall (PROCESS §4, rule 7)
+
+Do this before any page. A reporting plugin that slows the router has negative
+value, and stage 29 made the observe duty wait on the network for the first time.
+
+- [ ] **observe cost:** `configctl lens status`, read `runs.observe.took_ms` three
+      times across fifteen minutes. Measured at 7 ms on 2026-08-30; with three
+      pings of three echoes each it should now be about 2–4 s, almost all of it
+      waiting. Write the three numbers here:
+      `router-01: ____ / ____ / ____ ms   second box: ____ / ____ / ____ ms`
+- [ ] **CPU while it waits:** during a run, `top -b -o cpu | head -15`. Nothing
+      from Lens above a few percent — waiting on ping is not work.
+- [ ] **harvest cost:** `runs.harvest.took_ms`. Was 459–653 ms on router-01.
+      `____ ms`
+- [ ] **page loads:** open each Reporting: Lens page once. None takes longer than
+      about two seconds. The Devices page prints its own timing at the bottom.
+- [ ] **the web interface stays responsive** while the dashboard is open and
+      refreshing.
+- [ ] **store size:** `ls -lh /var/db/lens/lens.sqlite` → `____ MB` after ~28 days.
+      Projection on 2026-08-30 was ~130 MB a year on router-01.
+
+## 2. Page by page
+
+### Services: Lens
+
+- [ ] **Data Sources** loads, three verdicts, no amber that you cannot act on
+- [ ] **the fix button** (§4.35, built 2026-09-02, never clicked): if the page
+      offers "capture …", the dialogue names the setting and shows before/after.
+      Press it only on the box where the interface really should be captured.
+- [ ] **Settings** (stage 30) — new in this round:
+  - [ ] the page loads, four blocks, every field shows its default
+  - [ ] set *gone after* to 5 → save refuses with "The smallest this can be is
+        10." and nothing else changed
+  - [ ] set retention to 364 → saved → `configctl lens status` shows
+        `retention_days: 364` → set it back to 365
+  - [ ] switch pinging off → save → within five minutes
+        `configctl lens status` shows `runs.observe.detail` ending in
+        `probes switched off`, and `runs.observe.took_ms` drops back to tens of
+        ms. **This is the measurement of what the probes cost** — write it:
+        `with ____ ms, without ____ ms`
+  - [ ] the dashboard's internet panel then says pinging is switched off and
+        still shows a state (from the gateway), not "Offline"
+  - [ ] switch pinging back on
+  - [ ] a target `192.168.1.1` is refused with "not on the internet"
+  - [ ] log in as a user who holds **only** the Reporting: Lens privilege:
+        `/ui/lens/settings` is refused, and every Reporting page still works
+  - [ ] **purge** — only on the box whose history you are willing to lose, or
+        not at all this round: the dialogue lists what goes and what stays; after
+        it, Devices is empty and fills again within five minutes; Settings still
+        shows your values
+
+### Reporting: Lens
+
+- [ ] **Dashboard** (stage 23): five tiles, network over time, top devices,
+      networks donut, system card. Compare memory %, disk % and uptime with
+      core's own system widget — they must agree exactly (§4.51)
+- [ ] **the one sentence** (stage 25): reads calm when all is well; pull the WAN
+      cable for a minute on a test box, or wait for an outage — does it say the
+      internet is unreachable within five minutes?
+- [ ] **internet panel** (stage 29): WAN IPv4 and IPv6 are the ones core's
+      interface overview shows; the three round trips look plausible (Quad9 and
+      Cloudflare usually single-digit to ~20 ms from a German PPPoE line)
+- [ ] **the line** (stage 28): each monitored gateway, state matches
+      System: Gateways exactly
+- [ ] **Devices** (stages 16–22): range picker 24 h / 7 d / 30 d, a network chip,
+      a tag chip, search, CSV export opens in a spreadsheet with umlauts intact
+- [ ] **drill-down** (stage 19): click a bar on a device chart — the parts add
+      up to the bar
+- [ ] **device page** (stage 26): open three devices, one with a randomised MAC.
+      Heatmap in local time, address history, presence
+- [ ] **Who's home** (stage 24): the herd folded away, the phones on top
+- [ ] **Networks** (stage 17): cards, rings, sparklines; a card opens its devices
+- [ ] **Wallboard** (stage 14): on the real screen it will hang on. It fills the
+      screen and the rows are readable from across the room
+- [ ] **dashboard widget** (stage 10): add it to core's dashboard, top five shown
+
+### `/metrics` (stage 27)
+
+From a machine with an API key of a user holding Reporting: Lens:
+
+    curl -sk -u KEY:SECRET https://router-01/api/lens/metrics/prometheus | head -40
+
+- [ ] text format, `lens_collector_last_run_seconds` present and small
+- [ ] one real Prometheus scrape succeeds (the second box already runs Telegraf)
+
+## 3. Questions only the box can answer
+
+These have been open since the dates beside them. Each is one command.
+
+- [ ] **The first baseline verdicts** (§4.50, day 21 passed ~2026-09-20).
+      `configctl lens baseline` → how many `unusual`, and are they real?
+      For each: would you have wanted to be told? If most are noise, the
+      numbers to change are now on Settings — and write down which ones.
+- [ ] **The DNS view's missing output** (S12, open since 2026-08-30).
+      `configctl unbound qstats totals 10` on the second box (Unbound records
+      there). Paste the output here or into `tests/fixtures/` — that single
+      shape unblocks stages 11 and 20.
+- [ ] **The 95 GB on the second box** (open since 2026-08-30). Networks page,
+      24 h: which segment carries the traffic that has no device? One VLAN at a
+      low ring → routed networks become their own class (§4.31). Something else
+      → the guess was wrong, write down what it is.
+- [ ] **IPv6 probe targets** (BACKLOG #35). On the box:
+      `ping -6 -c 3 -t 4 -q 2620:fe::fe` then `echo $status`.
+      If it runs and stops after at most four seconds, `-t` is a deadline for
+      IPv6 too and IPv6 targets can be allowed.
+
+## 4. After the round
+
+- ROADMAP: every ticked stage becomes ✅ with the date and `0.17_1`; the
+  measured numbers go into the operations notes (observe with/without probes,
+  harvest, store size).
+- DESIGN §1b: the same.
+- Anything that failed: one issue per failure, the output above as its fixture.
