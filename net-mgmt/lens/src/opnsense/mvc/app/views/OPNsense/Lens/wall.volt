@@ -24,44 +24,8 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<style>
-    /*
-     * The board fills the height it is given rather than sitting in the top
-     * eighth of it. A wall display that leaves two thirds of the screen empty
-     * reads as broken from across the room, which is the only distance that
-     * matters for this page.
-     */
-    #lensWallBoard { display: flex; flex-direction: column;
-                     min-height: calc(100vh - 190px); }
-    #lensWall { display: none; flex: 1; flex-direction: column; }
-    #lensWall.wall-on { display: flex; }
-
-    .wall-head { display: flex; flex-wrap: wrap; gap: 5vw; align-items: flex-end;
-                 margin-bottom: 2vh; }
-    .wall-big { font-size: clamp(38px, 5vw, 86px); font-weight: 600; line-height: 1; }
-    .wall-label { color: #999; font-size: clamp(12px, 1vw, 18px); margin-top: 4px; }
-
-    #wallRows { flex: 1; display: flex; flex-direction: column;
-                justify-content: space-evenly; gap: 4px; }
-    .wall-row { display: flex; align-items: center; gap: 1.5vw; }
-    .wall-name { width: 22%; min-width: 10em;
-                 font-size: clamp(14px, 1.5vw, 30px);
-                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .wall-track { flex: 1; height: clamp(14px, 2.2vh, 34px);
-                  background: rgba(128, 128, 128, 0.15); border-radius: 3px; }
-    .wall-fill { height: 100%; background: #d94f00; opacity: 0.8; border-radius: 3px; }
-    .wall-bytes { width: 6em; text-align: right;
-                  font-size: clamp(14px, 1.4vw, 28px); font-variant-numeric: tabular-nums; }
-
-    .wall-foot { margin-top: 2vh; color: #999; }
-    .wall-sentence { font-size: clamp(16px, 1.8vw, 34px); margin-bottom: 2.5vh;
-                     padding-left: 14px; border-left: 5px solid #5cb85c; }
-    .wall-sentence.wall-notice { border-left-color: #f0ad4e; }
-    .wall-sentence.wall-alert { border-left-color: #d9534f; color: #f0ad4e; }
-    .wall-warn { color: #f0ad4e; font-weight: 600; }
-
-    #lensWallBoard:fullscreen { min-height: 100vh; padding: 3vh 3vw; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {

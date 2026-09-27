@@ -127,4 +127,19 @@ class DeviceProfileTest extends TestCase
         $this->assertCount(2, $profile['story']);
         $this->assertSame(2, $profile['facts']['segments']);
     }
+
+    public function testWhereItHasBeenUsesTheNetworksName()
+    {
+        $profile = DeviceProfile::describe(
+            ['first_seen' => self::NOW - 86400, 'known_for' => '1 day', 'addresses' => []],
+            ['windows' => [['address' => '10.10.30.10', 'interface' => 'vtnet1_vlan30',
+                            'first_seen' => self::NOW - 86400, 'last_seen' => self::NOW]]],
+            self::NOW,
+            self::NOW,
+            ['vtnet1_vlan30' => 'SERVER']
+        );
+
+        $this->assertSame('SERVER', $profile['story'][0]['segment']);
+        $this->assertSame('vtnet1_vlan30', $profile['story'][0]['interface']);
+    }
 }

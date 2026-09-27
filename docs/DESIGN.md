@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.17_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.18_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -237,8 +237,8 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 6, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe, not router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
-| S5 · Client profile page | 🔨 (stages 8, 24, 26) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested. Missing from the plan: top destinations and services (needs #31), DNS activity (needs S12) |
-| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Missing from the plan: top destinations and services (needs #31), DNS activity (needs S12) |
+| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | ⏳ | IDS slot left open (§4.6) |
@@ -1692,3 +1692,25 @@ stopped duty as the loudest thing it can say, and "paused on purpose" has to be
 taught to each of them first. BACKLOG #34.
 **IPv4 targets only,** because `ping -t` as a deadline has been verified on
 FreeBSD for IPv4 and not for IPv6 (rule 2: verify, do not guess).
+
+### §4.59 — One stylesheet, colour by job, and every page looked at (2026-09-27, operator)
+**Question:** the operator asked for a design upgrade. What is the design, and
+how is it checked without a router?
+**Decision:** Lens keeps OPNsense's look — core's font, core's `content-box`,
+core's accent — and adds one stylesheet, `lens.css`, for what core has no
+opinion on: tokens for both of core's themes, the pieces every Lens page repeats,
+chart ink and status. Colour follows the job it does, and the palette is
+validated by script against core's real surfaces, not by eye: *traffic and
+received* blue, *sent by your devices* orange (worst CVD ΔE 26.8 in the dark
+theme), *magnitude* one blue ramp, *status* good / warning / critical and never
+without a word. UniFi's blue/violet pair was tried and fails in the dark theme
+(protan ΔE 1.9).
+**How it is checked:** `tools/preview` renders every view against the real
+controllers, a seeded store and core's own theme CSS, and `shoot.js` screenshots
+each at desktop, dark and 390 px. A design change is compared before and after
+there; "looks fine in the editor" is not a result (§4.47, §4.48).
+**Consequences:** a view's own `<style>` holds only what is particular to it.
+The theme is read from the surface Lens is drawn on, because core switches
+themes by swapping stylesheets, not by setting a class. The segment name
+(`HOME`, not `vtnet1_vlan20`) is decided in PHP and reaches every page that
+shows an interface.

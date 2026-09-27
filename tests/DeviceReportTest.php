@@ -635,4 +635,32 @@ class DeviceReportTest extends TestCase
         $this->assertSame([], $device['addresses']);
         $this->assertFalse($device['here']);
     }
+
+    public function testAnInterfaceIsCalledWhatNetworksCallsIt()
+    {
+        /* stage 31 found Devices saying vtnet1_vlan20 two pages from Networks saying HOME */
+        $report = DeviceReport::describe(
+            [$this->given(['addresses' => [[
+                'address' => '10.10.20.5', 'interface' => 'vtnet1_vlan20',
+                'first_seen' => self::NOW - 3600, 'last_seen' => self::OBSERVED,
+            ]]])],
+            self::MACDB,
+            [],
+            self::OBSERVED,
+            self::NOW,
+            ['vtnet1_vlan20' => 'HOME']
+        );
+        $device = $report['devices'][0];
+
+        $this->assertSame('HOME', $device['addresses'][0]['segment']);
+        $this->assertSame('vtnet1_vlan20', $device['addresses'][0]['interface'], 'the key filters still use');
+        $this->assertSame(['vtnet1_vlan20' => 'HOME'], $report['segment_names']);
+        $this->assertStringContainsString('home', $device['haystack'], 'a search for the name finds it');
+    }
+
+    public function testAnInterfaceNobodyNamedKeepsItsDeviceName()
+    {
+        $this->assertSame('wt0', DeviceReport::segment('wt0', ['vtnet1_vlan20' => 'HOME']));
+        $this->assertSame('wt0', DeviceReport::segment('wt0', ['wt0' => '  ']));
+    }
 }

@@ -59,6 +59,8 @@ class DeviceReport
      * @param array $macdb OUI to vendor, as `interface list macdb` returns it
      * @param int|null $observedAt when the last observation ran, null if never
      * @param int $now
+     * @param array $names interface device to the operator's name for it, as
+     *                     Networks already shows them (`vtnet1_vlan20` => `HOME`)
      * @return array
      */
     public static function describe(
@@ -66,7 +68,8 @@ class DeviceReport
         array $macdb,
         array $traffic,
         ?int $observedAt,
-        int $now
+        int $now,
+        array $names = []
     ): array {
         $totals = is_array($traffic['devices'] ?? null) ? $traffic['devices'] : [];
 
@@ -76,7 +79,7 @@ class DeviceReport
             if (!is_array($device) || empty($device['mac'])) {
                 continue;
             }
-            $row = self::device($device, $macdb, $observedAt, $now);
+            $row = self::device($device, $macdb, $observedAt, $now, $names);
             $row = array_merge($row, self::traffic($totals[$row['mac']] ?? []));
             $measured += $row['octets'];
             $rows[] = $row;
@@ -104,7 +107,37 @@ class DeviceReport
             'kinds' => DeviceType::choices(),
             'groups' => self::groups($rows),
             'summary' => self::summary($rows, $measured, $now),
+            'segment_names' => self::segmentNames($rows, $names),
         ];
+    }
+
+    /**
+     * The name a person gave an interface, or its device name when there is
+     * none. One place decides it, so the chips, the address lines and the
+     * search agree with Networks and the dashboard: stage 31 found Devices
+     * saying `vtnet1_vlan20` two pages away from Networks saying `HOME`.
+     */
+    public static function segment(string $interface, array $names): string
+    {
+        $name = trim((string)($names[$interface] ?? ''));
+
+        return $name !== '' ? $name : $interface;
+    }
+
+    /**
+     * @return array every interface a listed device holds an address on, to its name
+     */
+    private static function segmentNames(array $rows, array $names): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            foreach ($row['interfaces'] as $interface) {
+                $out[$interface] = self::segment($interface, $names);
+            }
+        }
+        ksort($out);
+
+        return $out;
     }
 
     /**
@@ -202,7 +235,7 @@ class DeviceReport
         ];
     }
 
-    private static function device(array $device, array $macdb, ?int $observedAt, int $now): array
+    private static function device(array $device, array $macdb, ?int $observedAt, int $now, array $names = []): array
     {
         $mac = (string)$device['mac'];
         $vendor = self::vendor($mac, $macdb);
@@ -215,7 +248,7 @@ class DeviceReport
         $chosenKind = trim((string)($label['kind'] ?? ''));
         $tags = self::tags($label['tags'] ?? null);
 
-        $addresses = self::addresses($device, $observedAt, $now);
+        $addresses = self::addresses($device, $observedAt, $now, $names);
         $here = false;
         $interfaces = [];
         foreach ($addresses as $address) {
@@ -257,7 +290,7 @@ class DeviceReport
             'haystack' => strtolower(implode(' ', array_merge(
                 [$mac, $hostname, (string)$vendor, $chosenName, implode(' ', $tags)],
                 array_map(function ($address) {
-                    return $address['address'] . ' ' . $address['interface'];
+                    return $address['address'] . ' ' . $address['interface'] . ' ' . $address['segment'];
                 }, $addresses)
             ))),
             /* a permanent ARP entry is an address configured on this box, not a client */
@@ -286,7 +319,7 @@ class DeviceReport
      * every address on the operator's router appeared twice, once current and
      * once "4.8 hours ago", which is the same lie as listing one machine as two.
      */
-    private static function addresses(array $device, ?int $observedAt, int $now): array
+    private static function addresses(array $device, ?int $observedAt, int $now, array $names = []): array
     {
         $folded = [];
         foreach ($device['addresses'] ?? [] as $window) {
@@ -304,6 +337,7 @@ class DeviceReport
                 $folded[$key] = [
                     'address' => $address,
                     'interface' => $interface,
+                    'segment' => self::segment($interface, $names),
                     'first_seen' => $firstSeen,
                     'last_seen' => $lastSeen,
                     'windows' => 0,

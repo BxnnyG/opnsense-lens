@@ -24,38 +24,8 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<style>
-    .who-head { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
-                justify-content: space-between; margin-bottom: 12px; }
-    .who-box { padding: 14px 16px; margin-bottom: 14px; }
-    .who-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-                 text-transform: uppercase; color: #999; margin: 0 0 10px 0; }
-
-    .who-axis, .who-row { display: flex; align-items: center; gap: 12px; }
-    .who-axis { margin-bottom: 4px; }
-    .who-name { flex: 0 0 15em; overflow: hidden; text-overflow: ellipsis;
-                white-space: nowrap; }
-    .who-name i { width: 18px; text-align: center; opacity: 0.8; }
-    .who-track { flex: 1; position: relative; height: 16px; border-radius: 3px;
-                 background: rgba(128, 128, 128, 0.12); }
-    .who-span { position: absolute; top: 0; height: 16px; border-radius: 3px;
-                background: #d94f00; opacity: 0.8; min-width: 2px; }
-    .who-row.here .who-name { font-weight: 600; }
-    .who-meta { flex: 0 0 8em; text-align: right; color: #999; font-size: 12px;
-                white-space: nowrap; }
-    .who-row { padding: 3px 0; }
-    .who-ticks { flex: 1; position: relative; height: 14px; }
-    .who-tick { position: absolute; top: 0; font-size: 10px; color: #999;
-                transform: translateX(-50%); white-space: nowrap; }
-    .who-tick:first-child { transform: none; }
-    .who-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
-               background: #5cb85c; margin-left: 6px; vertical-align: middle; }
-
-    .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
-                 border: 1px solid #999; border-radius: 10px; font-size: 90%;
-                 text-decoration: none; }
-    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
@@ -99,12 +69,12 @@
             const span = Math.max(1, now - start);
             const $track = $('<div/>').addClass('who-track');
             for (const [from, to] of entry.spans) {
-                const when = new Date(from * 1000).toLocaleString() + ' – '
-                    + new Date(to * 1000).toLocaleString();
-                $('<div/>').addClass('who-span').attr('title', when).css({
+                const $span = $('<div/>').addClass('who-span').css({
                     left: ((from - start) / span * 100) + '%',
                     width: ((to - from) / span * 100) + '%'
                 }).appendTo($track);
+                Lens.tip($span[0], [{ value: entry.name },
+                                    { label: Lens.when(from, 3600, true) + ' \u2013 ' + Lens.when(to, 3600, true) }]);
             }
 
             const $name = $('<div/>').addClass('who-name').attr('title', entry.name)

@@ -78,7 +78,7 @@ class DevicesController extends ApiControllerBase
             ? (int)$status['runs']['observe']['at']
             : null;
 
-        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time(), SegmentsController::names());
         $report['baseline'] = BaselineReport::describe(
             self::decode($backend, 'lens baseline', $calls),
             self::names($report['devices'])
@@ -134,11 +134,12 @@ class DevicesController extends ApiControllerBase
             ? (int)$status['runs']['observe']['at']
             : null;
 
-        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time());
+        $names = SegmentsController::names();
+        $report = DeviceReport::describe($devices, $macdb, $traffic, $observedAt, time(), $names);
 
         foreach ($report['devices'] as $row) {
             if ($row['mac'] === $mac) {
-                $profile = DeviceProfile::describe($row, $raw, $observedAt, time());
+                $profile = DeviceProfile::describe($row, $raw, $observedAt, time(), $names);
                 $profile['kinds'] = $report['kinds'];
                 $profile['status'] = 'ok';
                 return $profile;

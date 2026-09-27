@@ -107,6 +107,10 @@ class BaselineReport
             );
         }
 
+        if (count($rows) === 1) {
+            return gettext('One device is moving far more than it usually does today.');
+        }
+
         return sprintf(
             gettext('%d devices are moving far more than they usually do today.'),
             count($rows)

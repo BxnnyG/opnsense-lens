@@ -24,23 +24,8 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<style>
-    .lens-box { padding: 14px 16px; margin-bottom: 14px; }
-    .lens-box-head { margin: 0 0 6px 0; font-size: 15px; font-weight: 600; }
-    .lens-box-intro { color: #777; max-width: 60em; margin-bottom: 12px; }
-    .lens-field { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 0; border-top: 1px solid rgba(128, 128, 128, 0.15); }
-    .lens-field:first-of-type { border-top: 0; }
-    .lens-field-label { flex: 0 0 16em; font-weight: 600; padding-top: 5px; }
-    .lens-field-input { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
-    .lens-field-input input[type=number] { width: 8em; }
-    .lens-field-help { flex: 1 1 24em; color: #777; font-size: 90%; }
-    .lens-field-default { display: block; margin-top: 2px; }
-    .lens-field-error { flex: 1 1 100%; color: #d9534f; display: none; }
-    .lens-target { display: flex; gap: 6px; margin-bottom: 4px; }
-    .lens-target input { width: 11em; }
-    .lens-actions { margin: 6px 0 24px 0; display: flex; gap: 12px; align-items: center; }
-    #lensPurgeBox .lens-box-intro { color: inherit; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {

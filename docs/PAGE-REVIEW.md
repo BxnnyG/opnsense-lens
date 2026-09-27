@@ -30,6 +30,10 @@ in that round rather than in a stage:
   than taken from the theme. OPNsense ships a dark theme; nobody has opened Lens
   in it. *Check first.*
 
+*Both addressed the same day by stage 31 (§4.59), and looked at in
+`tools/preview` at desktop, dark and 390 px; the router round confirms them on
+a real phone.*
+
 ## 1. What each of them does best, in one line
 
 | Product | The one idea worth studying | Can Lens have it? |

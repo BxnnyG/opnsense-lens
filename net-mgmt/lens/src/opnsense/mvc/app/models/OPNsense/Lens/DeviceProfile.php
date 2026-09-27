@@ -43,15 +43,16 @@ class DeviceProfile
      * @param array $raw what `lens profile` returned
      * @param int|null $observedAt the last observation
      * @param int $now
+     * @param array $names interface device to the operator's name for it
      * @return array
      */
-    public static function describe(array $row, array $raw, ?int $observedAt, int $now): array
+    public static function describe(array $row, array $raw, ?int $observedAt, int $now, array $names = []): array
     {
         return [
             'device' => $row,
             'heatmap' => Heatmap::grid((array)($raw['heatmap'] ?? [])),
             'heatmap_days' => (int)($raw['heatmap_days'] ?? 28),
-            'story' => self::story((array)($raw['windows'] ?? []), $observedAt, $now),
+            'story' => self::story((array)($raw['windows'] ?? []), $observedAt, $now, $names),
             'facts' => self::facts($row, (array)($raw['windows'] ?? []), $now),
         ];
     }
@@ -61,7 +62,7 @@ class DeviceProfile
      * the device came back to it: a phone that holds the same lease for a month
      * across sixty visits is one line with "60 visits", not sixty lines.
      */
-    private static function story(array $windows, ?int $observedAt, int $now): array
+    private static function story(array $windows, ?int $observedAt, int $now, array $names = []): array
     {
         $held = [];
         foreach ($windows as $window) {
@@ -70,6 +71,7 @@ class DeviceProfile
                 $held[$key] = [
                     'address' => (string)($window['address'] ?? ''),
                     'interface' => (string)($window['interface'] ?? ''),
+                    'segment' => DeviceReport::segment((string)($window['interface'] ?? ''), $names),
                     'from' => (int)($window['first_seen'] ?? 0),
                     'to' => (int)($window['last_seen'] ?? 0),
                     'visits' => 0,

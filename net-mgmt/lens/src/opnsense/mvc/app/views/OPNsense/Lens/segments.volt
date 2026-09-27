@@ -38,46 +38,8 @@
 </div>
 <div id="lensRangeNote" class="text-muted lens-range-note" style="display: none;"></div>
 
-<style>
-    .seg-bar { display: block; height: 16px; background: rgba(128,128,128,0.2);
-               border-radius: 3px; overflow: hidden; min-width: 2px; }
-    .seg-named { display: block; height: 16px; background: #d94f00; opacity: 0.75; }
-    .seg-name { font-weight: 600; }
-    .seg-if { display: block; color: #999; font-size: 90%; font-family: monospace; }
-    .seg-note { display: block; color: #999; font-size: 90%; max-width: 34em; }
-    .seg-thin { color: #f0ad4e; }
-    .seg-num { text-align: right; white-space: nowrap; }
-    .seg-cards { display: grid; gap: 12px;
-                 grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-    .seg-card { display: block; padding: 14px 16px; margin: 0; color: inherit;
-                text-decoration: none; border: 1px solid rgba(128, 128, 128, 0.18);
-                border-radius: 4px; transition: border-color 0.15s; }
-    .seg-card:hover { border-color: #d94f00; color: inherit; text-decoration: none; }
-    .seg-card-head { display: flex; justify-content: space-between; align-items: flex-start; }
-    .seg-card-name { font-size: 16px; font-weight: 600; }
-    .seg-card-num { font-size: 26px; font-weight: 600; margin-top: 8px;
-                    font-variant-numeric: tabular-nums; }
-    .seg-spark { width: 100%; height: 40px; display: block; margin-top: 8px; }
-    .seg-area { fill: rgba(217, 79, 0, 0.18); }
-    .seg-line { fill: none; stroke: #d94f00; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .seg-ring { width: 44px; height: 44px; }
-    .seg-ring-bg { fill: none; stroke: rgba(128, 128, 128, 0.2); stroke-width: 3.5; }
-    .seg-ring-fg { fill: none; stroke: #5cb85c; stroke-width: 3.5; stroke-linecap: round; }
-    .seg-ring-fg.thin { stroke: #f0ad4e; }
-    .seg-ring-text { font-size: 8px; text-anchor: middle; fill: currentColor; }
-    .lens-page-head { display: flex; flex-wrap: wrap; gap: 16px;
-                      align-items: baseline; justify-content: space-between;
-                      margin-bottom: 4px; }
-    .lens-page-intro { max-width: 60em; }
-    .lens-range-note { margin-bottom: 8px; display: block; }
-    .lens-box { padding: 14px 16px; margin-bottom: 14px; }
-    .lens-box-head { margin: 0 0 10px 0; }
-    .lens-box-foot { margin: 10px 0 0 0; font-size: 90%; }
-    .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
-                 border: 1px solid #999; border-radius: 10px; font-size: 90%;
-                 text-decoration: none; }
-    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
@@ -213,9 +175,12 @@
                     .append(ring(segment.named_share)));
 
                 $card.append($('<div/>').addClass('seg-card-num').text(segment.traffic));
-                $card.append($('<div/>').addClass('seg-if').text(
-                    segment.sent + ' \u2191 \u00b7 ' + segment.received + ' \u2193 \u00b7 '
-                    + segment.addresses + ' {{ lang._("addresses") }}'));
+                $card.append($('<div/>').addClass('seg-if')
+                    .append($('<span/>').addClass('net-arrow up').html('&#9650;'))
+                    .append(document.createTextNode(segment.sent + '  '))
+                    .append($('<span/>').addClass('net-arrow down').html('&#9660;'))
+                    .append(document.createTextNode(segment.received + ' \u00b7 '
+                        + segment.addresses + ' {{ lang._("addresses") }}')));
                 $card.append(sparkline(segment.series || []));
                 if (segment.note) {
                     $card.append($('<div/>').addClass('seg-note').text(segment.note));

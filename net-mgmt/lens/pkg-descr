@@ -25,6 +25,24 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.18_1
+
+* one stylesheet for every page, in both of OPNsense's themes: the dark theme
+  no longer frames every card in a light border, and no Lens colour is written
+  for a white page only
+* every page fits a phone: the device list becomes one card per device, tiles
+  sit two across, and wide charts scroll inside their card, not the page
+* colour means one thing everywhere: blue is traffic received, orange is what
+  your devices sent, status is green, amber or red and always has a word
+* the network chart and a device's chart have a time axis, and a hover readout
+  of both directions; dates are written the way your browser writes them
+* Devices and the device page call a network what Networks calls it (HOME, not
+  vtnet1_vlan20), and a search for the name finds its devices
+* the dashboard's firewall card shows its labels and values again, the line
+  card's title no longer breaks in two, and networks are a bar each rather than
+  a donut coloured by rank
+* Data Sources has the same cards as every other page
+
 0.17_1
 
 * Services: Lens: Settings: how long history is kept, how large the store may

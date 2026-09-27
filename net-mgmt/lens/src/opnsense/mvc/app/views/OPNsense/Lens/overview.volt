@@ -35,88 +35,8 @@
 </div>
 <div id="lensRangeNote" class="text-muted lens-range-note" style="display: none;"></div>
 
-<style>
-    .lens-verdict { font-weight: 600; white-space: nowrap; }
-    .lens-ready { color: #5cb85c; }
-    .lens-degraded { color: #f0ad4e; }
-    .lens-absent { color: #999; }
-    .lens-cause { max-width: 40em; }
-    .lens-action { display: block; margin-top: 4px; }
-    .lens-block { margin-top: 25px; }
-    #lensTiming { margin-top: 20px; }
-    .lens-here { color: #5cb85c; font-weight: 600; }
-    .lens-mac { font-family: monospace; font-size: 90%; color: #999; }
-    .lens-addr { display: block; }
-    .lens-addr-gone { color: #999; }
-    .lens-if { color: #999; }
-    .lens-caveat { display: block; color: #f0ad4e; margin-top: 3px; }
-    .lens-role { display: block; font-size: 90%; color: #999; font-style: italic; }
-    .lens-traffic { white-space: nowrap; min-width: 13em; }
-    #lensDevices > tbody > tr > td { padding-top: 5px; padding-bottom: 5px; }
-    .lens-evidence { white-space: nowrap; color: #999; font-size: 90%; }
-    .lens-warn { color: #f0ad4e; margin-left: 6px; }
-    #lensBaselineBox.lens-quiet .lens-box-head { color: #999; font-weight: normal; }
-    #lensBaselineBox.lens-quiet table { display: none; }
-    .lens-icon { margin-right: 6px; opacity: 0.75; }
-    .lens-name { font-weight: 600; }
-    .lens-mac { display: block; margin-left: 20px; font-size: 85%; }
-    .lens-role { margin-left: 20px; }
-    .lens-bar {
-        display: block; height: 4px; margin-bottom: 3px;
-        background: #d94f00; opacity: 0.55; min-width: 2px; border-radius: 2px;
-    }
-    .lens-bytes { font-size: 95%; }
-    .lens-addr-toggle { display: block; font-size: 90%; }
-    #lensControls { margin: 0 0 12px 0; }
-    #lensControls > .lens-tools { display: flex; flex-wrap: wrap;
-                                  align-items: center; gap: 14px; }
-    #lensControls label { margin: 0; }
-    .lens-filters { margin-top: 8px; }
-    #lensSearch { width: 22em; max-width: 100%; }
-    #lensSegments { display: inline-block; margin-left: 6px; }
-    .lens-chip {
-        display: inline-block; padding: 1px 8px; margin: 2px 3px;
-        border: 1px solid #999; border-radius: 10px; font-size: 90%;
-        text-decoration: none;
-    }
-    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
-    #lensShowing { margin-left: 8px; color: #999; }
-    .lens-chip-label { color: #999; font-size: 90%; margin-right: 4px; }
-    .lens-edit { margin-left: 6px; opacity: 0.35; }
-    tr:hover .lens-edit { opacity: 1; }
-    .lens-tag {
-        display: inline-block; margin: 3px 4px 0 20px;
-        padding: 0 6px; border: 1px solid #999; border-radius: 8px; font-size: 85%;
-    }
-    .lens-note { display: block; margin-left: 20px; font-size: 90%; color: #999; }
-    .lens-chart { width: 100%; height: 140px; display: block; }
-    .lens-chart-up { fill: #d94f00; }
-    .lens-chart-down { fill: #7a8b99; }
-    .lens-chart-empty { fill: #666; }
-    .lens-chart-legend { margin-top: 6px; }
-    .lens-key {
-        display: inline-block; width: 10px; height: 10px;
-        margin: 0 2px 0 8px; border-radius: 2px;
-    }
-    .lens-key.lens-chart-up { background: #d94f00; }
-    .lens-key.lens-chart-down { background: #7a8b99; }
-    a.lens-name { color: inherit; }
-    tr.lens-group > td { background: rgba(128, 128, 128, 0.08); }
-    /* the page is a stack of boxes, and each box answers one question */
-    .lens-page-head { display: flex; flex-wrap: wrap; gap: 16px;
-                      align-items: baseline; justify-content: space-between;
-                      margin-bottom: 4px; }
-    .lens-page-intro { max-width: 60em; }
-    .lens-range-note { margin-bottom: 8px; display: block; }
-    .lens-box { padding: 14px 16px; margin-bottom: 14px; }
-    .lens-box-head { margin: 0 0 10px 0; font-size: 15px; font-weight: 600; }
-    .lens-box-foot { margin: 10px 0 0 0; color: #999; font-size: 90%; }
-
-    #lensSummary { display: flex; flex-wrap: wrap; gap: 32px; }
-    .lens-stat { min-width: 9em; }
-    .lens-figure { font-size: 26px; font-weight: 600; line-height: 1.1; }
-    .lens-caption { color: #999; font-size: 90%; max-width: 22em; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
@@ -174,6 +94,8 @@
         };
 
         let devices = [];
+        /* vtnet1_vlan20 -> HOME, decided in DeviceReport so every page agrees */
+        let segmentNames = {};
 
         /* arriving from the Networks page with one segment already chosen */
         const asked = new URLSearchParams(location.search).get('segment');
@@ -340,7 +262,7 @@
             }
             device.addresses.forEach((address, index) => {
                 const $line = $('<span/>').addClass('lens-addr').text(address.address);
-                $line.append($('<span/>').addClass('lens-if').text(' \u00b7 ' + address.interface));
+                $line.append($('<span/>').addClass('lens-if').text(' \u00b7 ' + (address.segment || address.interface)));
                 if (!address.current) {
                     $line.addClass('lens-addr-gone')
                          .append($('<span/>').text(' (' + address.seen + ')'));
@@ -559,12 +481,13 @@
             download(rows, 'lens-devices-' + stamp + '-' + chosenHours() + 'h.csv');
         };
 
-        const drawChips = ($bar, counts, chosen) => {
+        const drawChips = ($bar, counts, chosen, shown) => {
             $bar.empty();
-            for (const [name, count] of [...counts.entries()].sort()) {
+            const label = shown || (name => name);
+            for (const [name, count] of [...counts.entries()].sort((a, b) => label(a[0]).localeCompare(label(b[0])))) {
                 $('<a/>').addClass('lens-chip').attr('href', '#')
                     .toggleClass('lens-chip-on', chosen.has(name))
-                    .text(name + ' (' + count + ')')
+                    .text(label(name) + ' (' + count + ')')
                     .on('click', function (event) {
                         event.preventDefault();
                         if (chosen.has(name)) {
@@ -621,7 +544,8 @@
         };
 
         const drawSegments = () => {
-            drawChips($('#lensSegments'), countBy(device => device.interfaces), segments);
+            drawChips($('#lensSegments'), countBy(device => device.interfaces), segments,
+                      name => segmentNames[name] || name);
             $('#lensSegments').show();
         };
 
@@ -633,6 +557,7 @@
             }
 
             devices = report.devices;
+            segmentNames = report.segment_names || {};
             kinds = report.kinds || {};
             drawRange(report.window || {});
             drawSummary(report.summary || {});
@@ -750,7 +675,7 @@
         {{ lang._('No device matches. Clear the search, or switch the segment filters off.') }}
     </div>
 
-    <table id="lensDevices" class="table table-condensed table-striped">
+    <table id="lensDevices" class="table table-condensed">
         <thead>
             <tr>
                 <th>{{ lang._('Device') }}</th>

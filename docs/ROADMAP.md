@@ -46,6 +46,7 @@ this one inherits, and 23 stages of experience with it.
 | 28 | **The line** — latency, jitter and loss per gateway, now and over time, judged by core's own thresholds (§4.56) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
 | 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
 | 30 | **Settings** — retention, ceiling, *gone after*, probes and their targets, gateway history, the three baseline guards, and purge with a button ([plan](plans/stage-30-settings.md), §4.58) | S14, S16, S8 | 🔨 built 2026-09-27 as `0.17_1` · **awaiting router test** |
+| 31 | **Design** — one stylesheet, both themes, phone layouts, colour by job, time axes, network names everywhere ([plan](plans/stage-31-design.md), §4.59) | S5, S6, S10, S3 | 🔨 built 2026-09-27 as `0.18_1` · looked at in `tools/preview` · **awaiting router test** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -61,7 +62,7 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
-| — | **Router round for everything built since 0.5_2** — eighteen stages built on tests alone, stage 30 included ([checklist](ROUTER-ROUND.md)) | all | ⏳ **the next thing that matters**, 2026-09-27 |
+| — | **Router round for everything built since 0.5_2** — nineteen stages built on tests alone, stages 30 and 31 included ([checklist](ROUTER-ROUND.md)) · the pages themselves can now be looked at without a box: `tools/preview` | all | ⏳ **the next thing that matters**, 2026-09-27 |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |

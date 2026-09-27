@@ -24,74 +24,8 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<style>
-    .dv-back { margin-bottom: 10px; display: inline-block; }
-    .dv-hero { display: flex; gap: 20px; align-items: center; padding: 20px 22px;
-               margin: 0 0 14px 0; }
-    .dv-avatar { width: 72px; height: 72px; flex: 0 0 72px; border-radius: 50%;
-                 display: flex; align-items: center; justify-content: center;
-                 background: rgba(217, 79, 0, 0.15); color: #d94f00; font-size: 34px; }
-    .dv-name { font-size: 24px; font-weight: 600; line-height: 1.15; }
-    .dv-meta { color: #999; margin-top: 4px; }
-    .dv-meta code { background: none; color: inherit; padding: 0; }
-    .dv-pills { margin-top: 8px; }
-    .dv-pill { display: inline-block; padding: 1px 9px; margin: 2px 4px 2px 0;
-               border-radius: 10px; font-size: 12px; border: 1px solid #999; }
-    .dv-pill.home { border-color: #5cb85c; color: #5cb85c; }
-    .dv-pill.away { color: #999; }
-    .dv-pill.warn { border-color: #f0ad4e; color: #f0ad4e; }
-    .dv-hero-edit { margin-left: auto; align-self: flex-start; }
-
-    .dv-facts { display: grid; gap: 14px; margin-bottom: 14px;
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-    .dv-fact { padding: 12px 14px; margin: 0; }
-    .dv-num { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .dv-sub { color: #999; font-size: 12px; }
-
-    .dv-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-    .dv-card { padding: 14px 16px; margin: 0; }
-    .dv-wide { grid-column: 1 / -1; }
-    .dv-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-                text-transform: uppercase; color: #999; margin: 0 0 10px 0;
-                display: flex; justify-content: space-between; align-items: center; }
-
-    .dv-chart { width: 100%; height: 160px; display: block; }
-    .dv-up { fill: #d94f00; }
-    .dv-down { fill: #7a8b99; }
-    .dv-empty { fill: #555; }
-
-    .hm { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 2px; }
-    .hm-cell { aspect-ratio: 1 / 1; border-radius: 2px; min-height: 10px; }
-    .hm-l0 { background: rgba(128, 128, 128, 0.12); }
-    .hm-l1 { background: rgba(217, 79, 0, 0.25); }
-    .hm-l2 { background: rgba(217, 79, 0, 0.5); }
-    .hm-l3 { background: rgba(217, 79, 0, 0.75); }
-    .hm-l4 { background: rgba(217, 79, 0, 1); }
-    .hm-day, .hm-hour { font-size: 10px; color: #999; }
-    .hm-day { align-self: center; }
-    .hm-hour { text-align: center; }
-
-    .dv-story { list-style: none; padding: 0; margin: 0; }
-    .dv-story li { position: relative; padding: 0 0 12px 22px; }
-    .dv-story li::before { content: ''; position: absolute; left: 5px; top: 5px;
-                           width: 9px; height: 9px; border-radius: 50%; background: #999; }
-    .dv-story li.current::before { background: #5cb85c; }
-    .dv-story li::after { content: ''; position: absolute; left: 9px; top: 16px; bottom: 0;
-                          width: 1px; background: rgba(128, 128, 128, 0.35); }
-    .dv-story li:last-child::after { display: none; }
-    .dv-story .addr { font-weight: 600; }
-    .dv-story .when { color: #999; font-size: 12px; }
-
-    .dv-strip { position: relative; height: 18px; border-radius: 3px;
-                background: rgba(128, 128, 128, 0.12); }
-    .dv-span { position: absolute; top: 0; height: 18px; border-radius: 3px;
-               background: #d94f00; opacity: 0.85; min-width: 2px; }
-
-    .lens-chip { display: inline-block; padding: 1px 8px; margin: 0 2px;
-                 border: 1px solid #999; border-radius: 10px; font-size: 90%;
-                 text-decoration: none; cursor: pointer; }
-    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
@@ -101,6 +35,8 @@
         let hours = 24;
         let kinds = {};
         let device = null;
+        /* interface to the name Networks uses, from this device's own history */
+        let segmentOf = {};
 
         const bytes = (octets) => {
             if (!octets) {
@@ -143,49 +79,58 @@
                 }
 
                 const width = 800;
-                const height = 160;
+                const height = 170;
+                const plot = height;
                 const points = detail.series;
                 const step = width / Math.max(1, points.length);
-                const gap = points.length > 60 ? 0 : 1;
+                /* a surface gap between neighbouring bars while they are wide
+                   enough to keep one; a month of hours is a comb without it */
+                const gap = points.length > 60 ? 0 : 2;
                 const peak = detail.peak || 1;
                 node.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+                node.appendChild(svg('line', { x1: 0, x2: width, y1: plot - 0.5, y2: plot - 0.5, class: 'lens-gridline' }));
 
+                /* at most 24 units wide, centred in its slot: a bar that fills
+                   the slot reads as a block, and the air is what separates days */
+                const w = Math.max(0.5, Math.min(24, step - gap));
                 points.forEach((point, index) => {
-                    const x = index * step;
-                    const w = Math.max(0.5, step - gap);
-                    const when = new Date(point.bucket * 1000).toLocaleString();
+                    const x = index * step + (step - w) / 2;
+                    const readout = () => [
+                        { label: Lens.when(point.bucket, detail.step, true) },
+                        { value: bytes(point.received), label: '{{ lang._("received") }}', key: 'var(--lens-received)' },
+                        { value: bytes(point.sent), label: '{{ lang._("sent") }}', key: 'var(--lens-sent)' },
+                    ];
                     if (!point.total) {
-                        node.appendChild(svg('rect', { x: x, y: height - 1, width: w, height: 1,
+                        node.appendChild(svg('rect', { x: x, y: plot - 1, width: w, height: 1,
                                                        class: 'dv-empty' }));
                         return;
                     }
-                    const down = point.received / peak * height;
-                    const up = point.sent / peak * height;
-                    for (const [y, h, cls] of [[height - down - up, down, 'dv-down'],
-                                                [height - up, up, 'dv-up']]) {
+                    const down = point.received / peak * (plot - 6);
+                    const up = point.sent / peak * (plot - 6);
+                    for (const [y, h, cls] of [[plot - down - up, down, 'dv-down'],
+                                                [plot - up, up, 'dv-up']]) {
                         const rect = svg('rect', { x: x, y: y, width: w, height: Math.max(0, h),
-                                                   class: cls, style: 'cursor: pointer' });
+                                                   class: cls, tabindex: 0 });
                         rect.addEventListener('click', () => moment(detail, point));
-                        const title = svg('title');
-                        title.textContent = when + ' — ' + bytes(point.sent) + ' up, '
-                            + bytes(point.received) + ' down';
-                        rect.appendChild(title);
+                        Lens.tip(rect, readout);
                         node.appendChild(rect);
                     }
                 });
+                Lens.axis(document.getElementById('dvChartAxis'), points.map(p => ({ at: p.bucket })),
+                          (i) => (i * step + step / 2) / width, detail.step);
 
                 $('#dvChartTotal').text(detail.total + ' · ' + detail.sent + ' up · '
                                         + detail.received + ' down');
                 $('#dvChartBusy').text(detail.busiest
                     ? '{{ lang._("busiest") }} ' + detail.busiest.what + ' · '
-                      + new Date(detail.busiest.bucket * 1000).toLocaleString()
+                      + Lens.when(detail.busiest.bucket, detail.step, true)
                     : '');
             });
         };
 
         /* a bar opens the addresses behind it; the rows add up to the bar (§4.44) */
         const moment = (detail, point) => {
-            $('#dvMomentWhen').text(new Date(point.bucket * 1000).toLocaleString());
+            $('#dvMomentWhen').text(Lens.when(point.bucket, detail.step, true));
             const $rows = $('#dvMomentRows').empty();
             $('#dvMoment').show();
             ajaxGet('/api/lens/devices/moment', { mac: mac, at: point.bucket, step: detail.step },
@@ -196,7 +141,7 @@
                 for (const row of data.addresses) {
                     $rows.append($('<tr/>')
                         .append($('<td/>').text(row.address))
-                        .append($('<td/>').addClass('dv-sub').text(row.interface))
+                        .append($('<td/>').addClass('dv-sub').text(segmentOf[row.interface] || row.interface))
                         .append($('<td/>').text(row.traffic + ' (' + row.sent + ' \u2191, '
                                                 + row.received + ' \u2193)')));
                 }
@@ -213,13 +158,15 @@
             grid.rows.forEach((row, day) => {
                 $hm.append($('<div/>').addClass('hm-day').text(grid.days[day]));
                 row.forEach((cell, hour) => {
-                    $hm.append($('<div/>').addClass('hm-cell hm-l' + cell.level)
-                        .attr('title', grid.days[day] + ' ' + hour + ':00 — ' + cell.text));
+                    const $cell = $('<div/>').addClass('hm-cell hm-l' + cell.level)
+                        .attr('aria-label', grid.days[day] + ' ' + hour + ':00, ' + cell.text);
+                    Lens.tip($cell[0], [{ value: cell.text, label: grid.days[day] + ' ' + hour + ':00' }]);
+                    $hm.append($cell);
                 });
             });
             $('#dvHeatmapNote').text(grid.empty
                 ? '{{ lang._("Nothing measured in the last four weeks.") }}'
-                : '{{ lang._("Four weeks folded onto one, local time. Darkest:") }} ' + grid.peak
+                : '{{ lang._("Four weeks folded onto one, local time. Busiest:") }} ' + grid.peak
                   + (grid.busiest ? ' · ' + grid.days[grid.busiest.day] + ' '
                                     + grid.busiest.hour + ':00' : ''));
         };
@@ -239,11 +186,11 @@
                 return;
             }
             for (const [from, to] of mine.spans) {
-                $('<div/>').addClass('dv-span').css({
+                const $span = $('<div/>').addClass('dv-span').css({
                     left: ((from - report.start) / span * 100) + '%',
                     width: ((to - from) / span * 100) + '%'
-                }).attr('title', new Date(from * 1000).toLocaleString() + ' – '
-                                 + new Date(to * 1000).toLocaleString()).appendTo($strip);
+                }).appendTo($strip);
+                Lens.tip($span[0], [{ label: Lens.when(from, 3600, true) + ' \u2013 ' + Lens.when(to, 3600, true) }]);
             }
             $('#dvStripNote').text('{{ lang._("Present for") }} ' + mine.present
                                    + ' {{ lang._("of the last seven days") }} (' + mine.coverage + '%)');
@@ -290,10 +237,14 @@
             heatmap(profile.heatmap);
 
             const $story = $('#dvStory').empty();
+            segmentOf = {};
+            for (const entry of profile.story) {
+                segmentOf[entry.interface] = entry.segment || entry.interface;
+            }
             for (const entry of profile.story) {
                 $story.append($('<li/>').toggleClass('current', entry.current)
                     .append($('<span/>').addClass('addr').text(entry.address))
-                    .append(document.createTextNode(' · ' + entry.interface))
+                    .append(document.createTextNode(' · ' + (entry.segment || entry.interface)))
                     .append($('<div/>').addClass('when').text(
                         entry.from_text + ' → ' + entry.to_text
                         + (entry.visits > 1 ? ' · ' + entry.visits + ' {{ lang._("visits") }}' : ''))));
@@ -427,6 +378,7 @@
                 </span>
             </div>
             <svg id="dvChart" class="dv-chart" preserveAspectRatio="none"></svg>
+            <div class="lens-axis-row" id="dvChartAxis"></div>
             <div class="dv-sub" id="dvChartBusy"></div>
             <div id="dvMoment" style="display: none; margin-top: 10px;">
                 <b>{{ lang._('That slice was') }}</b> &middot; <span id="dvMomentWhen" class="dv-sub"></span>
@@ -436,7 +388,7 @@
 
         <div class="content-box dv-card">
             <div class="dv-title"><span>{{ lang._('Its week') }}</span></div>
-            <div class="hm" id="dvHeatmap"></div>
+            <div class="hm-scroll"><div class="hm" id="dvHeatmap"></div></div>
             <div class="dv-sub" id="dvHeatmapNote" style="margin-top: 8px;"></div>
         </div>
 

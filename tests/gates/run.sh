@@ -173,6 +173,31 @@ else
 	say "node is not installed here - widget scripts unchecked"
 fi
 
+# ---------------------------------------------------------------- lint-views
+# every page's own script, which lives inside its Volt view and so was checked
+# by nothing: the Volt expressions Lens uses are replaced by a string first
+head_ "lint-views"
+ve=0
+vn=0
+if command -v node > /dev/null 2>&1 && command -v python3 > /dev/null 2>&1; then
+	for f in $(find "${PLUGIN}/src/opnsense/mvc/app/views" -name '*.volt' -type f 2>/dev/null); do
+		vn=$((vn + 1))
+		python3 - "${f}" "${TOOLS}/.view.js" <<'PY'
+import re, sys
+view = open(sys.argv[1], encoding='utf-8').read()
+script = '\n'.join(re.findall(r'<script>(.*?)</script>', view, re.S))
+script = re.sub(r"\{\{\s*lang\._\((['\"]).*?\1\)\s*\}\}", 'X', script)
+open(sys.argv[2], 'w', encoding='utf-8').write(script)
+PY
+		node --check "${TOOLS}/.view.js" || { echo "  in ${f}"; ve=$((ve + 1)); }
+	done
+	rm -f "${TOOLS}/.view.js"
+	say "view scripts checked: ${vn}, errors: ${ve}"
+	errors=$((errors + ve))
+else
+	say "node or python3 is not installed here - view scripts unchecked"
+fi
+
 # ---------------------------------------------------------------- lint-shell
 # the two package scripts that write the crontab; they run as root at install
 head_ "lint-shell"

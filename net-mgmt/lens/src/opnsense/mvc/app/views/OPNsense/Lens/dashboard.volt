@@ -24,148 +24,14 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<style>
-    /*
-     * One screen, one glance. Every card answers one question and opens the
-     * page that answers it in full; nothing here is computed that another page
-     * does not also show (§4.37).
-     */
-    .dash-head { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
-                 justify-content: space-between; margin-bottom: 12px; }
-    .dash-grid { display: grid; gap: 14px;
-                 grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
-    .dash-wide { grid-column: 1 / -1; }
-    .dash-card { padding: 14px 16px; margin: 0; }
-    .dash-title { font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
-                  text-transform: uppercase; color: #999; margin: 0 0 10px 0;
-                  display: flex; justify-content: space-between; }
-    .dash-title a { text-transform: none; letter-spacing: 0; font-weight: normal; }
-
-    .dash-facts { display: grid; gap: 14px;
-                  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
-    .dash-fact { padding: 14px 16px; margin: 0; display: flex; gap: 14px; align-items: center; }
-    .dash-fact i { font-size: 26px; color: #d94f00; width: 30px; text-align: center; }
-    .dash-num { font-size: 26px; font-weight: 600; line-height: 1.05;
-                font-variant-numeric: tabular-nums; }
-    .dash-sub { color: #999; font-size: 12px; }
-    .dash-warn { color: #f0ad4e; }
-
-    .dash-sentence { display: flex; gap: 16px; align-items: center;
-                     padding: 16px 18px; margin: 0 0 14px 0;
-                     border-left: 4px solid #5cb85c; }
-    .dash-sentence > i { font-size: 30px; color: #5cb85c; }
-    .dash-sentence-text { font-size: 18px; line-height: 1.3; }
-    .dash-sentence.dash-notice { border-left-color: #f0ad4e; }
-    .dash-sentence.dash-notice > i { color: #f0ad4e; }
-    .dash-sentence.dash-alert { border-left-color: #d9534f; }
-    .dash-sentence.dash-alert > i { color: #d9534f; }
-
-    .dash-chart { width: 100%; height: 170px; display: block; }
-    .dash-up { fill: #d94f00; opacity: 0.85; }
-    .dash-down { fill: #7a8b99; opacity: 0.75; }
-    .dash-axis { fill: #999; font-size: 10px; }
-    .dash-legend { color: #999; font-size: 12px; margin-top: 6px; }
-    .dash-key { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
-                margin: 0 3px 0 10px; }
-
-    .dash-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
-    .dash-row .name { flex: 0 0 42%; overflow: hidden; text-overflow: ellipsis;
-                      white-space: nowrap; }
-    .dash-row .track { flex: 1; height: 8px; border-radius: 4px;
-                       background: rgba(128, 128, 128, 0.18); }
-    .dash-row .fill { height: 8px; border-radius: 4px; background: #d94f00; }
-    .dash-row .val { flex: 0 0 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
-
-    .dash-donut-wrap { display: flex; gap: 16px; align-items: center; }
-    .dash-donut { width: 130px; height: 130px; flex: 0 0 130px; }
-    .dash-slices { flex: 1; font-size: 12px; }
-    .dash-slice { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
-
-    .dash-meter { margin-bottom: 12px; }
-    .dash-meter .label { display: flex; justify-content: space-between; font-size: 12px; }
-    .dash-meter .track { height: 8px; border-radius: 4px; margin-top: 4px;
-                         background: rgba(128, 128, 128, 0.18); }
-    .dash-meter .fill { height: 8px; border-radius: 4px; background: #5cb85c; }
-    .dash-meter .fill.hot { background: #f0ad4e; }
-    .dash-meter .fill.full { background: #d9534f; }
-
-    .net-panel { padding: 18px 20px; margin: 0 0 14px 0; border-left: 4px solid #999; }
-    .net-panel.net-up { border-left-color: #5cb85c; }
-    .net-panel.net-degraded { border-left-color: #f0ad4e; }
-    .net-panel.net-down { border-left-color: #d9534f; }
-    .net-top { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between;
-               align-items: baseline; }
-    .net-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-               background: #999; margin-right: 8px; }
-    .net-up .net-dot { background: #5cb85c; box-shadow: 0 0 8px rgba(92, 184, 92, 0.7); }
-    .net-degraded .net-dot { background: #f0ad4e; }
-    .net-down .net-dot { background: #d9534f; box-shadow: 0 0 8px rgba(217, 83, 79, 0.8); }
-    .net-title { font-size: 20px; font-weight: 600; margin-right: 10px; }
-    .net-state-text { color: #999; }
-    .net-down .net-state-text { color: #d9534f; font-weight: 600; }
-    .net-addr { text-align: right; }
-    .net-ip { font-family: monospace; font-size: 15px; margin-left: 10px; }
-    .net-v6 { display: block; font-size: 12px; color: #999; }
-    .net-mid { display: flex; flex-wrap: wrap; gap: 30px; margin: 16px 0; align-items: center; }
-    .net-rate { min-width: 12em; }
-    .net-arrow { color: #999; margin-right: 6px; }
-    .net-big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .net-upload { color: #d94f00; }
-    .net-probes { display: flex; flex-wrap: wrap; gap: 24px; flex: 1; }
-    .net-probe { min-width: 8em; }
-    .net-ms { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .net-loss { color: #d9534f; font-size: 12px; }
-    .net-spark { width: 120px; height: 28px; display: block; margin-top: 4px; }
-    .net-spark-line { fill: none; stroke: #5b8fb9; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .net-gap { fill: rgba(217, 83, 79, 0.6); }
-    .net-uptime-head { display: flex; justify-content: space-between; margin-bottom: 5px; }
-    .net-strip { display: flex; gap: 2px; height: 22px; }
-    .net-seg { flex: 1; border-radius: 2px; }
-    .net-seg-up { background: #5cb85c; }
-    .net-seg-partial { background: #f0ad4e; }
-    .net-seg-down { background: #d9534f; }
-    .net-seg-none { background: rgba(128, 128, 128, 0.15); }
-    .net-outages { margin-top: 6px; font-size: 12px; color: #d9534f; }
-
-    .line-row { padding: 8px 0; border-bottom: 1px solid rgba(128, 128, 128, 0.15); }
-    .line-row:last-child { border-bottom: 0; }
-    .line-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-                margin-right: 7px; background: #999; }
-    .line-good .line-dot { background: #5cb85c; }
-    .line-degraded .line-dot { background: #f0ad4e; }
-    .line-down .line-dot { background: #d9534f; }
-    .line-figures { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
-    .line-big { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .line-degraded .line-big { color: #f0ad4e; }
-    .line-down .line-big { color: #d9534f; }
-    .line-spark { width: 100%; height: 50px; display: block; margin-top: 4px; }
-    .line-path { fill: none; stroke: #5b8fb9; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-    .line-loss { fill: #d9534f; }
-
-    .hm { display: grid; grid-template-columns: 30px repeat(24, 1fr); gap: 2px; }
-    .hm-cell { aspect-ratio: 1 / 1; border-radius: 2px; min-height: 8px; }
-    .hm-l0 { background: rgba(128, 128, 128, 0.12); }
-    .hm-l1 { background: rgba(217, 79, 0, 0.25); }
-    .hm-l2 { background: rgba(217, 79, 0, 0.5); }
-    .hm-l3 { background: rgba(217, 79, 0, 0.75); }
-    .hm-l4 { background: rgba(217, 79, 0, 1); }
-    .hm-day, .hm-hour { font-size: 10px; color: #999; }
-    .hm-day { align-self: center; }
-    .hm-hour { text-align: center; }
-
-    .lens-chip { display: inline-block; padding: 1px 8px; margin: 2px 3px;
-                 border: 1px solid #999; border-radius: 10px; font-size: 90%;
-                 text-decoration: none; }
-    .lens-chip-on { border-color: #d94f00; color: #d94f00; font-weight: 600; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
         const LABELS = { 24: '{{ lang._("24 hours") }}',
                          168: '{{ lang._("7 days") }}',
                          720: '{{ lang._("30 days") }}' };
-        const PALETTE = ['#d94f00', '#e8833a', '#7a8b99', '#5b8fb9', '#8aa66a',
-                         '#b9895b', '#9c6fb0', '#c8b35a', '#5fa39b', '#999999'];
 
         const hours = (() => {
             const asked = parseInt(new URLSearchParams(location.search).get('hours'), 10);
@@ -307,8 +173,8 @@
 
             const chart = document.getElementById('dashChart');
             const width = 800;
-            const height = 170;
-            const pad = 16;
+            const height = 180;
+            const pad = 22;
             const points = data.series;
             const peak = data.peak || 1;
             chart.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
@@ -323,7 +189,10 @@
             /* two stacked areas rather than bars: over thirty days a bar chart
                is a comb, and the shape of the week is what the eye wants */
             const x = (i) => points.length === 1 ? width / 2 : i / (points.length - 1) * width;
-            const y = (v) => height - pad - (v / peak) * (height - pad * 2);
+            const y = (v) => height - 1 - (v / peak) * (height - 1 - pad);
+
+            chart.appendChild(svg('line', { x1: 0, x2: width, y1: y(0), y2: y(0), class: 'lens-gridline' }));
+            chart.appendChild(svg('line', { x1: 0, x2: width, y1: y(peak), y2: y(peak), class: 'lens-gridline' }));
 
             const area = (top, bottom) => {
                 let path = 'M ' + x(0) + ' ' + y(bottom(points[0]));
@@ -334,37 +203,60 @@
                 return path + ' Z';
             };
 
+            const line = (top) => points.map((p, i) => (i ? 'L ' : 'M ') + x(i) + ' ' + y(top(p))).join(' ');
             chart.appendChild(svg('path', {
                 d: area(p => p.sent + p.received, p => p.sent), class: 'dash-down'
             }));
             chart.appendChild(svg('path', {
                 d: area(p => p.sent, () => 0), class: 'dash-up'
             }));
+            chart.appendChild(svg('path', { d: line(p => p.sent + p.received), class: 'lens-received-line' }));
+            chart.appendChild(svg('path', { d: line(p => p.sent), class: 'lens-sent-line' }));
 
-            const label = svg('text', { x: 4, y: 12, class: 'dash-axis' });
-            label.textContent = data.peak_text + ' {{ lang._("peak per") }} '
-                + (data.step >= 86400 ? '{{ lang._("day") }}' : '{{ lang._("hour") }}');
-            chart.appendChild(label);
+            $('#dashChartPeak').text(data.peak_text + ' {{ lang._("peak per") }} '
+                + (data.step >= 86400 ? '{{ lang._("day") }}' : '{{ lang._("hour") }}'));
+            Lens.axis(document.getElementById('dashChartAxis'), points,
+                      (i) => points.length === 1 ? 0.5 : i / (points.length - 1), data.step);
+
+            /* the crosshair finds the slice; one readout carries both directions */
+            const cross = svg('line', { x1: 0, x2: 0, y1: pad, y2: y(0), class: 'lens-crosshair',
+                                        visibility: 'hidden' });
+            chart.appendChild(cross);
+            const hit = svg('rect', { x: 0, y: 0, width: width, height: height, fill: 'transparent' });
+            chart.appendChild(hit);
+            Lens.tip(hit, (event) => {
+                const box = chart.getBoundingClientRect();
+                const i = Math.max(0, Math.min(points.length - 1,
+                    Math.round((event.clientX - box.left) / box.width * (points.length - 1))));
+                cross.setAttribute('x1', x(i));
+                cross.setAttribute('x2', x(i));
+                cross.setAttribute('visibility', 'visible');
+                const p = points[i];
+                return [
+                    { label: Lens.when(p.at, data.step, true) },
+                    { value: bytes(p.received), label: '{{ lang._("received") }}', key: 'var(--lens-received)' },
+                    { value: bytes(p.sent), label: '{{ lang._("sent by your devices") }}', key: 'var(--lens-sent)' },
+                ];
+            });
+            hit.addEventListener('pointerleave', () => cross.setAttribute('visibility', 'hidden'));
 
             $('#dashChartNote').toggle(!!(data.window || {}).note)
                 .text((data.window || {}).note || '');
         });
 
-        /* ------------------------------------------------ networks as a donut */
+        /* ------------------------------------------------ networks, one bar each */
         ajaxGet('/api/lens/segments/list', { hours: hours }, (report, status) => {
             if (status !== 'success' || !report || !report.segments) {
                 return;
             }
 
             /* only your own networks; the far side of the line is not a share
-               of anything you own */
+               of anything you own. One series, so one colour: the bar length is
+               the comparison, and a hue per network would only repeat the name
+               beside it (and was coloured by rank, so it moved with the range) */
             const mine = report.segments.filter(s => s.is_network && s.octets > 0);
             const total = mine.reduce((sum, s) => sum + s.octets, 0);
-            const donut = document.getElementById('dashDonut');
-            while (donut.firstChild) {
-                donut.removeChild(donut.firstChild);
-            }
-            const $list = $('#dashSlices').empty();
+            const $list = $('#dashNetworks').empty();
 
             if (!total) {
                 $list.append($('<div/>').addClass('dash-sub')
@@ -372,41 +264,23 @@
                 return;
             }
 
-            const shown = mine.slice(0, 7);
-            const rest = mine.slice(7).reduce((sum, s) => sum + s.octets, 0);
-            if (rest) {
-                shown.push({ name: '{{ lang._("everything else") }}', octets: rest });
+            const largest = mine[0].octets;
+            for (const network of mine.slice(0, 7)) {
+                const share = Math.round(network.octets / total * 100);
+                $list.append($('<div/>').addClass('dash-row')
+                    .append($('<a/>').addClass('name').attr('title', network.name)
+                        .attr('href', '/ui/lens/overview?hours=' + hours
+                              + '&segment=' + encodeURIComponent(network.interface))
+                        .text(network.name))
+                    .append($('<div/>').addClass('track').append($('<div/>').addClass('fill')
+                        .css('width', Math.max(2, network.octets / largest * 100) + '%')))
+                    .append($('<div/>').addClass('val').text(share + '%')
+                        .attr('title', network.traffic)));
             }
-
-            let angle = -Math.PI / 2;
-            shown.forEach((slice, index) => {
-                const share = slice.octets / total;
-                const next = angle + share * Math.PI * 2;
-                const colour = PALETTE[index % PALETTE.length];
-                const large = share > 0.5 ? 1 : 0;
-                const r = 60;
-                const inner = 38;
-                const pt = (a, radius) => (65 + radius * Math.cos(a)) + ' ' + (65 + radius * Math.sin(a));
-
-                const d = share >= 0.999
-                    ? 'M 65 5 A 60 60 0 1 1 64.99 5 L 64.99 27 A 38 38 0 1 0 65 27 Z'
-                    : 'M ' + pt(angle, r) + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + pt(next, r)
-                      + ' L ' + pt(next, inner) + ' A ' + inner + ' ' + inner + ' 0 ' + large
-                      + ' 0 ' + pt(angle, inner) + ' Z';
-
-                const path = svg('path', { d: d, fill: colour });
-                const title = svg('title');
-                title.textContent = slice.name + ' — ' + bytes(slice.octets);
-                path.appendChild(title);
-                donut.appendChild(path);
-                angle = next;
-
-                $list.append($('<div/>').addClass('dash-slice')
-                    .append($('<span/>')
-                        .append($('<span/>').addClass('dash-key').css('background', colour))
-                        .append(document.createTextNode(slice.name)))
-                    .append($('<span/>').text(Math.round(share * 100) + '%')));
-            });
+            if (mine.length > 7) {
+                $list.append($('<div/>').addClass('dash-sub').text(
+                    (mine.length - 7) + ' {{ lang._("more on Networks") }}'));
+            }
         });
 
         /* ------------------------------------------------ the network's week */
@@ -422,8 +296,10 @@
             grid.rows.forEach((row, day) => {
                 $hm.append($('<div/>').addClass('hm-day').text(grid.days[day]));
                 row.forEach((cell, hour) => {
-                    $hm.append($('<div/>').addClass('hm-cell hm-l' + cell.level)
-                        .attr('title', grid.days[day] + ' ' + hour + ':00 \u2014 ' + cell.text));
+                    const $cell = $('<div/>').addClass('hm-cell hm-l' + cell.level)
+                        .attr('aria-label', grid.days[day] + ' ' + hour + ':00, ' + cell.text);
+                    Lens.tip($cell[0], [{ value: cell.text, label: grid.days[day] + ' ' + hour + ':00' }]);
+                    $hm.append($cell);
                 });
             });
             $('#dashHeatmapNote').text(grid.empty
@@ -668,8 +544,8 @@
 
     <div class="net-mid">
         <div class="net-rate">
-            <div><span class="net-arrow">&darr;</span><span class="net-big" id="netDown">&hellip;</span></div>
-            <div><span class="net-arrow">&uarr;</span><span class="net-big net-upload" id="netUp">&hellip;</span></div>
+            <div><span class="net-arrow down">&#9660;</span><span class="net-big" id="netDown">&hellip;</span></div>
+            <div><span class="net-arrow up">&#9650;</span><span class="net-big" id="netUp">&hellip;</span></div>
             <div class="dash-sub">{{ lang._('right now, on the WAN') }}</div>
         </div>
         <div class="net-probes" id="netProbes"></div>
@@ -714,10 +590,14 @@
             <span>{{ lang._('Your networks over time') }}</span>
             <a href="/ui/lens/segments">{{ lang._('per network') }} &rsaquo;</a>
         </div>
-        <svg id="dashChart" class="dash-chart" preserveAspectRatio="none"></svg>
+        <div class="lens-plot">
+            <svg id="dashChart" class="dash-chart" preserveAspectRatio="none"></svg>
+            <div class="lens-plot-label" id="dashChartPeak"></div>
+        </div>
+        <div class="lens-axis-row" id="dashChartAxis"></div>
         <div class="dash-legend">
-            <span class="dash-key" style="background:#d94f00"></span>{{ lang._('sent by your devices') }}
-            <span class="dash-key" style="background:#7a8b99"></span>{{ lang._('received') }}
+            <span class="lens-key received"></span>{{ lang._('received') }}
+            <span class="lens-key sent"></span>{{ lang._('sent by your devices') }}
             <span id="dashChartNote" style="display:none; margin-left: 10px;"></span>
         </div>
     </div>
@@ -735,23 +615,18 @@
             <span>{{ lang._('Which networks') }}</span>
             <a href="/ui/lens/segments">{{ lang._('details') }} &rsaquo;</a>
         </div>
-        <div class="dash-donut-wrap">
-            <svg id="dashDonut" class="dash-donut" viewBox="0 0 130 130"></svg>
-            <div id="dashSlices" class="dash-slices"></div>
-        </div>
+        <div id="dashNetworks"></div>
     </div>
 
     <div class="content-box dash-card">
-        <div class="dash-title">
-            <span>{{ lang._('The line') }}</span>
-            <span class="dash-sub">{{ lang._('measured by dpinger, judged against your own gateway thresholds') }}</span>
-        </div>
+        <div class="dash-title"><span>{{ lang._('The line') }}</span></div>
         <div id="dashLine"></div>
+        <div class="lens-note-under">{{ lang._('Measured by dpinger, judged against your own gateway thresholds.') }}</div>
     </div>
 
     <div class="content-box dash-card">
         <div class="dash-title"><span>{{ lang._('When your network is busy') }}</span></div>
-        <div class="hm" id="dashHeatmap"></div>
+        <div class="hm-scroll"><div class="hm" id="dashHeatmap"></div></div>
         <div class="dash-sub" id="dashHeatmapNote" style="margin-top: 8px;"></div>
     </div>
 
@@ -761,15 +636,15 @@
             <span class="dash-sub">{{ lang._('up') }} <span id="sysUptime"></span></span>
         </div>
         <div class="dash-meter" id="meterLoad" style="display:none;">
-            <div class="label"><span>{{ lang._('Load') }}</span><span class="value"></span></div>
+            <div class="dash-meter-label"><span>{{ lang._('Load') }}</span><span class="value"></span></div>
             <div class="track"><div class="fill"></div></div>
         </div>
         <div class="dash-meter" id="meterMem" style="display:none;">
-            <div class="label"><span>{{ lang._('Memory') }}</span><span class="value"></span></div>
+            <div class="dash-meter-label"><span>{{ lang._('Memory') }}</span><span class="value"></span></div>
             <div class="track"><div class="fill"></div></div>
         </div>
         <div class="dash-meter" id="meterDisk" style="display:none;">
-            <div class="label"><span>{{ lang._('Disk') }}</span><span class="value"></span></div>
+            <div class="dash-meter-label"><span>{{ lang._('Disk') }}</span><span class="value"></span></div>
             <div class="track"><div class="fill"></div></div>
         </div>
         <div class="dash-sub">{{ lang._('Computed exactly as OPNsense\'s own system widgets compute them.') }}</div>

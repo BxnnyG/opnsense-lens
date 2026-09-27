@@ -1,7 +1,7 @@
-# Router round for `os-lens-0.17_1` (2026-09-27)
+# Router round for `os-lens-0.18_1` (2026-09-27)
 
-> Why this exists: eighteen stages, stage 30 included, have been built since the
-> last click-test on a box (`0.5_2`, 2026-08-31). PROCESS calls each of them
+> Why this exists: nineteen stages, stages 30 and 31 included, have been built
+> since the last click-test on a box (`0.5_2`, 2026-08-31). PROCESS calls each of them
 > "plausible" until a human has clicked it on a router and the load has been
 > measured. This is that, in one sitting, in the order that finds the expensive
 > failures first.
@@ -17,7 +17,7 @@
 
     tools/lens-deploy.sh            # both boxes, from a checkout of this branch
 
-- [ ] router-01: `pkg info os-lens` says `0.17_1`
+- [ ] router-01: `pkg info os-lens` says `0.18_1`
 - [ ] second box: the same
 - [ ] `grep -n lens /var/cron/tabs/root` prints two lines, `*/5` and `*/30` (§4.25)
 - [ ] `configctl lens status` answers JSON, `schema_version` is `6`
@@ -76,6 +76,20 @@ value, and stage 29 made the observe duty wait on the network for the first time
         it, Devices is empty and fills again within five minutes; Settings still
         shows your values
 
+### How it looks (stage 31)
+
+The preview (`tools/preview`) already showed every page at desktop, dark and
+390 px. What it cannot show is a real phone on the real box:
+
+- [ ] open the dashboard and Devices **on your phone**: nothing scrolls sideways,
+      the device list is one card per device, the heatmap scrolls inside its card
+- [ ] switch to the dark theme (System: Settings: General, theme `opnsense-dark`,
+      or `opnsense-auto` with a dark phone): no card has a bright frame, every
+      chart and status word is readable
+- [ ] hover the network chart: one readout with both directions and the time
+- [ ] Devices, a device page and the dashboard all say HOME / IOT / … where
+      Networks does
+
 ### Reporting: Lens
 
 - [ ] **Dashboard** (stage 23): five tiles, network over time, top devices,
@@ -133,7 +147,7 @@ These have been open since the dates beside them. Each is one command.
 
 ## 4. After the round
 
-- ROADMAP: every ticked stage becomes ✅ with the date and `0.17_1`; the
+- ROADMAP: every ticked stage becomes ✅ with the date and `0.18_1`; the
   measured numbers go into the operations notes (observe with/without probes,
   harvest, store size).
 - DESIGN §1b: the same.

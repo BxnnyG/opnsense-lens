@@ -24,20 +24,14 @@
  # POSSIBILITY OF SUCH DAMAGE.
  #}
 
-<p>
-    {{ lang._('What this box can actually tell Lens, and where it cannot. Switching the missing sources on, with the cost of each stated, is what this page becomes next.') }}
-</p>
+<div class="lens-page-head">
+    <div class="lens-page-intro">
+        {{ lang._('What this box can actually tell Lens, and where it cannot. Where a source can be switched on from here, the button beside it says exactly what changes and what it costs first.') }}
+    </div>
+</div>
 
-<style>
-    .lens-verdict { font-weight: 600; white-space: nowrap; }
-    .lens-ready { color: #5cb85c; }
-    .lens-degraded { color: #f0ad4e; }
-    .lens-absent { color: #999; }
-    .lens-cause { max-width: 40em; }
-    .lens-action { display: block; margin-top: 4px; }
-    .lens-block { margin-top: 25px; }
-    #lensTiming { margin-top: 20px; }
-</style>
+<link rel="stylesheet" type="text/css" href="{{ cache_safe('/ui/css/lens.css') }}">
+<script src="{{ cache_safe('/ui/js/lens.js') }}"></script>
 
 <script>
     $(document).ready(() => {
@@ -237,7 +231,8 @@
 <div id="lensReport" style="display: none;">
     <p id="lensHeadline"></p>
 
-    <table id="lensSources" class="table table-condensed table-striped">
+    <div class="content-box lens-box">
+    <table id="lensSources" class="table table-condensed lens-sources-table" style="margin-bottom: 0;">
         <thead>
             <tr>
                 <th>{{ lang._('Source') }}</th>
@@ -250,7 +245,9 @@
         <tbody></tbody>
     </table>
 
-    <div id="lensFix" class="alert alert-warning lens-block" style="display: none;">
+    </div>
+
+    <div id="lensFix" class="alert alert-warning" style="display: none;">
         <b id="lensFixTitle"></b>
         &mdash; <a href="#" id="lensFixOpen">{{ lang._('see exactly what would change') }}</a>
     </div>
@@ -297,8 +294,8 @@
         </div>
     </div>
 
-    <div id="lensIdentityBlock" class="lens-block" style="display: none;">
-        <h3>{{ lang._('Whether identity is holding') }}</h3>
+    <div id="lensIdentityBlock" class="content-box lens-box" style="display: none;">
+        <div class="lens-box-head">{{ lang._('Whether identity is holding') }}</div>
         <p>
             {{ lang._('Lens files every device under its MAC address. That choice was made on ten hours of one quiet evening, so it is measured continuously rather than trusted:') }}
             <span id="lensIdentityVerdict"></span>
@@ -309,8 +306,8 @@
         </p>
     </div>
 
-    <div id="lensCoverage" class="lens-block" style="display: none;">
-        <h3>{{ lang._('Traffic capture coverage') }}</h3>
+    <div id="lensCoverage" class="content-box lens-box" style="display: none;">
+        <div class="lens-box-head">{{ lang._('Traffic capture coverage') }}</div>
         <p>{{ lang._('A device on an interface that is not captured produces no traffic history at all, and no other page will mention it.') }}</p>
         <table class="table table-condensed">
             <tbody>
@@ -327,8 +324,8 @@
     </div>
 
 
-    <div id="lensStoreBlock" class="lens-block" style="display: none;">
-        <h3>{{ lang._('What Lens has kept') }}</h3>
+    <div id="lensStoreBlock" class="content-box lens-box" style="display: none;">
+        <div class="lens-box-head">{{ lang._('What Lens has kept') }}</div>
         <p id="lensStoreHeadline"></p>
         <table id="lensStore" class="table table-condensed">
             <tbody></tbody>
@@ -338,8 +335,8 @@
         </p>
     </div>
 
-    <div class="lens-block">
-        <h3>{{ lang._('How far back the data goes') }}</h3>
+    <div class="content-box lens-box">
+        <div class="lens-box-head">{{ lang._('How far back the data goes') }}</div>
         <p>{{ lang._('These limits are fixed in OPNsense itself, not a setting. Actual depth is also bounded by when capture was switched on, which is the earlier of the two.') }}</p>
         <table id="lensRetention" class="table table-condensed">
             <thead>

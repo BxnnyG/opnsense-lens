@@ -74,6 +74,18 @@ class BaselineReportTest extends TestCase
         $this->assertSame('NAS', $report['unusual'][0]['name']);
     }
 
+    public function testOneDeviceIsNotOneDevices()
+    {
+        $one = ['mac' => 'aa:bb:cc:dd:ee:01', 'name' => 'NAS',
+                'today' => 4000 * self::MB, 'usual' => 300 * self::MB, 'times' => 13.3];
+
+        $single = BaselineReport::describe(['days' => 25, 'needs_days' => 21, 'unusual' => [$one]]);
+        $two = BaselineReport::describe(['days' => 25, 'needs_days' => 21, 'unusual' => [$one, $one]]);
+
+        $this->assertSame('One device is moving far more than it usually does today.', $single['headline']);
+        $this->assertStringStartsWith('2 devices are moving', $two['headline']);
+    }
+
     public function testAWholeMultipleDoesNotReadAsFourPointZero()
     {
         $report = BaselineReport::describe([
