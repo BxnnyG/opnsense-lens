@@ -98,6 +98,7 @@ class Palette
             ['/ui/lens/presence', 'fa-home', gettext("Who's home"), 'presence here'],
             ['/ui/lens/segments', 'fa-sitemap', gettext('Networks'), 'segments vlan'],
             ['/ui/lens/dns', 'fa-globe', gettext('DNS'), 'unbound queries blocked domains'],
+            ['/ui/lens/report', 'fa-print', gettext('Weekly report'), 'week summary print pdf'],
             ['/ui/lens/wall', 'fa-television', gettext('Wallboard'), 'kiosk screen'],
             ['/ui/lens/preflight', 'fa-plug', gettext('Data Sources'), 'netflow sources health'],
             ['/ui/lens/settings', 'fa-sliders', gettext('Settings'), 'retention purge probes'],

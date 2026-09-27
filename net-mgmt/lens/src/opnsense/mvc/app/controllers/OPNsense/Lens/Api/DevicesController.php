@@ -319,7 +319,7 @@ class DevicesController extends ApiControllerBase
         }
 
         $fields = [];
-        foreach (['name', 'kind', 'tags', 'note'] as $field) {
+        foreach (['name', 'kind', 'tags', 'note', 'owner'] as $field) {
             $fields[$field] = (string)$this->request->getPost($field, null, '');
         }
 

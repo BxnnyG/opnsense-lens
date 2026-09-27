@@ -341,6 +341,7 @@
             $('#lensEditName').val(device.label.name);
             $('#lensEditTags').val(device.label.tags);
             $('#lensEditNote').val(device.label.note);
+            $('#lensEditOwner').val(device.label.owner || '');
 
             const $kind = $('#lensEditKind').empty();
             $('<option/>').val('').text(
@@ -366,7 +367,8 @@
                 name: $('#lensEditName').val(),
                 kind: $('#lensEditKind').val(),
                 tags: $('#lensEditTags').val(),
-                note: $('#lensEditNote').val()
+                note: $('#lensEditNote').val(),
+                owner: $('#lensEditOwner').val()
             };
 
             $('#lensEditSave').prop('disabled', true);
@@ -736,6 +738,11 @@
                         <label for="lensEditTags">{{ lang._('Tags') }}</label>
                         <input type="text" class="form-control" id="lensEditTags"
                                placeholder="{{ lang._('comma separated, e.g. hypervisor, production') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="lensEditOwner">{{ lang._('Belongs to') }}</label>
+                        <input type="text" class="form-control" id="lensEditOwner"
+                               placeholder="{{ lang._('a person, e.g. Anna - Who\'s home draws one strip per person') }}">
                     </div>
                     <div class="form-group">
                         <label for="lensEditNote">{{ lang._('Note') }}</label>

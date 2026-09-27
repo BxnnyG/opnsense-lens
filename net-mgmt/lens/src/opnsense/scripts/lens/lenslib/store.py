@@ -13,7 +13,7 @@ import sqlite3
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 # every key, its default and its bounds live in lenslib.settings (§4.58)
 DEFAULT_SETTINGS = settingslib.defaults()
@@ -146,6 +146,10 @@ MIGRATIONS = {
     # device, in the table the collector never writes.
     8: [
         "ALTER TABLE device_label ADD COLUMN muted INTEGER NOT NULL DEFAULT 0",
+    ],
+    # Whose it is (§4.67): the operator's word, beside the name they gave it.
+    9: [
+        "ALTER TABLE device_label ADD COLUMN owner TEXT",
     ],
 }
 
@@ -310,7 +314,7 @@ class Store:
             }
 
         for row in self.db.execute(
-            "SELECT mac, name, kind, tags, note, muted FROM device_label"
+            "SELECT mac, name, kind, tags, note, owner, muted FROM device_label"
         ):
             if row['mac'] in devices:
                 devices[row['mac']]['label'] = {
@@ -318,6 +322,7 @@ class Store:
                     'kind': row['kind'],
                     'tags': row['tags'],
                     'note': row['note'],
+                    'owner': row['owner'],
                     'muted': bool(row['muted']),
                 }
 
@@ -345,11 +350,11 @@ class Store:
         all four texts and no mute, the mute button sends only the mute (§4.63),
         and neither may undo the other.
 
-        :param fields: any of name, kind, tags, note, muted
+        :param fields: any of name, kind, tags, note, owner, muted
         """
-        columns = ('name', 'kind', 'tags', 'note')
+        columns = ('name', 'kind', 'tags', 'note', 'owner')
         row = self.db.execute(
-            "SELECT name, kind, tags, note, muted FROM device_label WHERE mac = ?", (mac,)
+            "SELECT name, kind, tags, note, owner, muted FROM device_label WHERE mac = ?", (mac,)
         ).fetchone()
         values = [
             ((fields.get(key) or '').strip() or None) if key in fields else (row[key] if row else None)
@@ -362,13 +367,13 @@ class Store:
             return 'cleared'
 
         self.db.execute(
-            """INSERT INTO device_label (mac, name, kind, tags, note, muted, updated)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO device_label (mac, name, kind, tags, note, owner, muted, updated)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(mac) DO UPDATE SET
                    name = excluded.name, kind = excluded.kind,
-                   tags = excluded.tags, note = excluded.note,
+                   tags = excluded.tags, note = excluded.note, owner = excluded.owner,
                    muted = excluded.muted, updated = excluded.updated""",
-            (mac, values[0], values[1], values[2], values[3], muted, now),
+            (mac, values[0], values[1], values[2], values[3], values[4], muted, now),
         )
         return 'saved'
 

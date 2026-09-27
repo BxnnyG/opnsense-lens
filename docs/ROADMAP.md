@@ -54,6 +54,7 @@ this one inherits, and 23 stages of experience with it.
 | 36 | **What the network looks up** — DNS page and a device's DNS card from Unbound's own store, per device at the time asked, under its own privilege ([plan](plans/stage-36-dns.md), §4.64) | S12, S5 | 🔨 built 2026-09-27 as `0.22_1` from core's source · looked at in `tools/preview` · **awaiting a real `qstats` capture** |
 | 37 | **Find anything, filter everything** — Ctrl-K palette over devices, networks and pages; one network/tag filter followed by Devices, Who's home, Events and DNS ([plan](plans/stage-37-palette-filter.md), §4.65) | S11, S6 | 🔨 built 2026-09-27 as `0.23_1` · looked at in `tools/preview` · **awaiting router round** |
 | 38 | **Upload on its own, last week beside this one, how sure a type is** ([plan](plans/stage-38-upload-week-confidence.md), §4.66) | S8, S6, S1 | 🔨 built 2026-09-27 as `0.24_1` · looked at in `tools/preview` · **awaiting router round** |
+| 39 | **Who's home by person, and the week on one page** — an owner per device, strips per person from what they carry, a printable weekly report ([plan](plans/stage-39-people-weekly.md), §4.67) | S1, S5, S6 | 🔨 built 2026-09-27 as `0.25_1` · looked at and printed in `tools/preview` · **awaiting router round** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -84,7 +85,7 @@ against observations from the operator's own network, which stage 4 produces.
 | — | Reachability: latency and loss to gateway and public resolvers (BACKLOG #20) | S16 | gateway half built as stage 28 (§4.56); public targets built as stage 29 (§4.57) |
 | — | The five-minute observe job was never in the crontab (§4.25) | S2 | ✅ fixed 2026-08-30 in `0.3_3` |
 | 3 | ~~Setup wizard~~ | S3 | ⛔ closed 2026-09-12 (§4.39) |
-| — | Sankey flow view, geo map, time-travel slider, reputation badges, weekly report, comparison view, achievements | idea store, DESIGN §2b | ⏳ parked, not forgotten |
+| — | Sankey flow view, geo map, time-travel slider, reputation badges, comparison view, achievements (the weekly report became stage 39) | idea store, DESIGN §2b | ⏳ parked, not forgotten |
 | — | IDS section | S9 slot, §4.6 | ⏳ parked until Suricata runs and the operator says so |
 
 ## Operations notes

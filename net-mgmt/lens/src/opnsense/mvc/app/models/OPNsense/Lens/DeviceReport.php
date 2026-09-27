@@ -341,7 +341,10 @@ class DeviceReport
                 'kind' => $chosenKind,
                 'tags' => implode(', ', $tags),
                 'note' => trim((string)($label['note'] ?? '')),
+                'owner' => trim((string)($label['owner'] ?? '')),
             ],
+            /* whose it is, in the operator's words (§4.67) */
+            'owner' => trim((string)($label['owner'] ?? '')) ?: null,
             'tags' => $tags,
             /* the operator's mute (§4.63): hides news, never figures */
             'muted' => !empty($label['muted']),
@@ -358,7 +361,7 @@ class DeviceReport
             /* everything a search box should match, assembled once here rather
                than reassembled in the browser on every keystroke */
             'haystack' => strtolower(implode(' ', array_merge(
-                [$mac, $hostname, (string)$vendor, $chosenName, implode(' ', $tags)],
+                [$mac, $hostname, (string)$vendor, $chosenName, implode(' ', $tags), (string)($label['owner'] ?? '')],
                 array_map(function ($address) {
                     return $address['address'] . ' ' . $address['interface'] . ' ' . $address['segment'];
                 }, $addresses)
@@ -440,6 +443,7 @@ class DeviceReport
         $lastSeen = 0;
         $here = false;
         $muted = false;
+        $owner = null;
         foreach ($members as $member) {
             $sent += $member['sent'];
             $received += $member['received'];
@@ -451,6 +455,7 @@ class DeviceReport
             $lastSeen = max($lastSeen, $member['last_seen']);
             $here = $here || $member['here'];
             $muted = $muted || $member['muted'];
+            $owner = $owner ?? $member['owner'];
         }
         usort($addresses, function ($left, $right) {
             if ($left['current'] !== $right['current']) {
@@ -465,6 +470,7 @@ class DeviceReport
         $row['interfaces'] = array_values(array_unique($interfaces));
         /* muted as a whole, so the next rotation stays quiet too */
         $row['muted'] = $muted;
+        $row['owner'] = $owner;
         $row['haystack'] = implode(' ', array_unique($haystack));
         $row['first_seen'] = $firstSeen === PHP_INT_MAX ? 0 : $firstSeen;
         $row['last_seen'] = $lastSeen;

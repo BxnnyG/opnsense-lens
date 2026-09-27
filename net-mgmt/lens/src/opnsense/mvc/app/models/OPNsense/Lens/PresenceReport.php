@@ -47,6 +47,78 @@ namespace OPNsense\Lens;
  */
 class PresenceReport
 {
+    /**
+     * One strip per person (§4.67): the union of the devices they carry, or of
+     * all their devices when they carry none Lens knows of -- and which it was
+     * is said on the row.
+     */
+    private static function people(array $owned): array
+    {
+        $people = [];
+        foreach ($owned as $owner => $devices) {
+            $carried = array_values(array_filter($devices, function ($device) {
+                return $device['carried'];
+            }));
+            $basis = $carried !== [] ? $carried : $devices;
+
+            $spans = [];
+            foreach ($basis as $device) {
+                $spans = array_merge($spans, $device['spans']);
+            }
+            $spans = self::union($spans);
+            $seconds = array_sum(array_map(function ($span) {
+                return $span[1] - $span[0];
+            }, $spans));
+
+            $names = array_column($basis, 'name');
+            $people[] = [
+                'name' => (string)$owner,
+                'here' => count(array_filter($basis, function ($device) {
+                    return $device['here'];
+                })) > 0,
+                'spans' => $spans,
+                'present' => Duration::span($seconds),
+                'basis' => $carried !== []
+                    ? sprintf(gettext('from %s'), implode(', ', $names))
+                    : sprintf(gettext('no phone of theirs is known, so from %s'), implode(', ', $names)),
+                'devices' => array_map(function ($device) {
+                    return ['name' => $device['name'], 'icon' => $device['icon'], 'carried' => $device['carried']];
+                }, $devices),
+                'interfaces' => array_values(array_unique(array_merge(...array_column($devices, 'interfaces')))),
+                'tags' => array_values(array_unique(array_merge(...array_column($devices, 'tags')))),
+            ];
+        }
+
+        usort($people, function ($left, $right) {
+            if ($left['here'] !== $right['here']) {
+                return $left['here'] ? -1 : 1;
+            }
+            return strcmp($left['name'], $right['name']);
+        });
+
+        return $people;
+    }
+
+    /** overlapping spans of several devices merged, so an hour is counted once */
+    private static function union(array $spans): array
+    {
+        usort($spans, function ($left, $right) {
+            return ((int)$left[0]) <=> ((int)$right[0]);
+        });
+        $merged = [];
+        foreach ($spans as $span) {
+            $span = [(int)$span[0], (int)$span[1]];
+            $last = count($merged) - 1;
+            if ($last >= 0 && $span[0] <= $merged[$last][1]) {
+                $merged[$last][1] = max($merged[$last][1], $span[1]);
+            } else {
+                $merged[] = $span;
+            }
+        }
+
+        return $merged;
+    }
+
     /** present for at least this share of the window counts as "always here" */
     public const ALWAYS = 0.98;
 
@@ -66,6 +138,8 @@ class PresenceReport
         $moving = [];
         $always = [];
         $absent = 0;
+        /* owner to their devices, spans and all, for the strips per person (§4.67) */
+        $owned = [];
 
         foreach ($rows as $row) {
             /* a folded row is every MAC it stands for (§4.61); their windows
@@ -79,6 +153,19 @@ class PresenceReport
             usort($spans, function ($left, $right) {
                 return ((int)$left[0]) <=> ((int)$right[0]);
             });
+
+            if (!empty($row['owner'])) {
+                $owned[$row['owner']][] = [
+                    'name' => $row['name'],
+                    'icon' => $row['kind']['icon'] ?? 'fa-circle-o',
+                    /* a phone or tablet goes where its person goes; a desktop left on does not */
+                    'carried' => ($row['kind']['key'] ?? '') === 'phone',
+                    'here' => (bool)$row['here'],
+                    'spans' => $spans,
+                    'interfaces' => array_values((array)($row['interfaces'] ?? [])),
+                    'tags' => array_values((array)($row['tags'] ?? [])),
+                ];
+            }
 
             if ($spans === []) {
                 $absent++;
@@ -123,6 +210,7 @@ class PresenceReport
         return [
             'start' => $start,
             'now' => $now,
+            'people' => self::people($owned),
             'moving' => $moving,
             'always' => $always,
             'absent' => $absent,

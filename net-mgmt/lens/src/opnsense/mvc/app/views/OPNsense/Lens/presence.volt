@@ -93,8 +93,25 @@
 
         let report = null;
 
+        /* one strip per person, from the devices they carry (§4.67) */
+        const person = (entry, start, now) => {
+            const $row = row({ name: entry.name, icon: 'fa-user', here: entry.here, spans: entry.spans,
+                               present: entry.present }, start, now);
+            $row.find('.who-name').append($('<div/>').addClass('who-basis').text(entry.basis))
+                .attr('title', entry.devices.map(d => d.name).join(', '));
+            return $row;
+        };
+
         /* drawn again when the filter bar changes (§4.65) */
         const draw = () => {
+            const people = (report.people || []).filter(entry => Lens.filter.matches(entry));
+            const $people = $('#whoPeople').empty().append(ticks(report.start, report.now));
+            for (const entry of people) {
+                $people.append(person(entry, report.start, report.now));
+            }
+            $('#whoPeopleBox').toggle(people.length > 0);
+            $('#whoPeopleHint').toggle(!(report.people || []).length);
+
             const moving = report.moving.filter(entry => Lens.filter.matches(entry));
             const always = report.always.filter(entry => Lens.filter.matches(entry));
 
@@ -156,6 +173,14 @@
 </div>
 
 <div id="whoReport" style="display: none;">
+    <div id="whoPeopleBox" class="content-box who-box" style="display: none;">
+        <div class="who-title">{{ lang._('By person') }}</div>
+        <div id="whoPeople"></div>
+    </div>
+    <div id="whoPeopleHint" class="lens-note-under" style="display: none; margin: 0 0 10px 0;">
+        {{ lang._('Say whose a device is - Belongs to, when you name it - and this page draws one strip per person, from the phones they carry.') }}
+    </div>
+
     <div class="content-box who-box">
         <div class="who-title">{{ lang._('Came and went') }}</div>
         <div id="whoMoving"></div>

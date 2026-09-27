@@ -146,7 +146,7 @@ Filtern."* Recorded as given, ordered by my judgement.
   is why they feel navigable rather than merely complete.
 - **#23 — Top domains and what was blocked.** Needs `configctl unbound qstats
   totals` and the DNSBL tables. Blocked on seeing one output (§1).
-- **#24 — A weekly report worth reading, exported.** CSV or a printable page.
+- **#24 — A weekly report worth reading, exported.** CSV or a printable page. 🔨 the printable page built 2026-09-27 as stage 39 (§4.67).
   Already in the idea store; a commercial product selling it is evidence people
   want it.
 - **#25 — Group by tag as the default view.** Zenarmor groups devices under a
@@ -201,7 +201,7 @@ data Lens already keeps; none is planned before the router round.
   event as a laptop downloading an update; the baseline currently cannot tell.
 - **#39 — Compared with last week.** 🔨 built 2026-09-27 as stage 38 (§4.66). A delta beside every figure, withheld when
   the previous period is not fully covered (§4.43).
-- **#40 — Who's home by person.** Presence grouped by an owner tag: one strip
+- **#40 — Who's home by person.** 🔨 built 2026-09-27 as stage 39 (§4.67). Presence grouped by an owner tag: one strip
   per person, the devices underneath.
 - **#41 — Say how sure the device type is.** 🔨 built 2026-09-27 as stage 38 (§4.66). Certain, likely, vendor only —
   never a percentage Lens has no model to produce.

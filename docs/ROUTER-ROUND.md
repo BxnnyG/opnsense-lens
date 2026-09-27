@@ -127,6 +127,10 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       it folds away behind "1 from devices you muted", its page says *muted*,
       and the one sentence on the dashboard no longer leads with it. Unmute from
       its page. Note the page's load time from the round report
+- [ ] **people and the week** (stage 39): give two phones and a laptop an
+      owner (Belongs to). Who's home shows one strip per person, from the phone,
+      and says so. Weekly report: print it to PDF from the browser — one clean
+      column, no OPNsense menu on the paper
 - [ ] **upload, last week, type** (stage 38): Devices at 24 hours shows a
       grey +/−% beside each traffic figure once Lens has watched eight days;
       `configctl lens baseline` — does any verdict now read *sent*? Is it the

@@ -226,15 +226,15 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.24_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.25_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
 | System | Status | Rest / note |
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
-| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 8, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
+| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 9, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built |
@@ -537,7 +537,7 @@ decisions.
   downloaded lists and existing OPNsense aliases. A live lookup per alert would
   leak the operator's traffic to a third party once per click.
 - Layout export / import as a file.
-- Weekly report as printable HTML.
+- Weekly report as printable HTML. 🔨 built 2026-09-27 as stage 39 (§4.67).
 - Compare two devices side by side.
 - Automatic grouping by vendor or behaviour.
 - Onboarding wizard that switches on the widgets matching a stated interest.
@@ -1843,3 +1843,18 @@ certain, likely (from the announced name), from the maker only, not recognised
 — and the name is consulted before the maker.
 **Consequences:** the Devices page runs one more attribution join when the
 comparison is possible. A device new since last week says "new", not "+∞%".
+
+### §4.67 — A person is the devices they carry; the week is a page, not a mail (2026-09-27)
+**Question:** BACKLOG #40 and the idea store's weekly report — presence per
+person, and a weekly summary. Who says which device is whose, what makes a
+person "home", and how does the summary reach anyone?
+**Decision:** the operator says whose a device is, in one more label field
+(*belongs to*, schema 9); nothing is inferred from names or tags. A person is
+home when a device they **carry** — a phone or tablet, by the type Lens shows
+for it — is; only a person with no such device is drawn from all of theirs,
+and the row says which it used. The weekly summary is **a printable page**,
+not an e-mail: Lens has no mail path, and adding one would be a second product
+(credentials, delivery, a queue) for a page the operator can print or save as
+PDF. It reads the pages it summarises, nothing new.
+**Consequences:** a person with a desktop and no phone is "home whenever the
+desktop is on", and says so; the owner field goes with the label on purge.

@@ -36,6 +36,7 @@ const PAGES = {
     presence: '/ui/lens/presence',
     segments: '/ui/lens/segments',
     dns: '/ui/lens/dns',
+    report: '/ui/lens/report',
     wall: '/ui/lens/wall',
     preflight: '/ui/lens/preflight',
     settings: '/ui/lens/settings',

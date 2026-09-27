@@ -141,6 +141,17 @@ class StoreTest(unittest.TestCase):
         self.assertEqual(('Backup box', True), (self.label('aa:00:00:00:00:01')['name'],
                                                 self.label('aa:00:00:00:00:01')['muted']))
 
+    def test_whose_it_is_survives_a_mute_and_a_rename_and_goes_with_purge(self):
+        mac = 'aa:00:00:00:00:01'
+        self.store.see_device(mac, NOW, False, False, None, None)
+        self.store.set_label(mac, {'name': 'Phone', 'kind': '', 'tags': '', 'note': '', 'owner': 'Anna'}, NOW)
+        self.store.set_label(mac, {'muted': True}, NOW)
+        self.store.set_label(mac, {'name': 'iPhone', 'kind': '', 'tags': '', 'note': '', 'owner': 'Anna'}, NOW)
+        self.assertEqual('Anna', self.label(mac)['owner'])
+
+        self.store.purge()
+        self.assertEqual(0, self.store.db.execute("SELECT count(*) FROM device_label").fetchone()[0])
+
     def test_a_muted_device_without_a_name_keeps_its_row(self):
         self.store.see_device('aa:00:00:00:00:01', NOW, False, False, None, None)
         self.assertEqual('saved', self.store.set_label('aa:00:00:00:00:01', {'muted': True}, NOW))

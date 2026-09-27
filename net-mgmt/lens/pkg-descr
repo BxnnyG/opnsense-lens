@@ -25,6 +25,17 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.25_1
+
+* say whose a device is - Belongs to, beside its name - and Who's home draws
+  one strip per person, from the phones and tablets they carry: a desktop left
+  on is not a person at home. A person without one is drawn from what they
+  have, and the row says so (schema 9)
+* Reporting: Lens: Weekly report - the week on one page: the one sentence,
+  the internet's uptime and outages, traffic against the week before with the
+  heaviest devices, what happened, who was home, the networks. Printing any
+  Lens page leaves OPNsense's menu off the paper
+
 0.24_1
 
 * uploads are judged on their own: a camera or a NAS sending far more than it

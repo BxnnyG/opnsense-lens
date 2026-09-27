@@ -79,10 +79,12 @@ for n in range(1, 9):
                     None, None, 'always', random.Random(n).choice([30, 80, 150, 400, 900]), 0.5))
 
 LABELS = {
-    '3c:22:fb:10:20:30': {'name': "Anna's MacBook", 'kind': 'laptop', 'tags': 'anna'},
-    'da:a1:19:5e:00:01': {'name': "Anna's iPhone", 'kind': 'phone', 'tags': 'anna'},
-    'ae:44:12:9b:7c:02': {'name': "Ben's phone", 'kind': 'phone', 'tags': 'ben,kids'},
-    '38:f9:d3:77:66:55': {'name': 'Workstation', 'tags': 'benny'},
+    '3c:22:fb:10:20:30': {'name': "Anna's MacBook", 'kind': 'computer', 'tags': 'anna', 'owner': 'Anna'},
+    'da:a1:19:5e:00:01': {'name': "Anna's iPhone", 'kind': 'phone', 'tags': 'anna', 'owner': 'Anna'},
+    'ae:44:12:9b:7c:02': {'name': "Ben's phone", 'kind': 'phone', 'tags': 'ben,kids', 'owner': 'Ben'},
+    '38:f9:d3:77:66:55': {'name': 'Workstation', 'tags': 'benny', 'owner': 'Benny'},
+    # whose the rotating phone is, said once on one of its addresses (§4.67)
+    'e6:11:22:33:44:03': {'owner': 'Benny'},
     '00:11:32:aa:bb:cc': {'name': 'NAS', 'kind': 'server', 'tags': 'infra', 'note': 'Backups at 03:00'},
     '2c:aa:8e:40:50:60': {'name': 'Garden camera', 'tags': 'iot'},
     'bc:24:11:1b:58:01': {'name': 'mail', 'tags': 'infra'},

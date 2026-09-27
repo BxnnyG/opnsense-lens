@@ -311,7 +311,7 @@ class DeviceReportTest extends TestCase
     {
         $device = $this->one();
 
-        $this->assertSame(['name' => '', 'kind' => '', 'tags' => '', 'note' => ''], $device['label']);
+        $this->assertSame(['name' => '', 'kind' => '', 'tags' => '', 'note' => '', 'owner' => ''], $device['label']);
         $this->assertSame([], $device['tags']);
     }
 

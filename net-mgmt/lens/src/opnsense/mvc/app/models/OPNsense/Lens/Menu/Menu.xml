@@ -18,6 +18,7 @@
             <Presence order="15" VisibleName="Who's home" url="/ui/lens/presence"/>
             <Segments order="20" VisibleName="Networks" url="/ui/lens/segments"/>
             <DNS order="25" VisibleName="DNS" url="/ui/lens/dns"/>
+            <Report order="28" VisibleName="Weekly report" url="/ui/lens/report"/>
             <Wallboard order="30" VisibleName="Wallboard" url="/ui/lens/wall"/>
         </Lens>
     </Reporting>

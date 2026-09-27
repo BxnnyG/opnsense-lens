@@ -96,6 +96,45 @@ class PresenceReportTest extends TestCase
                           array_column($report['moving'], 'name'));
     }
 
+    public function testAPersonIsHomeWhenTheirPhoneIsNotWhenTheirDesktopIs()
+    {
+        /* §4.67: a desktop left on is not a person at home */
+        $rows = [
+            array_merge($this->row('aa', "Anna's iPhone"), ['owner' => 'Anna', 'kind' => ['key' => 'phone', 'icon' => 'fa-mobile']]),
+            array_merge($this->row('bb', "Anna's desktop", true), ['owner' => 'Anna', 'kind' => ['key' => 'computer', 'icon' => 'fa-desktop']]),
+        ];
+        $report = PresenceReport::describe($rows, $this->raw([
+            'aa' => ['spans' => [[self::NOW - 7200, self::NOW - 3600], [self::NOW - 5400, self::NOW - 1800]], 'seconds' => 7200],
+            'bb' => ['spans' => [[self::NOW - self::DAY, self::NOW]], 'seconds' => self::DAY],
+        ]), self::NOW);
+
+        $anna = $report['people'][0];
+        $this->assertSame('Anna', $anna['name']);
+        $this->assertFalse($anna['here'], 'the desktop is here, Anna is not');
+        $this->assertSame([[self::NOW - 7200, self::NOW - 1800]], $anna['spans'], 'overlaps counted once');
+        $this->assertSame("from Anna's iPhone", $anna['basis']);
+        $this->assertCount(2, $anna['devices']);
+    }
+
+    public function testAPersonWithoutAPhoneIsDrawnFromWhatTheyHaveAndSaysSo()
+    {
+        $rows = [array_merge($this->row('bb', 'Workstation', true),
+                             ['owner' => 'Benny', 'kind' => ['key' => 'computer', 'icon' => 'fa-desktop']])];
+        $report = PresenceReport::describe($rows, $this->raw([
+            'bb' => ['spans' => [[self::NOW - 3600, self::NOW]], 'seconds' => 3600],
+        ]), self::NOW);
+
+        $this->assertTrue($report['people'][0]['here']);
+        $this->assertStringStartsWith('no phone of theirs is known', $report['people'][0]['basis']);
+    }
+
+    public function testNobodyOwnedMeansNoPeople()
+    {
+        $report = PresenceReport::describe([$this->row('aa', 'Phone')], $this->raw([]), self::NOW);
+
+        $this->assertSame([], $report['people']);
+    }
+
     public function testADeviceNotSeenInTheWindowIsCountedNotDrawn()
     {
         $report = PresenceReport::describe([$this->row('zz', 'Old laptop')], $this->raw([]), self::NOW);

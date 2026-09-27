@@ -228,6 +228,11 @@
                 $pills.append($('<span/>').addClass('dv-pill warn').attr('title', device.caveat)
                     .text('{{ lang._("randomised MAC") }}'));
             }
+            if (device.owner) {
+                $pills.append($('<span/>').addClass('dv-pill')
+                    .append($('<i/>').addClass('fa fa-user'))
+                    .append(document.createTextNode(' ' + device.owner)));
+            }
             if (device.muted) {
                 $pills.append($('<span/>').addClass('dv-pill')
                     .attr('title', '{{ lang._("Its events fold away on Events, and the one sentence never leads with it. Its figures stay.") }}')
@@ -391,6 +396,7 @@
             $('#dvEditName').val(device.label.name);
             $('#dvEditTags').val(device.label.tags);
             $('#dvEditNote').val(device.label.note);
+            $('#dvEditOwner').val(device.label.owner || '');
             const $kind = $('#dvEditKind').empty();
             $('<option/>').val('').text('{{ lang._("work it out from the vendor") }} — '
                                          + device.kind.type).appendTo($kind);
@@ -407,7 +413,7 @@
         $('#dvEditSave').on('click', () => {
             ajaxCall('/api/lens/devices/label', {
                 mac: device.mac, name: $('#dvEditName').val(), kind: $('#dvEditKind').val(),
-                tags: $('#dvEditTags').val(), note: $('#dvEditNote').val()
+                tags: $('#dvEditTags').val(), note: $('#dvEditNote').val(), owner: $('#dvEditOwner').val()
             }, (reply, status) => {
                 if (status !== 'success' || !reply || reply.status !== 'ok') {
                     $('#dvEditError').text((reply && reply.message)
@@ -474,9 +480,12 @@
             <div class="col-md-3"><label>{{ lang._('Name') }}</label>
                 <input type="text" id="dvEditName" class="form-control"
                        placeholder="{{ lang._('keep the observed name') }}"></div>
-            <div class="col-md-3"><label>{{ lang._('Kind') }}</label>
+            <div class="col-md-2"><label>{{ lang._('Kind') }}</label>
                 <select id="dvEditKind" class="form-control"></select></div>
-            <div class="col-md-3"><label>{{ lang._('Tags') }}</label>
+            <div class="col-md-2"><label>{{ lang._('Belongs to') }}</label>
+                <input type="text" id="dvEditOwner" class="form-control"
+                       placeholder="{{ lang._('a person') }}"></div>
+            <div class="col-md-2"><label>{{ lang._('Tags') }}</label>
                 <input type="text" id="dvEditTags" class="form-control"
                        placeholder="{{ lang._('comma separated') }}"></div>
             <div class="col-md-3"><label>{{ lang._('Note') }}</label>
