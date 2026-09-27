@@ -171,6 +171,18 @@ Filtern."* Recorded as given, ordered by my judgement.
   deliberate no for now: it writes a firewall rule, which is a different product
   with a different failure mode (VISION, self-check).
 
+### From building the settings page, 2026-09-27 (§4.58)
+
+- **#34 — Pause observation or the harvest on purpose.** S14 asks for every
+  source to be individually switchable, and these two are the sources everything
+  else hangs off. Not a switch yet, because every surface reads a stopped observe
+  duty as "the collector has stopped" — the loudest sentence the dashboard has.
+  Each of them has to learn "paused under Settings" first, or the switch becomes
+  a way to make every page cry wolf.
+- **#35 — IPv6 probe targets.** Refused today because `ping -t` as a deadline is
+  verified for IPv4 on FreeBSD and not for IPv6. One command on the box settles
+  it (see the router round checklist).
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** Local `make package` is fine for the first stages

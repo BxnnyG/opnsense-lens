@@ -95,6 +95,25 @@ class InternetTest extends TestCase
         $this->assertSame('unknown', $net['state']['key']);
     }
 
+    public function testProbesSwitchedOffAreTheirOwnStateNotOffline()
+    {
+        /* the collector sends no targets and no latest round once they are off,
+           so the last round before the switch cannot read as the internet now */
+        $probes = ['probing' => false, 'targets' => [], 'latest' => [], 'series' => [], 'uptime' => []];
+        $net = Internet::describe([], $probes, ['worst' => 'good'], 'WAN', self::NOW);
+
+        $this->assertFalse($net['probing']);
+        $this->assertSame('up', $net['state']['key']);
+        $this->assertSame([], $net['probes']);
+    }
+
+    public function testAnOlderCollectorThatSaysNothingIsProbing()
+    {
+        $net = Internet::describe([], $this->probes([]), [], 'WAN', self::NOW);
+
+        $this->assertTrue($net['probing']);
+    }
+
     public function testEveryTargetIsListedEvenBeforeItHasAnswered()
     {
         $net = Internet::describe([], $this->probes([$this->probe('Quad9', 12.0)]), [], 'WAN', self::NOW);

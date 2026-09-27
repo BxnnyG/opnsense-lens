@@ -45,6 +45,7 @@ this one inherits, and 23 stages of experience with it.
 | 27 | **`/metrics` for Grafana** — gauges over a named window, and the collector's age to alert on (§4.55) | S7 | 🔨 built 2026-09-25 · **awaiting a scrape** |
 | 28 | **The line** — latency, jitter and loss per gateway, now and over time, judged by core's own thresholds (§4.56) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
 | 29 | **Internet panel** — WAN addresses, live rate, round trips to Quad9, Cloudflare and Google, uptime strip and outages (§4.57) | S16 | 🔨 built 2026-09-25 · **awaiting router test** |
+| 30 | **Settings** — retention, ceiling, *gone after*, probes and their targets, gateway history, the three baseline guards, and purge with a button ([plan](plans/stage-30-settings.md), §4.58) | S14, S16, S8 | 🔨 built 2026-09-27 as `0.17_1` · **awaiting router test** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
@@ -60,7 +61,7 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
-| — | **Router round for everything built since 0.5_2** — seventeen stages built on tests alone | all | ⏳ **the next thing that matters**, 2026-09-27 |
+| — | **Router round for everything built since 0.5_2** — eighteen stages built on tests alone, stage 30 included | all | ⏳ **the next thing that matters**, 2026-09-27 |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |
@@ -91,8 +92,8 @@ against observations from the operator's own network, which stage 4 produces.
 | Menu entry | `Reporting → Lens` (core `Core/Menu/Menu.xml:15` is the parent) | — |
 | Own store | `/var/db/lens/lens.sqlite`, mode 0600, schema v1 | created by the collector on first run |
 | Collector | `/usr/local/opnsense/scripts/lens/collect.py` — `observe`, `harvest`, `prune`, `status`, `purge` | reachable as `configctl lens <duty>` |
-| Retention defaults | 365 days · 500 MB disk ceiling · 900 s observation gap | in the store's `setting` table, no settings page yet |
-| Delete everything | `configctl lens purge` | works and is tested; no button until there is a settings page to confirm on |
+| Retention defaults | 365 days · 500 MB disk ceiling · 900 s observation gap | in the store's `setting` table; changeable on Services: Lens: Settings since `0.17_1` (§4.58), not part of a config backup |
+| Delete everything | `configctl lens purge`, or the button on Services: Lens: Settings | works and is tested; keeps the settings themselves |
 | Hand-run observation log | `/root/lens-observations.log` on the router, 200 MB ceiling | started 2026-08-29; **superseded by the collector**, stop it once stage 4 is installed |
 | Hand-run preflight report | `/root/lens-preflight-<stamp>.txt` on the router | — |
 | flowd aggregate databases | `/var/netflow` · raw flows `/var/log/flowd.log` | verified 2026-08-29 |

@@ -93,6 +93,13 @@ class StoreReportTest extends TestCase
         $this->assertStringContainsString('21', $report['headline']);
     }
 
+    public function testTheCountdownFollowsTheOperatorsLearningPeriod(): void
+    {
+        $report = StoreReport::describe($this->given(['baseline_days' => 14]), self::NOW);
+
+        $this->assertStringContainsString('needs about 14', $report['headline']);
+    }
+
     public function testGrownUpHistoryStopsCountingDown(): void
     {
         $report = StoreReport::describe(

@@ -11,16 +11,12 @@ Mode 0600 throughout: every row here describes what a person did on the network.
 import os
 import sqlite3
 
+from lenslib import settings as settingslib
+
 SCHEMA_VERSION = 6
 
-DEFAULT_SETTINGS = {
-    # how long observations and harvested traffic are kept
-    'retention_days': '365',
-    # above this the collector stops writing rather than fill /var on a firewall
-    'disk_ceiling_mb': '500',
-    # seconds of absence that end an address observation window
-    'observation_gap': '900',
-}
+# every key, its default and its bounds live in lenslib.settings (§4.58)
+DEFAULT_SETTINGS = settingslib.defaults()
 
 MIGRATIONS = {
     1: [
@@ -208,6 +204,21 @@ class Store:
             return int(self.setting(key))
         except (TypeError, ValueError):
             return int(DEFAULT_SETTINGS[key])
+
+    def stored_settings(self):
+        """:return: key to stored text, exactly as the table holds it"""
+        return {row['key']: row['value'] for row in self.db.execute("SELECT key, value FROM setting")}
+
+    def settings(self):
+        """:return: every setting, typed; unreadable values are their default"""
+        return settingslib.load(self.stored_settings())
+
+    def set_settings(self, clean):
+        """:param clean: key to stored text, already through settings.validate"""
+        self.db.executemany(
+            "INSERT OR REPLACE INTO setting(key, value) VALUES (?, ?)",
+            sorted(clean.items()),
+        )
 
     # ------------------------------------------------------- observations
 
@@ -728,6 +739,7 @@ class Store:
             'size_mb': self.size_mb(),
             'ceiling_mb': self.setting_int('disk_ceiling_mb'),
             'retention_days': self.setting_int('retention_days'),
+            'baseline_days': self.settings()['baseline_days'],
             'runs': runs,
         }
 

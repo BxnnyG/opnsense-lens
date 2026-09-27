@@ -484,7 +484,10 @@
                 $p.append(probeSpark(probe.series));
                 $probes.append($p);
             }
-            if (!net.probes.some(p => p.rtt !== null || p.loss !== null)) {
+            if (!net.probing) {
+                $probes.append($('<div/>').addClass('dash-sub').text(
+                    '{{ lang._("Pinging is switched off under Services: Lens: Settings, so the state above comes from the gateway alone.") }}'));
+            } else if (!net.probes.some(p => p.rtt !== null || p.loss !== null)) {
                 $probes.append($('<div/>').addClass('dash-sub').text(
                     '{{ lang._("The first round of pings runs within five minutes of installing.") }}'));
             }
@@ -566,6 +569,10 @@
                         + fmt(gw.loss, '%'))));
                 $row.append(lineSpark(gw.series || []));
                 $box.append($row);
+            }
+            if (line.sampling === false) {
+                $box.append($('<div/>').addClass('dash-sub').text(
+                    '{{ lang._("Gateway history is switched off under Services: Lens: Settings; the readings above are live.") }}'));
             }
         });
 

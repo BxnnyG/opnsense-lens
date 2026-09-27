@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.16_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.17_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -240,15 +240,15 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S5 · Client profile page | 🔨 (stages 8, 24, 26) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested. Missing from the plan: top destinations and services (needs #31), DNS activity (needs S12) |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
-| S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
+| S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | ⏳ | IDS slot left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | ⏳ | needs S1 as its index |
 | S12 · DNS view | ⏳ | blocked on seeing one real `qstats` output (ROADMAP) |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
-| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Purge works from the shell only; no settings page yet |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); pausing observation or the harvest is BACKLOG #34 |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
-| S16 · Line & reachability | 🔨 (stages 28, 29) | gateways from dpinger (§4.56), three public resolvers probed by Lens itself (§4.57); built, not router-tested |
+| S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); built, not router-tested |
 
 ## 2. Systems & gaps
 
@@ -510,8 +510,10 @@ in System: Gateways (§4.56). The public half is the only traffic Lens sends
 itself: Quad9, Cloudflare and Google, three echoes each per observation, into
 `probe_sample` (§4.57). Both are sampled on the five-minute observe duty and
 feed the internet panel, the line card, the one sentence and `/metrics`.
-**Open:** the setting §4.57 deferred — whether the probes run, and against which
-targets.
+**Settings:** whether the probes run, against which targets (up to three, IPv4
+only), and whether gateway samples are kept — Services: Lens: Settings, stage 30
+(§4.58).
+**Open:** IPv6 targets (BACKLOG #35).
 
 ## 2b. Idea store (unprioritised)
 
@@ -1657,4 +1659,36 @@ outages with how long each lasted.
 **Consequences:** "The internet is unreachable: none of Quad9, Cloudflare,
 Google answered" now outranks every other sentence the dashboard can say. A
 setting to change or disable the targets is not built yet; it belongs on
-Services: Lens when someone needs it.
+Services: Lens when someone needs it. *Someone did on 2026-09-27: §4.58.*
+
+### §4.58 — What an operator may change, and where it is kept (2026-09-27, operator)
+**Question:** the operator, on seeing that the probes of §4.57 cannot be switched
+off: *"einstellbarkeit ist auch geil also doch alles einstellbar machen was
+geht."* Which of Lens's fixed numbers become settings, and where do they live?
+**Decision:** a Services: Lens: Settings page with eight settings, and a purge
+button. Retention, disk ceiling and *gone after* (the observation gap) — the
+three the store has held since stage 4 with no way to reach them. Probes on or
+off, and up to three IPv4 targets. Gateway samples on or off. The three guards
+on "unusual" (§4.50): learning days, the multiple, and the floor. The probes
+stay on by default, as shipped in `0.16_1` on the operator's request; what
+changes is that they can now be stopped without removing the package.
+**Where they live:** the store's `setting` table, not `config.xml`. The collector
+already reads it and runs inside configd, where reading the table is one query
+and reading a model is a template and a reload. The cost, stated on the page:
+settings are not part of an OPNsense configuration backup, and a restore to a
+new box starts from the defaults. Purge leaves them alone — "delete everything"
+means everything Lens *collected*, not how the operator told it to behave.
+**One owner for the rules:** `lenslib/settings.py` holds every key, default and
+bound, and the collector refuses anything outside them with a code per field.
+PHP turns the codes into sentences; the browser enforces nothing it could be
+talked out of. Only Services: Lens reaches the endpoint — a user who may read the
+reports may not shorten their retention.
+**Deliberately not settings:** the observe and harvest schedules (identity is
+defined against five minutes, §4.22); the wallboard's refresh; who's home's 98%
+fold; the two-day guard on "new" (§4.34) — each is a presentation constant with
+its reason beside it, not a policy an operator holds. Switching off observation
+or the harvest *is* a policy (S14) and is not here either: every surface reads a
+stopped duty as the loudest thing it can say, and "paused on purpose" has to be
+taught to each of them first. BACKLOG #34.
+**IPv4 targets only,** because `ping -t` as a deadline has been verified on
+FreeBSD for IPv4 and not for IPv6 (rule 2: verify, do not guess).

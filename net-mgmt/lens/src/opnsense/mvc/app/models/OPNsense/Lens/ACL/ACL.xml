@@ -5,6 +5,13 @@
             <pattern>ui/lens/preflight*</pattern>
             <pattern>api/lens/sources/*</pattern>
             <pattern>api/lens/store/*</pattern>
+            <!--
+                Settings write retention, the probe targets and purge (§4.58).
+                They are here and deliberately not under Reporting: Lens: a
+                user who may read the reports may not shorten their history.
+            -->
+            <pattern>ui/lens/settings*</pattern>
+            <pattern>api/lens/settings/*</pattern>
         </patterns>
     </page-services-lens>
     <page-reporting-lens>

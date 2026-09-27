@@ -87,4 +87,20 @@ class LineQualityTest extends TestCase
     {
         $this->assertSame([], LineQuality::describe([], [])['lines']);
     }
+
+    public function testHistorySwitchedOffIsSaidAndTheLiveReadingStands()
+    {
+        $line = LineQuality::describe(
+            ['WAN' => $this->gateway('WAN', 'none')],
+            ['step' => 3600, 'gateways' => [], 'sampling' => false]
+        );
+
+        $this->assertFalse($line['sampling']);
+        $this->assertSame('good', $line['worst']);
+    }
+
+    public function testAnOlderCollectorThatSaysNothingIsSampling()
+    {
+        $this->assertTrue(LineQuality::describe([], [])['sampling']);
+    }
 }

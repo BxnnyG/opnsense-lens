@@ -43,8 +43,8 @@ class StoreReport
     public const HARVEST_OVERDUE = 5400;
 
     /**
-     * Hourly buckets needed before a per-hour-of-week baseline may speak.
-     * Three occurrences of each bucket, so roughly three weeks (S8).
+     * Days of history before the baseline may speak (§4.50) -- the default
+     * only; the operator's own setting arrives in the status (§4.58).
      */
     public const BASELINE_DAYS = 21;
 
@@ -98,14 +98,16 @@ class StoreReport
             );
         }
 
-        if ($days !== null && $days < self::BASELINE_DAYS) {
+        $needs = (int)($status['baseline_days'] ?? self::BASELINE_DAYS);
+
+        if ($days !== null && $days < $needs) {
             return sprintf(
                 gettext(
                     'Collecting. %s days of hourly history so far; a baseline needs about %d ' .
                     'before it is allowed to call anything unusual.'
                 ),
                 self::days($days),
-                self::BASELINE_DAYS
+                $needs
             );
         }
 

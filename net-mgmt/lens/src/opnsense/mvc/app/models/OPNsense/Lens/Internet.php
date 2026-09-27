@@ -54,6 +54,9 @@ class Internet
 
         return [
             'state' => self::state($probes, $line),
+            /* switched off under Services: Lens: Settings (§4.58); the state
+               then comes from the gateway alone, as it does before any probe */
+            'probing' => (bool)($probes['probing'] ?? true),
             'wan' => [
                 'name' => $wanName,
                 'ipv4' => self::address($wan[0] ?? null),

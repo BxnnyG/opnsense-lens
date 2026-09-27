@@ -19,10 +19,23 @@ Lens reads, with two things it does itself. It switches on a data source it
 needs only when the operator presses the button offered for it, never on
 install. And every five minutes it pings Quad9, Cloudflare and Google, three
 echoes each - about 2,600 small packets a day - to tell whether the internet is
-there. Removing the package stops both.
+there. The pings and their targets can be changed or switched off under
+Services: Lens: Settings.
 
 Plugin Changelog
 ================
+
+0.17_1
+
+* Services: Lens: Settings: how long history is kept, how large the store may
+  grow, how long a device may go unseen before it counts as gone, the pings to
+  the internet (on or off, and up to three IPv4 targets), gateway history, and
+  the three guards on calling a day unusual. Every field shows its default
+* delete everything Lens has collected, from a button, with a dialogue that
+  says what goes, what stays and what happens afterwards
+* the dashboard says when pinging or gateway history is switched off, instead
+  of reading the last round before the switch as the internet now
+* settings live in Lens's own store and are not part of a configuration backup
 
 0.16_1
 

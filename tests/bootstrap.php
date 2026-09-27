@@ -60,6 +60,7 @@ require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/L
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SourceFacts.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/NetflowFix.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/StoreReport.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Settings.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/IdentityHealth.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SegmentReport.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceType.php';

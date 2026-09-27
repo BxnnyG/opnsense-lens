@@ -20,6 +20,8 @@ Two duties, one command each:
     collect.py heatmap    the whole network's week as a heatmap
     collect.py gateways   latency, jitter and loss per gateway over time
     collect.py internet   round trips to public resolvers, uptime and outages
+    collect.py settings   what the operator may change, with defaults and bounds
+    collect.py configure  store what the operator changed, or say why not
     collect.py segments   traffic per interface, and how much of it is named
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
@@ -49,6 +51,7 @@ from lenslib import attribute                                   # noqa: E402
 from lenslib import baseline as baselib                         # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib import presence as presencelib                     # noqa: E402
+from lenslib import settings as settingslib                     # noqa: E402
 from lenslib import uptime                                      # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
 
@@ -151,6 +154,7 @@ def observe(store, now):
             hostnames[mac] = hostname
             sources[mac] = name
 
+    conf = store.settings()
     local = {mac for mac, _, _, permanent in arp if permanent}
     seen = [(mac, address, interface) for mac, address, interface, _ in arp]
     seen += list(ndp)
@@ -165,37 +169,37 @@ def observe(store, now):
         )
 
     extend, opened = parse.fold_observations(
-        seen, store.open_windows(), now, store.setting_int('observation_gap')
+        seen, store.open_windows(), now, conf['observation_gap']
     )
     store.extend_windows(extend, now)
     store.open_new_windows(opened, now)
 
+    # Both are switchable (§4.58), and a switched-off one says so in the run's
+    # own detail, so "not sampled" is never mistaken for "could not sample".
+    gateways_said = (sample_gateways(store, now) if conf['gateway_samples']
+                     else '; gateway samples switched off')
+    probes_said = (probe_internet(store, now, conf['probe_targets']) if conf['probe_enabled']
+                   else '; probes switched off')
+
     return '%d devices, %d addresses, %d new windows%s%s' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened),
-        sample_gateways(store, now), probe_internet(store, now)
+        gateways_said, probes_said
     )
 
-
-# Three operators' anycast resolvers, the names people already know. Three so
-# that one of them having a bad minute is visibly that one, not "the internet".
-PROBES = (
-    ('Quad9', '9.9.9.9'),
-    ('Cloudflare', '1.1.1.1'),
-    ('Google', '8.8.8.8'),
-)
 
 # three echoes each, and ping gives up on its own after this many seconds
 PROBE_COUNT = 3
 PROBE_DEADLINE = 4
 
 
-def probe_internet(store, now):
+def probe_internet(store, now, targets):
     """
-    Round trips to the public resolvers, all three at once.
+    Round trips to the public resolvers, all at once.
 
-    In parallel, so the observation run grows by one deadline rather than
-    three. Nine small packets every five minutes; stated in §4.57 because it is
-    the first traffic this plugin sends rather than reads.
+    In parallel, so the observation run grows by one deadline rather than one
+    per target. At most nine small packets every five minutes; stated in §4.57
+    because it is the first traffic this plugin sends rather than reads. The
+    targets are the operator's (§4.58), three by default.
     """
     # FreeBSD's ping: -t is a deadline in seconds there and a TTL on Linux, so
     # anywhere else these flags would send packets that die four hops out --
@@ -204,7 +208,7 @@ def probe_internet(store, now):
         return '; probes skipped, not FreeBSD'
 
     running = []
-    for name, address in PROBES:
+    for name, address in targets:
         try:
             running.append((name, subprocess.Popen(
                 ['/sbin/ping', '-c', str(PROBE_COUNT), '-t', str(PROBE_DEADLINE), '-q', address],
@@ -259,7 +263,16 @@ HEATMAP_DAYS = 28
 
 
 def internet(store, now, hours):
-    """The public resolvers over the window, and whether anything answered."""
+    """
+    The public resolvers over the window, and whether anything answered.
+
+    Probes switched off is its own answer: no targets and no latest round, so
+    nothing reads the last round before the switch as the internet now. The
+    history stays -- it was measured -- and the strip goes grey from the switch
+    on, because nobody looked.
+    """
+    conf = store.settings()
+    probing = conf['probe_enabled']
     step = 86400 if hours > DAILY_ABOVE else 3600
     since = now - hours * 3600
     slice_start = since - since % step
@@ -276,7 +289,7 @@ def internet(store, now, hours):
                'rtt': round(r['rtt'], 1) if r['rtt'] is not None else None,
                'stddev': round(r['stddev'], 1) if r['stddev'] is not None else None,
                'loss': r['loss'], 'at': r['at']}
-              for r in store.latest_probes()]
+              for r in store.latest_probes()] if probing else []
 
     rounds = [(r['at'], r['best_loss']) for r in store.probe_rounds(since)]
 
@@ -288,7 +301,8 @@ def internet(store, now, hours):
         'step': step,
         'since': since,
         'now': now,
-        'targets': [name for name, _ in PROBES],
+        'probing': probing,
+        'targets': [name for name, _ in conf['probe_targets']] if probing else [],
         'series': series,
         'latest': latest,
         'uptime': uptime.assess(rounds, since, now, slots),
@@ -311,7 +325,8 @@ def gateways(store, now, hours):
             'samples': row['samples'],
         })
 
-    return {'hours': hours, 'step': step, 'since': since, 'gateways': series}
+    return {'hours': hours, 'step': step, 'since': since, 'gateways': series,
+            'sampling': store.settings()['gateway_samples']}
 
 
 def profile(store, now, mac):
@@ -393,16 +408,69 @@ def timeline(store, now, hours):
 def baseline(store, now):
     """Which devices are moving far more today than they usually do."""
     today = now // 86400
+    conf = store.settings()
 
     # a day more than the baseline needs, so the median always has a full set
-    since = (today - baselib.NEEDS_DAYS - 1) * 86400
+    since = (today - conf['baseline_days'] - 1) * 86400
 
     rows = [(row['mac'], row['day'], row['octets']) for row in store.daily_totals(since)]
 
     # No names here. A device's name depends on the vendor table, which is read
     # at display time (§4.23); resolving it here gave a Proxmox guest one name in
     # the list and a bare MAC in the verdict. DeviceReport names it, once.
-    return baselib.assess(rows, today)
+    report = baselib.assess(
+        rows, today,
+        needs_days=conf['baseline_days'],
+        factor=conf['baseline_factor'],
+        floor=conf['baseline_floor_mb'] * settingslib.MB,
+    )
+    report['factor'] = conf['baseline_factor']
+    report['floor'] = conf['baseline_floor_mb'] * settingslib.MB
+    return report
+
+
+def decode_fields(encoded):
+    """
+    base64url of a JSON object, as the label and configure duties receive it.
+
+    :return: the object, or None when it is not one
+    """
+    padding = '=' * (-len(encoded or '') % 4)
+    try:
+        fields = json.loads(base64.urlsafe_b64decode((encoded or '') + padding).decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return fields if isinstance(fields, dict) else None
+
+
+def configure(encoded):
+    """
+    Store what the operator changed on Services: Lens: Settings (§4.58).
+
+    All or nothing: one field out of bounds and none are written, because a form
+    half-applied is a form the operator cannot reason about. The answer is JSON
+    either way -- a code per field, which PHP turns into a sentence.
+
+    A refusal still exits 0. configd answers a script that exits non-zero with
+    "Execute error" and drops what it printed, so the codes would never reach
+    the page; the status is in the JSON, where the page reads it.
+    """
+    fields = decode_fields(encoded)
+    if fields is None:
+        print(json.dumps({'status': 'invalid', 'errors': {'': ['not_an_object', None]}}))
+        return 0
+
+    clean, errors = settingslib.validate(fields)
+    if errors:
+        # the bounds travel with the refusal, so the sentence can name them
+        print(json.dumps({'status': 'invalid', 'errors': errors, 'bounds': settingslib.bounds()}))
+        return 0
+
+    store = Store(DB_PATH)
+    store.set_settings(clean)
+    store.commit()
+    print(json.dumps({'status': 'saved', 'saved': sorted(clean)}))
+    return 0
 
 
 def moment(store, mac, at, step):
@@ -534,15 +602,9 @@ def label(mac, encoded):
         print('label needs --mac and --fields', file=sys.stderr)
         return 1
 
-    padding = '=' * (-len(encoded) % 4)
-    try:
-        fields = json.loads(base64.urlsafe_b64decode(encoded + padding).decode('utf-8'))
-    except (ValueError, UnicodeDecodeError) as failure:
-        print('unreadable label fields: %s' % failure, file=sys.stderr)
-        return 1
-
-    if not isinstance(fields, dict):
-        print('label fields must be an object', file=sys.stderr)
+    fields = decode_fields(encoded)
+    if fields is None:
+        print('label fields must be a base64url JSON object', file=sys.stderr)
         return 1
 
     store = Store(DB_PATH)
@@ -668,14 +730,14 @@ def main():
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
-                 'gateways', 'internet',
+                 'gateways', 'internet', 'settings', 'configure',
                  'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
     parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
     parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
-    parser.add_argument('--fields', help='base64url of a JSON object of label fields')
+    parser.add_argument('--fields', help='base64url of a JSON object of label or setting fields')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
         help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
@@ -693,6 +755,13 @@ def main():
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
+
+    if args.duty == 'settings':
+        print(json.dumps(settingslib.describe(Store(DB_PATH).stored_settings())))
+        return 0
+
+    if args.duty == 'configure':
+        return configure(args.fields)
 
     if args.duty == 'internet':
         print(json.dumps(internet(Store(DB_PATH), int(time.time()), args.hours)))

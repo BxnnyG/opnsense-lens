@@ -82,6 +82,8 @@ class LineQuality
             'lines' => $lines,
             'worst' => $lines[0]['state'] ?? null,
             'step' => (int)($history['step'] ?? 3600),
+            /* history switched off under Settings (§4.58); the live card stands */
+            'sampling' => (bool)($history['sampling'] ?? true),
         ];
     }
 
