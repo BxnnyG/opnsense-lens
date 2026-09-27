@@ -67,8 +67,10 @@ class IdentityFold
     {
         $byName = [];
         foreach ($devices as $device) {
-            if (!is_array($device) || empty($device['mac']) || empty($device['randomised'])
-                || !empty($device['is_local'])) {
+            if (
+                !is_array($device) || empty($device['mac']) || empty($device['randomised'])
+                || !empty($device['is_local'])
+            ) {
                 continue;
             }
             $name = strtolower(trim((string)($device['hostname'] ?? '')));
@@ -156,8 +158,10 @@ class IdentityFold
     {
         foreach ((array)($left['addresses'] ?? []) as $a) {
             foreach ((array)($right['addresses'] ?? []) as $b) {
-                if ((int)($a['first_seen'] ?? 0) <= (int)($b['last_seen'] ?? 0)
-                    && (int)($b['first_seen'] ?? 0) <= (int)($a['last_seen'] ?? 0)) {
+                if (
+                    (int)($a['first_seen'] ?? 0) <= (int)($b['last_seen'] ?? 0)
+                    && (int)($b['first_seen'] ?? 0) <= (int)($a['last_seen'] ?? 0)
+                ) {
                     return true;
                 }
             }
