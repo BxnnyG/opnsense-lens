@@ -35,6 +35,7 @@ const PAGES = {
     device: '/ui/lens/device?mac=00:11:32:aa:bb:cc',
     presence: '/ui/lens/presence',
     segments: '/ui/lens/segments',
+    dns: '/ui/lens/dns',
     wall: '/ui/lens/wall',
     preflight: '/ui/lens/preflight',
     settings: '/ui/lens/settings',

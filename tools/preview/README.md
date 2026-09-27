@@ -18,6 +18,7 @@ builds it — core's own commands become the fixtures in `fixtures/`, and
 | `router.php` | `php -S` router: pages inside a copy of core's page chrome, `/api/lens/*` through the real controllers, static files from Lens first and core second |
 | `shoot.js` | Playwright screenshots of every page, three views each, and a warning for any page that scrolls sideways |
 | `fixtures/` | core's commands and config, recorded or shaped like the real thing |
+| `unbound_stats.py` | a stand-in for core's Unbound `stats.py`, answering in its shapes for the seeded devices |
 
 ## Use
 
@@ -41,6 +42,12 @@ LENS_PREVIEW_DB=/tmp/lens-preview.sqlite OPNSENSE_CORE=../opnsense-core \
 node tools/preview/shoot.js http://127.0.0.1:8088 /tmp/shots            # every page
 node tools/preview/shoot.js http://127.0.0.1:8088 /tmp/shots device     # one
 ```
+
+`LENS_PREVIEW_UNBOUND=1` in the server's environment makes the box resolve with
+Unbound and record its queries, as the operator's second box does; the DNS page
+and the device page's DNS card then read `unbound_stats.py`, a stand-in that
+answers in the shapes core's `stats.py` prints (stage 36 §2). Without it the box
+is the first one, on dnsmasq, and the DNS page says why it is empty.
 
 Re-run `seed.py` before comparing screenshots taken far apart: the store's "last
 observation" ages, and after fifteen minutes every page correctly says the

@@ -51,6 +51,7 @@ this one inherits, and 23 stages of experience with it.
 | 33 | **One phone, not four** — rotating private MACs folded by name and time; the menu stays open on a device page ([plan](plans/stage-33-one-phone.md), §4.61) | S1 | 🔨 built 2026-09-27 as `0.19_1` · **awaiting router round** |
 | 34 | **Where a device talks** — top destinations per device per day from core's `FlowSourceAddrDetails`, opt-in, joined per day ([plan](plans/stage-34-destinations.md), §4.62) | S4, S5, S14 | 🔨 built 2026-09-27 as `0.20_1` · looked at in `tools/preview` · **awaiting router round** |
 | 35 | **What happened while I was away** — Events: new devices, unusual days, outages, the line, address overlaps, rotations; a mute per device ([plan](plans/stage-35-events.md), §4.63) | S9, S1, S8, S16 | 🔨 built 2026-09-27 as `0.21_1` · looked at in `tools/preview` · **awaiting router round** |
+| 36 | **What the network looks up** — DNS page and a device's DNS card from Unbound's own store, per device at the time asked, under its own privilege ([plan](plans/stage-36-dns.md), §4.64) | S12, S5 | 🔨 built 2026-09-27 as `0.22_1` from core's source · looked at in `tools/preview` · **awaiting a real `qstats` capture** |
 | — | Package feed — build and publish `os-lens` so updates arrive as firmware updates | S0 | ⏳ |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody

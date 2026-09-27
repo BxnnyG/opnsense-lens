@@ -327,6 +327,56 @@
                 }
             });
         };
+        /* ------------------------------------------------ what it looked up (§4.64) */
+        let dnsHours = 24;
+        const looked = () => {
+            $('#dvDnsRange .lens-chip').each(function () {
+                $(this).toggleClass('lens-chip-on', parseInt($(this).data('hours'), 10) === dnsHours);
+            });
+            $('#dvDnsAsk').hide();
+            $('#dvDnsBusy').show();
+            $.ajax({ url: '/api/lens/dns/device', data: { mac: macs(), hours: dnsHours }, dataType: 'json' })
+                .done((report) => {
+                    $('#dvDnsBusy').hide();
+                    const $rows = $('#dvDnsRows').empty();
+                    $('#dvDnsSummary').text(report.summary || '');
+                    $('#dvDnsNote').text(report.note || '');
+                    $('#dvDnsSettings').toggle(!!report.settings);
+                    for (const row of report.rows || []) {
+                        const $name = $('<div/>').addClass('dns-name').text(row.domain);
+                        if (row.blocked) {
+                            $name.append($('<span/>').addClass('dns-flag')
+                                .text('{{ lang._("blocked") }}' + (row.blocklist ? ' · ' + row.blocklist : '')));
+                        }
+                        const $row = $('<div/>').addClass('dns-row')
+                            .append($name)
+                            .append($('<div/>').addClass('lens-track').append(
+                                $('<div/>').addClass('lens-fill').css('width', Math.max(2, row.bar) + '%')))
+                            .append($('<div/>').addClass('dv-num-cell').text(row.count));
+                        if (row.last) {
+                            Lens.tip($row[0], [{ label: row.domain },
+                                               { label: '{{ lang._("last asked") }} ' + Lens.when(row.last, 60, true) }]);
+                        }
+                        $rows.append($row);
+                    }
+                })
+                .fail((xhr) => {
+                    $('#dvDnsBusy').hide();
+                    $('#dvDnsNote').text(xhr.status === 403
+                        ? '{{ lang._("Seeing this needs the Reporting: Lens: DNS privilege.") }}'
+                        : '{{ lang._("Unbound did not answer.") }}');
+                });
+        };
+        $('#dvDnsAsk').on('click', (event) => {
+            event.preventDefault();
+            looked();
+        });
+        $('#dvDnsRange').on('click', '.lens-chip', function (event) {
+            event.preventDefault();
+            dnsHours = parseInt($(this).data('hours'), 10);
+            looked();
+        });
+
         $('#dvTalkRange').on('click', '.lens-chip', function (event) {
             event.preventDefault();
             talkDays = parseInt($(this).data('days'), 10);
@@ -493,6 +543,24 @@
             </table>
             <div class="dv-sub" id="dvTalkNote"></div>
             <a href="/ui/lens/settings" id="dvTalkSettings" style="display: none;">{{ lang._('Services: Lens: Settings') }} &rsaquo;</a>
+        </div>
+
+        <div class="content-box dv-card dv-wide">
+            <div class="dv-title">
+                <span>{{ lang._('What it looked up') }}</span>
+                <span id="dvDnsRange">
+                    <a href="#" class="lens-chip" data-hours="24">{{ lang._('24 hours') }}</a>
+                    <a href="#" class="lens-chip" data-hours="168">{{ lang._('7 days') }}</a>
+                </span>
+            </div>
+            <a href="#" id="dvDnsAsk" class="btn btn-default btn-sm">
+                <i class="fa fa-search"></i> {{ lang._('Ask Unbound') }}
+            </a>
+            <div id="dvDnsBusy" style="display: none;"><i class="fa fa-spinner fa-spin"></i> {{ lang._('Asking Unbound about each address it held...') }}</div>
+            <div class="dv-sub" id="dvDnsSummary" style="margin-bottom: 6px;"></div>
+            <div id="dvDnsRows"></div>
+            <div class="lens-note-under" id="dvDnsNote"></div>
+            <a href="/ui/lens/settings" id="dvDnsSettings" style="display: none;">{{ lang._('Services: Lens: Settings') }} &rsaquo;</a>
         </div>
 
         <div class="content-box dv-card dv-wide">

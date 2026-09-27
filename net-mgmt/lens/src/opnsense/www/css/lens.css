@@ -423,6 +423,15 @@ tr.lens-group > td { background: var(--lens-hover); }
 .dv-num-cell { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dv-peer-svc { display: none; }
 
+/* ------------------------------------------------------------ dns (§4.64) */
+.dns-row {
+    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 5.5em; gap: 12px;
+    align-items: center; padding: 5px 0; border-top: 1px solid var(--lens-hairline);
+}
+.dns-name { overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+/* a blocked name is not an alarm -- the blocklist did its job -- so it carries a word, not red */
+.dns-flag { font-size: 11px; color: var(--lens-muted); margin-left: 6px; }
+
 /* ------------------------------------------------------------ events (§4.63) */
 .ev-headline { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
 .ev-groups { margin: 0 -3px 6px -3px; }
@@ -594,6 +603,8 @@ tr.lens-group > td { background: var(--lens-hover); }
        an IPv6 one may, at its colons */
     .dv-peer-svc { display: block; white-space: normal; }
     .dv-peer { white-space: normal; overflow-wrap: anywhere; }
+    .dns-row { grid-template-columns: minmax(0, 1fr) 4.5em; }
+    .dns-row .lens-track { display: none; }
     /* time and word on one line, the sentence under them, the bell top right */
     .ev-row { grid-template-columns: auto 1fr auto; gap: 2px 10px; }
     .ev-body { grid-column: 1 / -1; }

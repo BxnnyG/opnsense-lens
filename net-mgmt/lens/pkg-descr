@@ -25,6 +25,20 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.22_1
+
+* Reporting: Lens: DNS - what the devices asked Unbound for and what its
+  blocklists stopped: the figures, the names asked and blocked most, and the
+  devices asking most over the last day, each put on the device that held the
+  address at the time
+* a device's page can ask Unbound what that device looked up over a day or a
+  week, on every address it held, and says when Unbound's limit of 500 answers
+  per request means the counts are a sample
+* Lens stores nothing from DNS. It has its own privilege, Reporting: Lens: DNS,
+  because core keeps the same queries behind Status: DNS Overview
+* a box that resolves with dnsmasq, or whose Unbound does not record, is told
+  so in one sentence
+
 0.21_1
 
 * Reporting: Lens: Events - what happened over 24 hours, 7 or 30 days, newest

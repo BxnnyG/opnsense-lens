@@ -109,6 +109,11 @@ namespace OPNsense\Core {
         {
             if ($this->xml === null) {
                 $this->xml = simplexml_load_file(PREVIEW_FIXTURES . '/config.xml');
+                /* the operator's second box: Unbound resolving and recording (§4.64) */
+                if (getenv('LENS_PREVIEW_UNBOUND') === '1') {
+                    $this->xml->OPNsense->unboundplus->general->enabled = '1';
+                    $this->xml->OPNsense->unboundplus->general->stats = '1';
+                }
             }
             return $this->xml;
         }
@@ -134,15 +139,34 @@ namespace {
             return $words;
         }
 
+        private static function below(array $actions, string $prefix): bool
+        {
+            foreach (array_keys($actions) as $section) {
+                if (strpos($section, $prefix . '.') === 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /** an action from actions_lens.conf, built and run the way configd does */
         public static function lens(array $words): string
         {
             $actions = parse_ini_string(
-                preg_replace('/^([a-z_]+):/m', '$1=', (string)file_get_contents(PREVIEW_LENS . '/service/conf/actions.d/actions_lens.conf')),
+                /* configd's RawConfigParser takes '#' comments; PHP's ini reader does not */
+                preg_replace(
+                    ['/^#.*$/m', '/^([a-z_]+):/m'],
+                    ['', '$1='],
+                    (string)file_get_contents(PREVIEW_LENS . '/service/conf/actions.d/actions_lens.conf')
+                ),
                 true,
                 INI_SCANNER_RAW
             );
+            /* configd reads dotted sections as a tree: "dns device x" is [dns.device] */
             $name = array_shift($words);
+            while (!isset($actions[$name]) && $words !== [] && self::below($actions, $name)) {
+                $name .= '.' . array_shift($words);
+            }
             if (!isset($actions[$name])) {
                 return 'Action not found';
             }
@@ -157,7 +181,8 @@ namespace {
                 $parameters = preg_replace('/%s/', escapeshellarg((string)array_shift($words)), $parameters, 1);
             }
 
-            $env = 'LENS_DB=' . escapeshellarg(PREVIEW_DB) . ' ';
+            $env = 'LENS_DB=' . escapeshellarg(PREVIEW_DB) . ' '
+                . 'LENS_UNBOUND_STATS=' . escapeshellarg(__DIR__ . '/unbound_stats.py') . ' ';
             exec($env . $command . ' ' . $parameters . ' 2>/dev/null', $out, $code);
             $output = implode("\n", $out) . "\n";
 

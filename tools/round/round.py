@@ -59,6 +59,7 @@ ENDPOINTS = [
     'dashboard/system',
     'dashboard/heatmap',
     'segments/list?hours=24',
+    'dns/overview',
     'sources/report',
     'store/status',
     'settings/get',

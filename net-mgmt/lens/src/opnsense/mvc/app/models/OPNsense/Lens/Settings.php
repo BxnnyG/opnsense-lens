@@ -51,6 +51,7 @@ class Settings
         'gateway_samples',
         'fold_randomised',
         'destinations_enabled',
+        'dns_per_device',
         'baseline_days',
         'baseline_factor',
         'baseline_floor_mb',
@@ -167,6 +168,18 @@ class Settings
                                 . 'keeps for 62 days and then kept as long as the rest of Lens\'s history. It '
                                 . 'describes what a person does online, so it is off until you switch it on; '
                                 . 'retention and delete everything include it.'
+                            )
+                        ),
+                        self::field(
+                            $raw,
+                            'dns_per_device',
+                            'flag',
+                            gettext('Show what each device looked up'),
+                            '',
+                            gettext(
+                                'A card on each device\'s page with the names it asked Unbound for, read live '
+                                . 'from Unbound\'s own seven days and never kept by Lens. Needs Unbound with its '
+                                . 'statistics on, and the Reporting: Lens: DNS privilege to see.'
                             )
                         ),
                         self::field(

@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.21_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.22_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -237,14 +237,14 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 8, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
-| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in. Missing from the plan: DNS activity (needs S12) |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | ⏳ | needs S1 as its index |
-| S12 · DNS view | ⏳ | blocked on seeing one real `qstats` output (ROADMAP) |
+| S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: a per-device hour-of-week heatmap, the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
@@ -377,6 +377,9 @@ next thing to run is `configctl unbound qstats totals 10`. The DNS view (S12) do
 call and its output shape have been seen. An inventory entry that was never run
 is a guess with a citation, which is worse than an admitted gap — this one sat
 in the document for a day looking verified.
+**2026-09-27:** the shapes have now been read from the code that prints them
+(`stats.py`, `logger.py` at stable/26.7) and are written down in
+[stage 36 §2](plans/stage-36-dns.md) — still not run on a box (§4.64).
 
 **NetFlow service control, verified 2026-08-30 by reading
 `actions_netflow.conf` on both boxes:** `netflow {start,stop,restart,status}`
@@ -1786,3 +1789,25 @@ when any of its MACs is, so the next rotation stays quiet.
 it costs one configd call per page load and nothing on the collector. What it
 cannot show is anything the store does not keep — DHCP churn, DNS blocks, IDS —
 which is S9's remaining lanes.
+
+### §4.64 — The DNS view is built from core's source, per device, under its own privilege (2026-09-27)
+**Question:** §1.6 held the DNS view (S12) until one real `qstats` output had
+been seen. The operator asked for it now. On what evidence, and who may see it?
+**Decision:** built, with the producing code standing in for the capture:
+`stats.py` and `logger.py` at stable/26.7 (`e7c800f`) were read in full and
+their output shapes written down in the plan (stage 36 §2). That is weaker than
+a capture and stronger than an actions file; the fixtures say which they are,
+and the router round's DNS item replaces them. Lens **stores nothing** from
+DNS: it reads core's own seven days on demand and joins them onto identity at
+the time of each query — the ten-minute slot's holder of the address, never the
+current one (rule 8). DNS gets **its own ACL privilege**, *Reporting: Lens:
+DNS*: core puts its DNS overview behind *Status: DNS Overview*, and a user
+without that must not read the same queries through Lens. The per-device card
+is on by default and switchable under Settings — nothing is kept, and core's
+own page already lists the same queries per client address.
+**Consequences:** on the operator's first box, which resolves with dnsmasq,
+the page says so in one sentence and shows nothing (§4.15). Per device, only
+the newest 500 queries of each address window are seen — core's action allows
+no more — and the card says when that cap was reached. Switching Unbound's
+statistics on stays the operator's act in core; a fix button like §4.35's is a
+later decision.

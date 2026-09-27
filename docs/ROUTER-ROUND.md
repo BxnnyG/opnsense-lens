@@ -155,10 +155,13 @@ These have been open since the dates beside them. Each is one command.
       `configctl lens baseline` → how many `unusual`, and are they real?
       For each: would you have wanted to be told? If most are noise, the
       numbers to change are now on Settings — and write down which ones.
-- [ ] **The DNS view's missing output** (S12, open since 2026-08-30).
+- [ ] **The DNS view's missing output** (S12, open since 2026-08-30; built
+      from core's source as stage 36, §4.64).
       `configctl unbound qstats totals 10` on the second box (Unbound records
-      there). Paste the output here or into `tests/fixtures/` — that single
-      shape unblocks stages 11 and 20.
+      there). Paste the output into `tests/fixtures/` — it replaces what the
+      tests assume. Then Reporting: Lens: DNS on that box: do the devices
+      asking most have names, and does a user without *Reporting: Lens: DNS*
+      get no DNS at all? On router-01 the page must say dnsmasq keeps nothing
 - [ ] **The 95 GB on the second box** (open since 2026-08-30). Networks page,
       24 h: which segment carries the traffic that has no device? One VLAN at a
       low ring → routed networks become their own class (§4.31). Something else

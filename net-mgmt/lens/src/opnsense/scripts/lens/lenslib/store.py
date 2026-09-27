@@ -430,6 +430,19 @@ class Store:
         row = self.db.execute("SELECT min(first_seen) AS at FROM device").fetchone()
         return row['at'] if row else None
 
+    def address_windows(self, addresses, since, until):
+        """:return: (mac, address, first_seen, last_seen) of every window of these addresses in the range"""
+        addresses = sorted(set(addresses))
+        rows = []
+        for offset in range(0, len(addresses), 500):
+            chunk = addresses[offset:offset + 500]
+            rows.extend(self.db.execute(
+                """SELECT mac, address, first_seen, last_seen FROM address_observation
+                   WHERE address IN (%s) AND last_seen >= ? AND first_seen <= ?""" % ','.join('?' * len(chunk)),
+                chunk + [since, until],
+            ).fetchall())
+        return [(row['mac'], row['address'], row['first_seen'], row['last_seen']) for row in rows]
+
     def devices_since(self, since):
         """:return: devices first seen at or after `since`, not this firewall's own"""
         return self.db.execute(

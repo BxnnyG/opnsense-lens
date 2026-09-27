@@ -46,4 +46,16 @@
             <pattern>api/lens/devices/*</pattern>
         </patterns>
     </page-reporting-lens>
+    <!--
+        What devices looked up (§4.64). Its own privilege, because core keeps
+        the same questions behind Status: DNS Overview: a user who may read
+        Lens but not that must not read DNS through Lens.
+    -->
+    <page-reporting-lens-dns>
+        <name>Reporting: Lens: DNS</name>
+        <patterns>
+            <pattern>ui/lens/dns*</pattern>
+            <pattern>api/lens/dns/*</pattern>
+        </patterns>
+    </page-reporting-lens-dns>
 </acl>

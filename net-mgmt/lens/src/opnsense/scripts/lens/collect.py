@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lenslib import attribute                                   # noqa: E402
 from lenslib import baseline as baselib                         # noqa: E402
+from lenslib import dns as dnslib                               # noqa: E402
 from lenslib import events as eventlib                          # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib import presence as presencelib                     # noqa: E402
@@ -71,6 +72,11 @@ LEASE_FILES = (
 
 # core's own timeseries reader, invoked the way core's configd action does
 TIMESERIES = '/usr/local/opnsense/scripts/netflow/get_timeseries.py'
+
+# core's own reader of Unbound's query store (§4.64); the preview points it at a
+# stand-in that answers in the same shapes
+UNBOUND_STATS = os.environ.get('LENS_UNBOUND_STATS', '/usr/local/opnsense/scripts/unbound/stats.py')
+UNBOUND_TIMEOUT = 30
 PROVIDER = 'FlowSourceAddrTotals'
 RESOLUTION = 3600
 
@@ -107,6 +113,35 @@ def read_command(argv, timeout=30):
         ).stdout
     except (OSError, subprocess.SubprocessError):
         return ''
+
+
+def read_json_commands(commands, timeout, parallel=4):
+    """
+    Several commands at once, at most `parallel` running: each stats.py call
+    spends most of its second importing pandas, and in sequence eight of them
+    would keep a page waiting for the sum.
+
+    :return: decoded JSON per command, None for one that failed or timed out
+    """
+    results = [None] * len(commands)
+    for offset in range(0, len(commands), parallel):
+        running = []
+        for index, argv in enumerate(commands[offset:offset + parallel], offset):
+            try:
+                running.append((index, subprocess.Popen(
+                    argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)))
+            except OSError:
+                continue
+        for index, process in running:
+            try:
+                out, _ = process.communicate(timeout=timeout)
+                results[index] = json.loads(out) if process.returncode == 0 else None
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.communicate()
+            except ValueError:
+                pass
+    return results
 
 
 def must_read_command(argv, timeout):
@@ -495,6 +530,74 @@ def events(store, now, days):
                       'macs': [row['one'], row['other']], 'at': row['at']}
                      for row in store.address_overlaps(since)],
     }
+
+
+def dns(store, now):
+    """
+    What the network looked up (§4.64): Unbound's totals over what it keeps, and
+    the last 24 hours of clients put onto devices slot by slot. Nothing stored.
+    """
+    totals_raw, clients_raw = read_json_commands([
+        [UNBOUND_STATS, 'totals', '--max', '15'],
+        [UNBOUND_STATS, 'rolling', '--interval', str(dnslib.SLOT), '--timeperiod', '24', '--clients'],
+    ], UNBOUND_TIMEOUT)
+
+    totals = dnslib.totals(totals_raw)
+    if totals is None:
+        return {'available': False, 'reason': 'unreadable', 'now': now}
+
+    slots = dnslib.client_slots(clients_raw)
+    since = now - 86400
+    windows = store.address_windows([address for _, address, _ in slots], since - dnslib.SLOT, now)
+    devices, unplaced = dnslib.attribute(slots, windows)
+
+    return {
+        'available': True,
+        'reason': None if totals['total'] else 'empty',
+        'now': now,
+        'since': since,
+        'totals': totals,
+        'clients': sorted(
+            [{'mac': mac, 'queries': entry['queries'], 'addresses': entry['addresses']}
+             for mac, entry in devices.items()]
+            + [{'mac': None, 'queries': count, 'addresses': [address]} for address, count in unplaced.items()],
+            key=lambda entry: -entry['queries']),
+        'clients_read': clients_raw is not None,
+    }
+
+
+def dns_device(store, now, mac, hours):
+    """
+    What one device looked up (§4.64): each address it held in the range, asked
+    of Unbound for exactly the time it held it.
+    """
+    if not store.settings()['dns_per_device']:
+        return {'enabled': False, 'hours': hours}
+
+    hours = 168 if int(hours or 24) > 24 else 24
+    since = now - hours * 3600
+    macs = mac_list(mac)
+    own = [(row['address'], row['first_seen'], row['last_seen']) for row in store.device_windows(macs)]
+    others = [(address, first_seen, last_seen)
+              for other, address, first_seen, last_seen
+              in store.address_windows([window[0] for window in own], since, now) if other not in macs]
+    pieces = dnslib.pieces(own, since, now, others, span=86400 if hours > 24 else 6 * 3600)
+    answers = read_json_commands(
+        [[UNBOUND_STATS, 'details', '--client', address, '--start', str(start), '--end', str(end)]
+         for address, start, end in pieces],
+        UNBOUND_TIMEOUT)
+
+    report = dnslib.device_queries(answers)
+    report.update({
+        'enabled': True,
+        'hours': hours,
+        'addresses': sorted({address for address, _, _ in pieces}),
+        'asked': len(pieces),
+        'answered': sum(1 for answer in answers if answer is not None),
+        'capped_pieces': sum(1 for answer in answers if isinstance(answer, list) and len(answer) >= dnslib.DETAILS_CAP),
+        'covered': sum(end - start for _, start, end in pieces),
+    })
+    return report
 
 
 def decode_fields(encoded):
@@ -895,7 +998,7 @@ def main():
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
-                 'segments', 'moment', 'label', 'events',
+                 'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
                  'prune', 'purge'],
     )
     parser.add_argument('--mac', help='the device to label')
@@ -923,6 +1026,14 @@ def main():
 
     if args.duty == 'destinations':
         print(json.dumps(destinations(Store(DB_PATH), int(time.time()), args.mac, args.days)))
+        return 0
+
+    if args.duty == 'dns':
+        print(json.dumps(dns(Store(DB_PATH), int(time.time()))))
+        return 0
+
+    if args.duty == 'dns-device':
+        print(json.dumps(dns_device(Store(DB_PATH), int(time.time()), args.mac, args.hours)))
         return 0
 
     if args.duty == 'events':
