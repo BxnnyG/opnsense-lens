@@ -51,7 +51,8 @@ came out as **`os-lens-devel-0.25_1`**: `Mk/devel.mk`, copied from upstream's
 master branch, sets `PLUGIN_DEVEL=yes`, so the box's own `make package` has
 always built `os-lens-devel` too. `tools/round/round.py` asked `pkg query …
 os-lens` and would have reported the plugin as not installed; it now asks for
-both names. A tag, or `release: true`, builds `os-lens`.
+both names. A tag, or `release: true`, builds `os-lens` — confirmed by run 2
+the same day: `All/os-lens-0.26_1.pkg`, with the same repository files around it.
 
 ## 5. Load (rule 7)
 
