@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\Bytes;
+use OPNsense\Lens\Destinations;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceProfile;
 use OPNsense\Lens\DeviceReport;
@@ -239,6 +240,26 @@ class DevicesController extends ApiControllerBase
         $detail['timing'] = ['calls' => $calls];
 
         return $detail;
+    }
+
+    /**
+     * Who one device talked to, per destination and port (§4.62).
+     *
+     * @return array
+     */
+    public function destinationsAction()
+    {
+        $mac = DeviceReport::macList((string)$this->request->get('mac', null, ''));
+        if ($mac === null) {
+            return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+        }
+        $days = (int)$this->request->get('days', null, 30);
+        $days = in_array($days, [7, 30, 60], true) ? $days : 30;
+
+        $calls = [];
+        return Destinations::describe(
+            self::decode(new Backend(), 'lens destinations ' . $mac . ' ' . $days, $calls)
+        );
     }
 
     /**

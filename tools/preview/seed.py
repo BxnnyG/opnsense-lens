@@ -90,6 +90,23 @@ LABELS = {
 }
 
 
+# who a device talks to, by day (§4.62): peer, port, protocol, share of its day
+DESTINATIONS = {
+    '2c:aa:8e:40:50:60': [('52.28.113.9', 8883, 6, 0.86), ('162.159.200.1', 123, 17, 0.001),
+                          ('34.107.221.82', 443, 6, 0.1)],
+    '00:11:32:aa:bb:cc': [('185.199.108.20', 443, 6, 0.62), ('10.10.20.31', 445, 6, 0.2),
+                          ('91.189.91.39', 80, 6, 0.08), ('9.9.9.9', 853, 6, 0.004)],
+    '50:c7:bf:01:02:03': [('198.38.120.14', 443, 6, 0.58), ('142.250.185.78', 443, 6, 0.3),
+                          ('23.205.12.8', 443, 6, 0.06), ('3.120.44.9', 443, 6, 0.02)],
+    'e6:11:22:33:44:01': [('17.253.53.207', 443, 6, 0.3), ('157.240.20.35', 443, 6, 0.25),
+                          ('142.250.185.78', 443, 17, 0.2)],
+    'e6:11:22:33:44:02': [('17.253.53.207', 443, 6, 0.3), ('157.240.20.35', 443, 6, 0.25),
+                          ('142.250.185.78', 443, 17, 0.2)],
+    'e6:11:22:33:44:03': [('17.253.53.207', 443, 6, 0.3), ('157.240.20.35', 443, 6, 0.25),
+                          ('142.250.185.78', 443, 17, 0.2), ('149.154.167.91', 443, 6, 0.08)],
+}
+
+
 def diurnal(hour, profile):
     """How busy a device is at this hour of the day, 0..1."""
     if profile in ('always', 'firewall'):
@@ -200,6 +217,29 @@ def seed(path, days, now):
                         rng.randrange(20, 90) * MB, 1000))
 
     store.store_buckets('FlowSourceAddrTotals', buckets)
+
+    # three weeks of who talked to whom, whole days only, as the harvest keeps them
+    places = {mac: (interface, address, daily_mb, up_share)
+              for mac, interface, address, _h, _s, _p, daily_mb, up_share in DEVICES}
+    for day in range(today - 21, today):
+        for mac, peers in DESTINATIONS.items():
+            if mac in ROTATING and not ROTATING[mac][0] <= day - start // DAY < ROTATING[mac][1]:
+                continue
+            interface, address, daily_mb, up_share = places[mac]
+            rows, rest = [], 1.0
+            for peer, port, protocol, share in peers:
+                octets = int(daily_mb * MB * share * rng.uniform(0.7, 1.3))
+                rest -= share
+                rows.append((day * DAY, interface, address, peer, port, protocol, 'in',
+                             int(octets * up_share), octets // 1400 + 1))
+                rows.append((day * DAY, interface, address, peer, port, protocol, 'out',
+                             int(octets * (1 - up_share)), octets // 1400 + 1))
+            if rest > 0.01:
+                octets = int(daily_mb * MB * rest)
+                rows.append((day * DAY, interface, address, '*', 0, 0, 'in', int(octets * up_share), 1))
+                rows.append((day * DAY, interface, address, '*', 0, 0, 'out', int(octets * (1 - up_share)), 1))
+            store.store_destinations(day * DAY, rows)
+    store.set_settings({'destinations_enabled': '1'})
 
     for mac, fields in LABELS.items():
         store.set_label(mac, fields, now - 20 * DAY)

@@ -269,6 +269,56 @@
                 return;
             }
             render(profile);
+            talks();
+        });
+
+        /* ------------------------------------------------ where it talks (§4.62) */
+        let talkDays = 30;
+        const talks = () => {
+            $('#dvTalkRange .lens-chip').each(function () {
+                $(this).toggleClass('lens-chip-on', parseInt($(this).data('days'), 10) === talkDays);
+            });
+            ajaxGet('/api/lens/devices/destinations', { mac: macs(), days: talkDays }, (report, status) => {
+                const $rows = $('#dvTalkRows').empty();
+                if (status !== 'success' || !report || report.rows === undefined) {
+                    $('#dvTalkNote').text('{{ lang._("Destinations did not come back.") }}');
+                    return;
+                }
+                $('#dvTalkNote').text(report.note || '');
+                $('#dvTalkSettings').toggle(!report.enabled);
+                $('#dvTalkTable').toggle(report.rows.length > 0);
+                for (const row of report.rows) {
+                    const $tr = $('<tr/>')
+                        .append($('<td/>').addClass('dv-peer').text(row.peer)
+                            .append($('<div/>').addClass('dv-sub dv-peer-svc').text(row.service)))
+                        .append($('<td/>').addClass('dv-sub').text(row.service))
+                        .append($('<td/>').addClass('dv-talk-bar').append(
+                            $('<div/>').addClass('lens-track').append(
+                                $('<div/>').addClass('lens-fill').css('width', Math.max(2, row.bar) + '%'))))
+                        .append($('<td/>').addClass('dv-num-cell').text(row.traffic))
+                        .append($('<td/>').addClass('dv-sub dv-num-cell').text(
+                            row.days + ' {{ lang._("days") }}'));
+                    Lens.tip($tr[0], [
+                        { label: row.peer + ' \u00b7 ' + row.service },
+                        { value: row.sent_text, label: '{{ lang._("sent") }}', key: 'var(--lens-sent)' },
+                        { value: row.received_text, label: '{{ lang._("received") }}', key: 'var(--lens-received)' },
+                        { label: row.share_text + ' {{ lang._("of everything it moved in this range") }}' },
+                    ]);
+                    $rows.append($tr);
+                }
+                if (report.other) {
+                    $rows.append($('<tr/>')
+                        .append($('<td/>').addClass('dv-sub').text('{{ lang._("everything else") }}'))
+                        .append($('<td/>')).append($('<td/>'))
+                        .append($('<td/>').addClass('dv-num-cell dv-sub').text(report.other.traffic))
+                        .append($('<td/>')));
+                }
+            });
+        };
+        $('#dvTalkRange').on('click', '.lens-chip', function (event) {
+            event.preventDefault();
+            talkDays = parseInt($(this).data('days'), 10);
+            talks();
         });
 
         /* ------------------------------------------------ editing, in place */
@@ -402,6 +452,22 @@
         <div class="content-box dv-card">
             <div class="dv-title"><span>{{ lang._('Where it has been') }}</span></div>
             <ul class="dv-story" id="dvStory"></ul>
+        </div>
+
+        <div class="content-box dv-card dv-wide">
+            <div class="dv-title">
+                <span>{{ lang._('Where it talks') }}</span>
+                <span id="dvTalkRange">
+                    <a href="#" class="lens-chip" data-days="7">{{ lang._('7 days') }}</a>
+                    <a href="#" class="lens-chip" data-days="30">{{ lang._('30 days') }}</a>
+                    <a href="#" class="lens-chip" data-days="60">{{ lang._('60 days') }}</a>
+                </span>
+            </div>
+            <table class="table table-condensed dv-talk" id="dvTalkTable" style="display: none;">
+                <tbody id="dvTalkRows"></tbody>
+            </table>
+            <div class="dv-sub" id="dvTalkNote"></div>
+            <a href="/ui/lens/settings" id="dvTalkSettings" style="display: none;">{{ lang._('Services: Lens: Settings') }} &rsaquo;</a>
         </div>
 
         <div class="content-box dv-card dv-wide">

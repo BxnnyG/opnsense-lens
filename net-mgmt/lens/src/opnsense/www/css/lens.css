@@ -416,6 +416,12 @@ tr.lens-group > td { background: var(--lens-hover); }
 .dv-story .addr { font-weight: 600; font-variant-numeric: tabular-nums; }
 .dv-story .when { color: var(--lens-muted); font-size: 12px; }
 
+.dv-talk { margin-bottom: 6px; }
+.dv-talk > tbody > tr > td { border-top: 1px solid var(--lens-hairline); vertical-align: middle; }
+.dv-peer { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dv-talk-bar { width: 30%; }
+.dv-num-cell { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dv-peer-svc { display: none; }
 .dv-strip { position: relative; height: 18px; border-radius: 4px; background: var(--lens-track); }
 .dv-span { position: absolute; top: 0; height: 18px; border-radius: 4px; background: var(--lens-data); min-width: 2px; }
 
@@ -555,6 +561,12 @@ tr.lens-group > td { background: var(--lens-hover); }
     .dv-avatar { width: 56px; height: 56px; flex-basis: 56px; font-size: 26px; }
     .dv-hero-edit { margin-left: 0; }
     .dv-name { font-size: 21px; }
+    .dv-talk-bar, .dv-talk > tbody > tr > td:nth-child(2),
+    .dv-talk > tbody > tr > td:nth-child(5) { display: none; }
+    /* the service sits under the address, so an IPv4 address never breaks;
+       an IPv6 one may, at its colons */
+    .dv-peer-svc { display: block; white-space: normal; }
+    .dv-peer { white-space: normal; overflow-wrap: anywhere; }
 
     .who-name { flex-basis: 9em; }
     .who-meta { display: none; }

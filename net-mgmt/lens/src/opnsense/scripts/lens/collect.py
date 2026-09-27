@@ -23,6 +23,7 @@ Two duties, one command each:
     collect.py settings   what the operator may change, with defaults and bounds
     collect.py configure  store what the operator changed, or say why not
     collect.py segments   traffic per interface, and how much of it is named
+    collect.py destinations  who one device talked to, per destination and port
     collect.py moment     what one device's traffic in one slice was made of
     collect.py prune      apply retention
     collect.py purge      delete everything, deliberately
@@ -675,7 +676,94 @@ def fetch_chunk(start, end):
         raise RuntimeError('get_timeseries.py did not answer with JSON')
 
 
+DAY = 86400
+
+# core keeps FlowSourceAddrDetails for 62 days at one resolution, a day (§4.62)
+DESTINATIONS_PROVIDER = 'FlowSourceAddrDetails'
+DESTINATIONS_HISTORY = 61
+# the first backfill spreads over runs instead of being one long one
+DESTINATIONS_DAYS_PER_RUN = 7
+
+
+def fetch_details(day):
+    """One completed day of per-device destinations, as core's own reader returns it."""
+    raw = must_read_command([
+        TIMESERIES,
+        '--provider', DESTINATIONS_PROVIDER,
+        '--resolution', str(DAY),
+        '--start_time', str(int(day)),
+        '--end_time', str(int(day + DAY)),
+        '--key_fields', 'if,src_addr,dst_addr,service_port,protocol,direction',
+    ], COMMAND_TIMEOUT)
+    try:
+        return json.loads(raw) if raw.strip() else {}
+    except ValueError:
+        raise RuntimeError('get_timeseries.py did not answer with JSON')
+
+
+def harvest_destinations(store, now):
+    """
+    Completed days of who each device talked to (§4.62), only when switched on.
+
+    Resumes from the last day stored. A first run reaches back as far as core
+    keeps them, but not before Lens started watching -- a day nobody observed
+    cannot be joined onto a device -- and takes at most a week per run.
+    """
+    today = now - now % DAY
+    last = store.last_bucket(DESTINATIONS_PROVIDER)
+    if last is not None:
+        start = last + DAY
+    else:
+        watching = store.first_observation() or today
+        start = max(today - DESTINATIONS_HISTORY * DAY, watching - watching % DAY)
+
+    days = []
+    day = start
+    while day < today and len(days) < DESTINATIONS_DAYS_PER_RUN:
+        days.append(day)
+        day += DAY
+    if not days:
+        return 'destinations up to date'
+
+    interfaces = set(store.device_interfaces())
+    written = 0
+    for day in days:
+        rows = parse.destinations_from_timeseries(fetch_details(day), interfaces)
+        written += store.store_destinations(day, rows)
+        store.commit()
+    return 'destinations: %d days, %d rows' % (len(days), written)
+
+
 def harvest(store, now):
+    """Both harvests: the hourly one always, the daily destinations when switched on."""
+    said = harvest_hours(store, now)
+    if store.settings()['destinations_enabled']:
+        said += '; ' + harvest_destinations(store, now)
+    return said
+
+
+def destinations(store, now, mac, days):
+    """Who one device -- every MAC of it (§4.61) -- talked to over the last `days` days."""
+    macs = mac_list(mac)
+    days = max(1, min(int(days or 30), 366))
+    today = now - now % DAY
+    since = today - days * DAY
+    rows = [{
+        'peer': r['peer'], 'port': r['port'], 'protocol': r['protocol'],
+        'sent': r['sent'], 'received': r['received'], 'days': r['days'],
+    } for r in store.destinations(macs, since)]
+
+    return {
+        'macs': macs,
+        'days': days,
+        'since': since,
+        'enabled': store.settings()['destinations_enabled'],
+        'harvested_to': store.last_bucket(DESTINATIONS_PROVIDER),
+        'rows': rows,
+    }
+
+
+def harvest_hours(store, now):
     """
     Hourly per-device traffic, copied out before core's 24 hour expiry.
 
@@ -745,7 +833,7 @@ def main():
         'duty',
         choices=['observe', 'harvest', 'status', 'devices', 'traffic', 'device',
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
-                 'gateways', 'internet', 'settings', 'configure',
+                 'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label',
                  'prune', 'purge'],
     )
@@ -753,6 +841,7 @@ def main():
     parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
     parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
     parser.add_argument('--fields', help='base64url of a JSON object of label or setting fields')
+    parser.add_argument('--days', type=int, default=30, help='how far back destinations reach')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
         help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
@@ -769,6 +858,10 @@ def main():
 
     if args.duty == 'segments':
         print(json.dumps(segments(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'destinations':
+        print(json.dumps(destinations(Store(DB_PATH), int(time.time()), args.mac, args.days)))
         return 0
 
     if args.duty == 'settings':

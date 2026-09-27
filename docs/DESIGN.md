@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.19_1`. "Router-tested" means
+*Brought up to date 2026-09-27 against `os-lens-0.20_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -234,10 +234,10 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1` |
 | S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested. Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 6, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe, not router-tested |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 7, observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
-| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Missing from the plan: top destinations and services (needs #31), DNS activity (needs S12) |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in. Missing from the plan: DNS activity (needs S12) |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
@@ -246,7 +246,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S11 · Command palette | ⏳ | needs S1 as its index |
 | S12 · DNS view | ⏳ | blocked on seeing one real `qstats` output (ROADMAP) |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Unmeasured since 0.4: observe now waits up to a 4 s probe deadline |
-| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); pausing observation or the harvest is BACKLOG #34 |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
 | S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); built, not router-tested |
 
@@ -1746,3 +1746,19 @@ MACs as the collector saw them.
 **Known limit, stated on the row:** two phones of one model that were never home
 at the same time are indistinguishable by this evidence and would fold together.
 Being home together once splits them for good.
+
+### §4.62 — Who a device talks to is kept, when the operator switches it on (2026-09-27)
+**Question:** BACKLOG #31 — core keeps per-device destinations and service ports
+for 62 days, daily. Lens can keep them as long as the rest of its history. Should
+it, and how much?
+**Decision:** yes, as the operator asked, and **opt-in** (rule 9): off until
+switched on under Settings, where the sentence states what is kept — every
+device's top destinations and ports, per day — and that retention and purge
+apply. Only device segments; only the **top 25 destinations per address per
+day**, the rest summed into one "other" row, so storage is bounded by devices,
+not by how chatty they are (≈ 30 MB a year for 25 devices). Attribution is the
+hourly rule at a daily grain: a day on which an address was held by two devices
+is refused.
+**Consequences:** the device page answers "to whom" as well as "how much", and
+says the grain is a day, because core's is. Reverse DNS is not attempted: a
+lookup per destination is load on every page and a leak to whoever answers.

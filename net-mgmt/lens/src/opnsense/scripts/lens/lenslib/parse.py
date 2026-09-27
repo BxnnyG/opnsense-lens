@@ -321,3 +321,71 @@ def parse_ping(text):
         rtt, stddev = float(found.group(1)), float(found.group(2))
 
     return rtt, stddev, loss
+
+
+# destinations kept per address per day; the rest is one summed row (§4.62)
+DESTINATIONS_KEPT = 25
+
+
+def destinations_from_timeseries(payload, device_interfaces, keep=DESTINATIONS_KEPT):
+    """
+    Pull one day of FlowSourceAddrDetails into storable rows.
+
+    Core writes every flow twice, swapping the addresses for the outbound half
+    (lib/aggregates/source.py), so on a device's own segment `src_addr` is the
+    device, `in` is what it sent to `dst_addr` and `out` what it received from
+    it. Rows on any other interface -- the far end, loopback -- are the same
+    flows seen from outside and are not kept.
+
+    Per (interface, address) the heaviest `keep` destinations are kept and the
+    rest summed into one row with peer '*' and port 0, so what is stored adds
+    up to what came in while its size is bounded by devices, not by traffic.
+
+    :param payload: get_timeseries.py's answer for one day, key fields
+                    if,src_addr,dst_addr,service_port,protocol,direction
+    :param device_interfaces: interfaces a device has ever been observed on
+    :return: list of (day, interface, address, peer, port, protocol, direction, octets, packets)
+    """
+    by_address = {}
+    for bucket, slices in (payload or {}).items():
+        try:
+            day = int(bucket)
+        except (TypeError, ValueError):
+            continue
+        for key, values in (slices or {}).items():
+            parts = key.split(',')
+            if len(parts) != 6:
+                continue
+            interface, address, peer, port, protocol, direction = parts
+            octets = int((values or {}).get('octets') or 0)
+            if octets <= 0 or interface not in device_interfaces or direction not in ('in', 'out'):
+                continue
+            try:
+                port, protocol = int(port or 0), int(protocol or 0)
+            except ValueError:
+                continue
+            packets = int((values or {}).get('packets') or 0)
+            flows = by_address.setdefault((day, interface, address), {})
+            entry = flows.setdefault((peer, port, protocol), {'in': [0, 0], 'out': [0, 0]})
+            entry[direction][0] += octets
+            entry[direction][1] += packets
+
+    rows = []
+    for (day, interface, address), flows in by_address.items():
+        ranked = sorted(flows.items(), key=lambda item: -(item[1]['in'][0] + item[1]['out'][0]))
+        other = {'in': [0, 0], 'out': [0, 0]}
+        for index, ((peer, port, protocol), totals) in enumerate(ranked):
+            if index < keep:
+                for direction in ('in', 'out'):
+                    if totals[direction][0]:
+                        rows.append((day, interface, address, peer, port, protocol, direction,
+                                     totals[direction][0], totals[direction][1]))
+            else:
+                for direction in ('in', 'out'):
+                    other[direction][0] += totals[direction][0]
+                    other[direction][1] += totals[direction][1]
+        for direction in ('in', 'out'):
+            if other[direction][0]:
+                rows.append((day, interface, address, '*', 0, 0, direction,
+                             other[direction][0], other[direction][1]))
+    return rows

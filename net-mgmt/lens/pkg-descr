@@ -25,6 +25,16 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.20_1
+
+* a device's page says where it talks: each destination, the service by its
+  port, what was sent and received, and on how many days - over 7, 30 or 60
+  days, from what OPNsense records per day
+* off until switched on under Services: Lens: Settings, because it keeps who
+  each device talked to; retention and purge cover it like everything else
+* a day on which two devices shared an address is left out, not guessed, and a
+  phone with rotating addresses is one device here too
+
 0.19_1
 
 * a phone that rotates its private MAC address is one device, not one row per

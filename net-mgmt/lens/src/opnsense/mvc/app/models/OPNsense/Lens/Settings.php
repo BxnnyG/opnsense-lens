@@ -50,6 +50,7 @@ class Settings
         'probe_targets',
         'gateway_samples',
         'fold_randomised',
+        'destinations_enabled',
         'baseline_days',
         'baseline_factor',
         'baseline_floor_mb',
@@ -152,9 +153,22 @@ class Settings
                 ],
                 [
                     'id' => 'identity',
-                    'title' => gettext('Telling devices apart'),
+                    'title' => gettext('Devices'),
                     'intro' => '',
                     'fields' => [
+                        self::field(
+                            $raw,
+                            'destinations_enabled',
+                            'flag',
+                            gettext('Keep who each device talks to'),
+                            '',
+                            gettext(
+                                'Every device\'s top 25 destinations and ports, per day, copied from what OPNsense '
+                                . 'keeps for 62 days and then kept as long as the rest of Lens\'s history. It '
+                                . 'describes what a person does online, so it is off until you switch it on; '
+                                . 'retention and delete everything include it.'
+                            )
+                        ),
                         self::field(
                             $raw,
                             'fold_randomised',

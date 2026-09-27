@@ -43,6 +43,8 @@ SPEC = {
     'gateway_samples': ('flag', '1', None, None),
     # a phone's rotating private MACs shown as one device (§4.61)
     'fold_randomised': ('flag', '1', None, None),
+    # who each device talks to, per day: personal, so opt-in (rule 9, §4.62)
+    'destinations_enabled': ('flag', '0', None, None),
     # the three guards on "unusual" (§4.50)
     'baseline_days': ('int', str(baseline.NEEDS_DAYS), 7, 90),
     'baseline_factor': ('float', repr(baseline.FACTOR), 1.5, 20.0),

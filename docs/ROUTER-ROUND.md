@@ -1,4 +1,4 @@
-# Router round for `os-lens-0.18_1` (2026-09-27)
+# Router round for `os-lens-0.20_1` (2026-09-27)
 
 > Why this exists: nineteen stages, stages 30 and 31 included, have been built
 > since the last click-test on a box (`0.5_2`, 2026-08-31). PROCESS calls each of them
@@ -25,7 +25,7 @@
 
     tools/lens-deploy.sh            # both boxes, from a checkout of this branch
 
-- [ ] router-01: `pkg info os-lens` says `0.18_1`
+- [ ] router-01: `pkg info os-lens` says `0.20_1`
 - [ ] second box: the same
 - [ ] `grep -n lens /var/cron/tabs/root` prints two lines, `*/5` and `*/30` (§4.25)
 - [ ] `configctl lens status` answers JSON, `schema_version` is `6`
@@ -118,6 +118,16 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
 - [ ] **device page** (stage 26): open three devices, one with a randomised MAC.
       Heatmap in local time, address history, presence
 - [ ] **Who's home** (stage 24): the herd folded away, the phones on top
+- [ ] **one phone, not four** (stage 33): a phone that showed up three or four
+      times is one row with "3 addresses"; its device page covers all of them;
+      Settings → *One phone, not one row per private address* off brings the rows back.
+      Open a device from Devices — the menu on the left stays open
+- [ ] **where it talks** (stage 34): the card on a device page says it is off
+      and links to Settings. Switch *Keep who each device talks to* on, then
+      `time configctl lens harvest` — note the seconds (the first run fetches up
+      to seven days). Next day: a camera or TV lists a handful of destinations
+      with plausible services; the store size on Services: Lens grows by
+      megabytes, not hundreds
 - [ ] **Networks** (stage 17): cards, rings, sparklines; a card opens its devices
 - [ ] **Wallboard** (stage 14): on the real screen it will hang on. It fills the
       screen and the rows are readable from across the room
@@ -155,7 +165,7 @@ These have been open since the dates beside them. Each is one command.
 
 ## 4. After the round
 
-- ROADMAP: every ticked stage becomes ✅ with the date and `0.18_1`; the
+- ROADMAP: every ticked stage becomes ✅ with the date and `0.20_1`; the
   measured numbers go into the operations notes (observe with/without probes,
   harvest, store size).
 - DESIGN §1b: the same.

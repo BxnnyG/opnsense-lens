@@ -13,7 +13,7 @@ import sqlite3
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # every key, its default and its bounds live in lenslib.settings (§4.58)
 DEFAULT_SETTINGS = settingslib.defaults()
@@ -123,6 +123,24 @@ MIGRATIONS = {
             loss REAL,
             PRIMARY KEY (at, target)
         )""",
+    ],
+    # Who each device talked to, per day (§4.62): core's FlowSourceAddrDetails,
+    # device segments only, the top 25 destinations per address per day and one
+    # summed '*' row for the rest. Opt-in; empty until switched on.
+    7: [
+        """CREATE TABLE destination_day (
+            day INTEGER NOT NULL,
+            interface TEXT NOT NULL,
+            address TEXT NOT NULL,
+            peer TEXT NOT NULL,
+            port INTEGER NOT NULL,
+            protocol INTEGER NOT NULL,
+            direction TEXT NOT NULL,
+            octets INTEGER NOT NULL,
+            packets INTEGER NOT NULL,
+            PRIMARY KEY (day, interface, address, peer, port, protocol, direction)
+        )""",
+        "CREATE INDEX destination_day_by_address ON destination_day(address, interface, day)",
     ],
 }
 
@@ -531,6 +549,59 @@ class Store:
             (step, step, since),
         )
 
+    def store_destinations(self, day, rows):
+        """:return: rows written; the day is recorded as harvested even when empty"""
+        before = self.db.total_changes
+        if rows:
+            self.db.executemany(
+                """INSERT OR REPLACE INTO destination_day
+                   (day, interface, address, peer, port, protocol, direction, octets, packets)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                rows,
+            )
+        self.db.execute(
+            """INSERT INTO harvest_state (provider, last_bucket) VALUES ('FlowSourceAddrDetails', ?)
+               ON CONFLICT(provider) DO UPDATE SET
+                   last_bucket = max(harvest_state.last_bucket, excluded.last_bucket)""",
+            (day,),
+        )
+        return self.db.total_changes - before - 1
+
+    def destinations(self, mac, since):
+        """
+        Who one device talked to since `since`, per destination and direction.
+
+        The hourly attribution rule at a daily grain (§4.62): a destination row
+        belongs to a device when that device -- and no other -- held the address
+        on that interface at some point of that day. A day two devices shared
+        the address is refused, as the hourly join refuses such an hour.
+        """
+        marks, macs = self._macs(mac)
+        return self.db.execute(
+            """SELECT peer, port, protocol,
+                      sum(CASE WHEN direction = 'in' THEN octets ELSE 0 END) AS sent,
+                      sum(CASE WHEN direction = 'out' THEN octets ELSE 0 END) AS received,
+                      count(DISTINCT day) AS days
+               FROM (
+                   SELECT d.day, d.peer, d.port, d.protocol, d.direction, d.octets,
+                          count(DISTINCT o.mac) AS holders, min(o.mac) AS mac
+                   FROM destination_day d
+                   JOIN address_observation o
+                     ON o.address = d.address AND o.interface = d.interface
+                    AND o.first_seen < d.day + 86400 AND o.last_seen >= d.day
+                   WHERE d.day >= ?
+                   GROUP BY d.day, d.interface, d.address, d.peer, d.port, d.protocol, d.direction
+               )
+               WHERE holders = 1 AND mac IN (%s)
+               GROUP BY peer, port, protocol
+               ORDER BY sent + received DESC""" % marks,
+            (since,) + macs,
+        )
+
+    def first_observation(self):
+        row = self.db.execute("SELECT min(first_seen) AS at FROM address_observation").fetchone()
+        return row['at'] if row else None
+
     def presence_windows(self, since):
         """:return: every address window that was still open at or after `since`"""
         return self.db.execute(
@@ -710,12 +781,13 @@ class Store:
         )
         self.db.execute("DELETE FROM gateway_sample WHERE at < ?", (cutoff,))
         self.db.execute("DELETE FROM probe_sample WHERE at < ?", (cutoff,))
+        self.db.execute("DELETE FROM destination_day WHERE day < ?", (cutoff,))
         return self.db.total_changes - before
 
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
-                      'device_label', 'gateway_sample', 'probe_sample', 'harvest_state',
+                      'device_label', 'gateway_sample', 'probe_sample', 'destination_day', 'harvest_state',
                       'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
