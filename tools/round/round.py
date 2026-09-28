@@ -57,6 +57,7 @@ ENDPOINTS = [
     'dashboard/line?hours=24',
     'dashboard/system',
     'dashboard/heatmap',
+    'dashboard/wall',
     'segments/list?hours=24',
     'dns/overview',
     'sources/report',

@@ -149,8 +149,10 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       with plausible services; the store size on Services: Lens grows by
       megabytes, not hundreds
 - [ ] **Networks** (stage 17): cards, rings, sparklines; a card opens its devices
-- [ ] **Wallboard** (stage 14): on the real screen it will hang on. It fills the
-      screen and the rows are readable from across the room
+- [ ] **Wallboard** (stages 14, 45): on the real screen it will hang on. Fill
+      the screen: clock, figures, the live panel and *Just now* all fit without
+      scrolling, and are readable from across the room. The round's timing for
+      `dashboard/wall` stays under a second — it is asked every minute
 - [ ] **dashboard widget** (stage 10): add it to core's dashboard, top five shown
 
 ### `/metrics` (stage 27)

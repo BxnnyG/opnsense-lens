@@ -65,12 +65,35 @@ class DevicesController extends ApiControllerBase
      */
     public function listAction()
     {
-        $backend = new Backend();
         $started = microtime(true);
         $calls = [];
 
-        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
+        $report = self::report(
+            new Backend(),
+            Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS)),
+            $calls
+        );
+        $report['timing'] = [
+            'total_ms' => (int)round((microtime(true) - $started) * 1000),
+            'calls' => $calls,
+        ];
 
+        return $report;
+    }
+
+    /**
+     * The device list over a window, as the Devices page, the dashboard and
+     * the wall read it (§4.37, §4.71).
+     *
+     * @param Backend $backend
+     * @param int $hours
+     * @param array $calls configd command to milliseconds, filled in
+     * @param array $raw filled in with the reads another composer may reuse:
+     *                   `status`, `internet` (24 hours) and `gateways`
+     * @return array
+     */
+    public static function report(Backend $backend, int $hours, array &$calls, array &$raw = []): array
+    {
         $devices = self::decode($backend, 'lens devices', $calls);
         $status = self::decode($backend, 'lens status', $calls);
         $macdb = self::decode($backend, 'interface list macdb', $calls);
@@ -99,6 +122,11 @@ class DevicesController extends ApiControllerBase
             isset($traffic['first_bucket']) ? (int)$traffic['first_bucket'] : null,
             time()
         );
+        $raw = [
+            'status' => $status,
+            'gateways' => self::decode($backend, 'interface gateways status', $calls),
+            'internet' => self::decode($backend, 'lens internet 24', $calls),
+        ];
         $report['sentence'] = Headline::compose(
             $report['summary'],
             $report['baseline'],
@@ -106,13 +134,9 @@ class DevicesController extends ApiControllerBase
             (bool)$report['stale'],
             $report['window']['asked'],
             time(),
-            LineQuality::describe(self::decode($backend, 'interface gateways status', $calls), []),
-            (array)(self::decode($backend, 'lens internet 24', $calls)['latest'] ?? [])
+            LineQuality::describe($raw['gateways'], []),
+            (array)($raw['internet']['latest'] ?? [])
         );
-        $report['timing'] = [
-            'total_ms' => (int)round((microtime(true) - $started) * 1000),
-            'calls' => $calls,
-        ];
 
         return $report;
     }

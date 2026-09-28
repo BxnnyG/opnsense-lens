@@ -30,12 +30,15 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
-use OPNsense\Lens\Bytes;
 use OPNsense\Core\Config;
+use OPNsense\Lens\Bytes;
+use OPNsense\Lens\Events;
 use OPNsense\Lens\Heatmap;
 use OPNsense\Lens\Internet;
 use OPNsense\Lens\LineQuality;
+use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\SystemFacts;
+use OPNsense\Lens\Wall;
 use OPNsense\Lens\Window;
 
 /**
@@ -60,8 +63,18 @@ class DashboardController extends ApiControllerBase
     public function timelineAction()
     {
         $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
-        $raw = self::decode(new Backend(), 'lens timeline ' . $hours);
 
+        return self::timeline(self::decode(new Backend(), 'lens timeline ' . $hours), $hours, time());
+    }
+
+    /**
+     * @param array $raw `lens timeline` decoded
+     * @param int $hours the window asked for
+     * @param int $now
+     * @return array the series, its step and peak, and the window
+     */
+    public static function timeline(array $raw, int $hours, int $now): array
+    {
         $series = [];
         $peak = 0;
         foreach ($raw['series'] ?? [] as $point) {
@@ -79,9 +92,53 @@ class DashboardController extends ApiControllerBase
             'window' => Window::describe(
                 $hours,
                 isset($raw['first_bucket']) ? (int)$raw['first_bucket'] : null,
-                time()
+                $now
             ),
         ];
+    }
+
+    /**
+     * Everything the wall shows, in one request a minute (§4.71). The device
+     * list's reads are made once and reused: its status, its internet and its
+     * gateways. Who is home comes from the rows' own `here`, so the presence
+     * spans are not read at all.
+     *
+     * @return array
+     */
+    public function wallAction()
+    {
+        $backend = new Backend();
+        $started = microtime(true);
+        $calls = [];
+        $raw = [];
+        $now = time();
+
+        $list = DevicesController::report($backend, 24, $calls, $raw);
+        $names = SegmentsController::names();
+
+        $events = Events::describe(self::decode($backend, 'lens events 7'), $list['devices'], $names, $now);
+        $people = PresenceReport::describe($list['devices'], [], $now)['people'];
+
+        $wan = Config::getInstance()->object()->interfaces->wan ?? null;
+        $internet = Internet::describe(
+            [],
+            $raw['internet'] ?? [],
+            LineQuality::describe($raw['gateways'] ?? [], []),
+            $wan !== null && (string)$wan->descr !== '' ? (string)$wan->descr : 'WAN',
+            $now
+        );
+
+        $report = Wall::describe(
+            $list,
+            $events,
+            $people,
+            $internet,
+            self::timeline(self::decode($backend, 'lens timeline 24'), 24, $now),
+            $now
+        );
+        $report['timing'] = ['total_ms' => (int)round((microtime(true) - $started) * 1000)];
+
+        return $report;
     }
 
     /**

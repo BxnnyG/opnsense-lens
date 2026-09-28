@@ -25,6 +25,14 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.29_1
+
+* the wallboard, rebuilt: a large clock and date, devices here, what moved in
+  24 hours against the day before, new devices and events; a live panel with
+  the internet's state and round trips, the network's day and the heaviest
+  devices; "Just now" with the latest events, and who is home
+* one request a minute for all of it, made of the same answers the pages give
+
 0.28_1
 
 * DNS: who asked what, and what was asked by whom - every question of the last

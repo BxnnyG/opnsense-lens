@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-28 against `os-lens-0.28_1`. "Router-tested" means
+*Brought up to date 2026-09-28 against `os-lens-0.29_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -242,7 +242,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
-| S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
+| S10 · Wallboard / kiosk | 🔨 (stages 14, 45) | built (§4.40, §4.48); since stage 45 one composed call with clock, figures, a live panel and the latest events (§4.71), seen at 1920×1080, 1440 and 390 px in `tools/preview`, not router-tested |
 | S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
 | S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round now times every duty on the box. Observe waits up to a 4 s probe deadline |
@@ -1912,3 +1912,16 @@ path of §4.64 answers.
 **Consequences:** the DNS page and the device card count every question; the
 500 cap and its note disappear where the store is readable. A per-device week
 of questions becomes possible, and is drawn.
+
+### §4.71 — The wall is one composed call, and it draws no map (2026-09-28)
+**Question:** the operator wants a richer wall — clock, key figures, a live
+panel, the latest events — after a sketch that also shows a world map. Build it
+from the endpoints the pages call, and draw the map?
+**Decision:** one endpoint, `dashboard/wall`, composes the device list, today's
+events, who is home, the internet state and the network's day with the same
+models the pages use, reusing the reads they share; the board draws only. The
+herd folding moves into PHP with it (rule 3). No map: Lens knows no location of
+any address (#12), and a map with invented dots is worse than none.
+**Consequences:** one request a minute per wall, a little heavier than before
+(two more collector reads); the wall and the pages agree by construction. The
+old folding in the board's script is gone.
