@@ -100,6 +100,12 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
 - [ ] Devices, a device page and the dashboard all say HOME / IOT / … where
       Networks does
 
+- [ ] **Privacy** (stage 46): the counts match Services: Lens's store figures;
+      a user with only the Reporting: Lens privilege does not see the page, and
+      the device page's "Forget..." leads to it. Forget one throw-away device
+      (a guest phone): the preview's counts, then the same counts deleted, and
+      the device is back after the next observation if it is still there
+
 ### Reporting: Lens
 
 - [ ] **Dashboard** (stage 23): five tiles, network over time, top devices,

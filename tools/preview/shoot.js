@@ -40,6 +40,7 @@ const PAGES = {
     wall: '/ui/lens/wall',
     preflight: '/ui/lens/preflight',
     settings: '/ui/lens/settings',
+    privacy: '/ui/lens/privacy?mac=2c:aa:8e:40:50:60',
 };
 
 const ALL_VIEWS = [

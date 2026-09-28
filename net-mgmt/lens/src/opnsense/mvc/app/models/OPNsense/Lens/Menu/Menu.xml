@@ -3,6 +3,7 @@
         <Lens cssClass="fa fa-eye fa-fw">
             <DataSources order="10" VisibleName="Data Sources" url="/ui/lens/preflight"/>
             <Settings order="20" VisibleName="Settings" url="/ui/lens/settings"/>
+            <Privacy order="30" VisibleName="Privacy" url="/ui/lens/privacy"/>
         </Lens>
     </Services>
     <Reporting>

@@ -12,6 +12,9 @@
             -->
             <pattern>ui/lens/settings*</pattern>
             <pattern>api/lens/settings/*</pattern>
+            <!-- forgetting a device deletes, as purge does (§4.72) -->
+            <pattern>ui/lens/privacy*</pattern>
+            <pattern>api/lens/privacy/*</pattern>
         </patterns>
     </page-services-lens>
     <page-reporting-lens>

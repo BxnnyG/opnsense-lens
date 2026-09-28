@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-28 against `os-lens-0.29_1`. "Router-tested" means
+*Brought up to date 2026-09-28 against `os-lens-0.30_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -246,7 +246,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
 | S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round now times every duty on the box. Observe waits up to a 4 s probe deadline |
-| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34; one device can be forgotten, and what is kept is on Services: Lens: Privacy since stage 46 (§4.72) |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
 | S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); built, not router-tested |
 
@@ -1925,3 +1925,21 @@ any address (#12), and a map with invented dots is worse than none.
 **Consequences:** one request a minute per wall, a little heavier than before
 (two more collector reads); the wall and the pages agree by construction. The
 old folding in the board's script is gone.
+
+### §4.72 — Forgetting a device takes the hours its windows cover (2026-09-28)
+**Question:** the operator wants to delete everything about one device. Lens
+stores traffic and destinations by address; which of those rows are "the
+device's"?
+**Decision:** every traffic hour and destination day that one of the device's
+address windows covers — by the join's own overlap rule — including hours the
+address was shared (attributed to nobody, but describing this device as much
+as any other). The device, its label, its summed days and its windows go with
+them; the deletion runs with `secure_delete`, so nothing stays readable in free
+pages. It lives on Services: Lens: Privacy under the Services privilege, as
+purge does: reading the reports is not a licence to shorten them. What core
+keeps (Unbound's questions, flowd, leases) Lens reads and cannot delete; the
+page names each and where it is kept.
+**Consequences:** the network's totals drop by what the device moved. A device
+still on the network is seen again at the next observation — the page says so;
+keeping it out for good would need a list of MACs to ignore, which is itself a
+record (BACKLOG).

@@ -1024,6 +1024,78 @@ class Store:
         self.db.execute("DELETE FROM device_day_done WHERE day < ?", (cutoff // 86400,))
         return self.db.total_changes - before
 
+    # what a device's windows cover, by the attribution join's overlap rule
+    # (§4.26): an hour whose bucket the window touches, a day it touches
+    _COVERED_HOURS = """SELECT t.rowid FROM traffic_hour t
+        JOIN address_observation o
+          ON o.address = t.address AND o.interface = t.interface
+         AND o.first_seen < t.bucket + 3600 AND o.last_seen >= t.bucket
+        WHERE o.mac IN (%s)"""
+    _COVERED_DAYS = """SELECT d.rowid FROM destination_day d
+        JOIN address_observation o
+          ON o.address = d.address AND o.interface = d.interface
+         AND o.first_seen < d.day + 86400 AND o.last_seen >= d.day
+        WHERE o.mac IN (%s)"""
+
+    def forget(self, macs, dry=False):
+        """
+        Everything Lens holds about one device (§4.72): its rows, its label,
+        its summed days, its address windows, and every traffic hour and
+        destination day those windows cover -- shared hours included, since
+        they describe this device as much as any other.
+
+        :param macs: every MAC the device stands for (a folded phone is several)
+        :param dry: count only
+        :return: rows per kind, as deleted or as a deletion would delete them
+        """
+        marks, values = self._macs(macs)
+        counts = {
+            'traffic_hours': "SELECT count(DISTINCT rowid) FROM (%s)" % (self._COVERED_HOURS % marks),
+            'destination_days': "SELECT count(DISTINCT rowid) FROM (%s)" % (self._COVERED_DAYS % marks),
+            'windows': "SELECT count(*) FROM address_observation WHERE mac IN (%s)" % marks,
+            'summed_days': "SELECT count(*) FROM device_day WHERE mac IN (%s)" % marks,
+            'labels': "SELECT count(*) FROM device_label WHERE mac IN (%s)" % marks,
+            'devices': "SELECT count(*) FROM device WHERE mac IN (%s)" % marks,
+        }
+        found = {key: self.db.execute(sql, values).fetchone()[0] for key, sql in counts.items()}
+        if dry or not found['devices'] and not found['windows']:
+            return found
+
+        # deleted pages are overwritten, not left in the file's free list
+        self.db.execute("PRAGMA secure_delete = ON")
+        try:
+            self.db.execute("DELETE FROM traffic_hour WHERE rowid IN (%s)" % (self._COVERED_HOURS % marks), values)
+            self.db.execute("DELETE FROM destination_day WHERE rowid IN (%s)" % (self._COVERED_DAYS % marks),
+                            values)
+            for table in ('address_observation', 'device_day', 'device_label', 'device'):
+                self.db.execute("DELETE FROM %s WHERE mac IN (%s)" % (table, marks), values)
+            self.db.commit()
+        finally:
+            self.db.execute("PRAGMA secure_delete = OFF")
+        return found
+
+    def kept(self):
+        """
+        What the store holds about people, per kind, for the privacy page:
+        how many rows and the oldest moment each reaches back to.
+        """
+        def row(sql):
+            found = self.db.execute(sql).fetchone()
+            return {'rows': found[0] or 0, 'oldest': found[1]}
+
+        return {
+            'devices': row("SELECT count(*), min(first_seen) FROM device"),
+            'windows': row("SELECT count(*), min(first_seen) FROM address_observation"),
+            'traffic_hours': row("SELECT count(*), min(bucket) FROM traffic_hour"),
+            'summed_days': row("SELECT count(*), min(day) * 86400 FROM device_day"),
+            'destination_days': row("SELECT count(*), min(day) FROM destination_day"),
+            'labels': row("SELECT count(*), min(updated) FROM device_label"),
+            'owners': row("SELECT count(DISTINCT owner), NULL FROM device_label WHERE owner <> ''"),
+            'line_samples': row(
+                "SELECT (SELECT count(*) FROM gateway_sample) + (SELECT count(*) FROM probe_sample),"
+                " min((SELECT min(at) FROM gateway_sample), (SELECT min(at) FROM probe_sample))"),
+        }
+
     def purge(self):
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',

@@ -777,3 +777,14 @@ tr.lens-group > td { background: var(--lens-hover); }
 
     .table-responsive-lens { overflow-x: auto; }
 }
+
+/* ---------------------------------------------------------------- privacy */
+
+.lens-lead { font-size: 16px; font-weight: 600; margin: 4px 0 14px; }
+.lens-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lens-forget { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lens-forget select { flex: 0 1 28em; min-width: 0; }
+.lens-forget-note { margin: 10px 0 0; min-height: 1.4em; }
+@media (max-width: 767px) {
+    #privPage td.lens-num { text-align: left; }
+}

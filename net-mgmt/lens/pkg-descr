@@ -25,6 +25,15 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.30_1
+
+* Services: Lens: Privacy: what Lens keeps about the devices on the network,
+  kind by kind, with how many rows, how old and for how long; what OPNsense
+  keeps itself and where it is cleared
+* forget one device: its record, your note, the addresses it held and every
+  hour of traffic and destination they cover, after a preview that counts
+  them. Also from a device's own page ("Forget...")
+
 0.29_1
 
 * the wallboard, rebuilt: a large clock and date, devices here, what moved in

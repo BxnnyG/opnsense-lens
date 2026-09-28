@@ -63,6 +63,7 @@ ENDPOINTS = [
     'sources/report',
     'store/status',
     'settings/get',
+    'privacy/kept',
 ]
 
 # PROCESS §4: no page takes longer than a couple of seconds

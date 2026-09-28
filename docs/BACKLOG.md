@@ -224,6 +224,15 @@ data Lens already keeps; none is planned before the router round.
   chart is drawn. Silently dropping it makes totals disagree with core's own
   Insight page, and that discrepancy destroys trust in every other number.
 
+- **#42 — Keep a forgotten device out.** Stage 46 forgets a device, and a
+  device still on the network is seen again at the next observation (§4.72).
+  Keeping it out needs a list of MACs never to record — itself a record about
+  the device, so it is the operator's decision, not a default.
+- **#43 — `secure_delete` for prune too.** Forget overwrites what it deletes;
+  the nightly prune and the retention change leave deleted rows in free pages
+  until SQLite reuses them. Cheap to switch on; measure what it costs the
+  harvest first.
+
 ## 4. P3 — Someday / nice-to-have
 
 Everything in [DESIGN.md §2b](DESIGN.md) — the Sankey flow view, the geo map,

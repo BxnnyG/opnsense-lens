@@ -929,6 +929,22 @@ def label(mac, encoded):
     return 0
 
 
+def forget(mac, dry):
+    """
+    Everything about one device, gone (§4.72); with --dry, only counted. The
+    answer is the counts either way, so the page can show what a confirmation
+    will delete and then what it did.
+    """
+    macs = [one for one in mac_list(mac) if one]
+    if not macs:
+        print(json.dumps({'error': 'forget needs --mac'}))
+        return 1
+    store = Store(DB_PATH)
+    counts = store.forget(macs, dry=dry)
+    print(json.dumps({'macs': macs, 'dry': dry, 'counts': counts}))
+    return 0
+
+
 def traffic(store, now, hours):
     """
     Traffic joined onto identity, at the time of the bucket.
@@ -1163,9 +1179,10 @@ def main():
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
-                 'prune', 'purge'],
+                 'prune', 'purge', 'forget', 'kept'],
     )
-    parser.add_argument('--mac', help='the device to label')
+    parser.add_argument('--mac', help='the device to label, or to forget')
+    parser.add_argument('--dry', action='store_true', help='forget: count, delete nothing')
     parser.add_argument('--at', type=int, default=0, help='start of the slice to open')
     parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
     parser.add_argument('--fields', help='base64url of a JSON object of label or setting fields')
@@ -1263,6 +1280,17 @@ def main():
     if args.duty == 'purge':
         Store(DB_PATH).purge()
         print('purged')
+        return 0
+
+    if args.duty == 'forget':
+        return forget(args.mac, args.dry)
+
+    if args.duty == 'kept':
+        store = Store(DB_PATH)
+        report = store.kept()
+        report['retention_days'] = store.setting_int('retention_days')
+        report['destinations_on'] = bool(store.settings().get('destinations_enabled'))
+        print(json.dumps(report))
         return 0
 
     if args.duty == 'prune':
