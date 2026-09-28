@@ -1,8 +1,11 @@
-# os-lens built on FreeBSD, and a pkg repository around it (stage 40, §4.68).
+# os-lens built on FreeBSD, a signed pkg repository around it, and -- on a
+# version tag or when asked -- that repository published on GitHub Pages
+# (stages 40 and 43, §4.68).
 #
-# Nothing is published. The feed is an artifact of this run until the operator
-# decides where it is served from and whether it is signed; both are theirs to
-# decide (§4.68). Runs on demand and on a version tag, never on every push: a
+# Signing uses the secret LENS_PKG_KEY (an RSA private key, PEM). Its public
+# half is tools/feed/lens.pub in this repository; the run refuses to publish a
+# feed signed with any other key, and proves the feed verifies with pkg itself
+# before it goes anywhere. Runs on demand and on a tag, never on every push: a
 # FreeBSD VM costs minutes.
 
 name: package
@@ -12,6 +15,10 @@ on:
     inputs:
       release:
         description: 'build os-lens rather than os-lens-devel'
+        type: boolean
+        default: false
+      publish:
+        description: 'publish the signed feed on GitHub Pages (implies release)'
         type: boolean
         default: false
   push:
@@ -24,27 +31,48 @@ jobs:
   package:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    env:
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.release || inputs.publish }}
+      SIGN: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.publish }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: make package on FreeBSD, then pkg repo
+      # the key reaches the VM as a file in the workspace and is removed there;
+      # the artifact below is feed/ only, so it can never be uploaded
+      - name: hand the signing key to the build
+        if: env.SIGN == 'true'
+        env:
+          LENS_PKG_KEY: ${{ secrets.LENS_PKG_KEY }}
+        run: |
+          if [ -z "$LENS_PKG_KEY" ]; then
+            echo "::error::secret LENS_PKG_KEY is not set: nothing to sign the feed with (docs/plans/stage-43-publish.md)"
+            exit 1
+          fi
+          if [ ! -s tools/feed/lens.pub ]; then
+            echo "::error::tools/feed/lens.pub is missing: the public half must be in the repository before a feed is published"
+            exit 1
+          fi
+          umask 077
+          printf '%s\n' "$LENS_PKG_KEY" > signing.key
+
+      - name: make package on FreeBSD, pkg repo, and verify it with pkg
         uses: vmactions/freebsd-vm@v1
         with:
           release: "14.3"
           usesh: true
+          envs: 'RELEASE SIGN'
           prepare: |
             pkg install -y git
           run: |
             set -e
             git config --global --add safe.directory "$(pwd)"
             cd net-mgmt/lens
-            # Lens ships scripts, no binaries: any FreeBSD ABI may install it,
-            # so an OPNsense on a newer base does not refuse it. Mk/devel.mk
-            # names every build os-lens-devel, as `make package` on the box
-            # does; a tag or release=true builds os-lens instead (§4.68)
-            if [ "${{ startsWith(github.ref, 'refs/tags/v') || inputs.release }}" = "true" ]; then
+            # Lens ships scripts, no binaries: any FreeBSD ABI may install it.
+            # Mk/devel.mk names every build os-lens-devel, as `make package`
+            # on the box does; a release builds os-lens (§4.68)
+            if [ "$RELEASE" = "true" ]; then
               make package PLUGIN_NO_ABI=yes PLUGIN_DEVEL=
             else
               make package PLUGIN_NO_ABI=yes
@@ -52,12 +80,62 @@ jobs:
             cd ../..
             mkdir -p feed/All
             cp net-mgmt/lens/work/pkg/*.pkg feed/All/
-            pkg repo feed
-            pkg info -F feed/All/*.pkg
+            if [ "$SIGN" = "true" ]; then
+              openssl rsa -in signing.key -pubout -out /tmp/derived.pub 2> /dev/null
+              if ! cmp -s /tmp/derived.pub tools/feed/lens.pub; then
+                rm -f signing.key
+                echo "LENS_PKG_KEY is not the key tools/feed/lens.pub belongs to" >&2
+                exit 1
+              fi
+              pkg repo feed signing.key
+              rm -f signing.key
+              # the proof: pkg itself, with only the public key from the
+              # repository, accepts the feed and finds the package in it
+              mkdir -p /tmp/repos
+              printf 'LensTest: { url: "file://%s/feed", signature_type: "pubkey", pubkey: "%s/tools/feed/lens.pub", enabled: yes }\n' \
+                "$(pwd)" "$(pwd)" > /tmp/repos/LensTest.conf
+              pkg -R /tmp/repos update -f -r LensTest
+              pkg -R /tmp/repos rquery -r LensTest '%n %v'
+            else
+              pkg repo feed
+            fi
+            pkg info -F feed/All/*.pkg | head -12
             ls -lR feed
+
+      - name: the key is gone
+        if: always()
+        run: rm -f signing.key
 
       - uses: actions/upload-artifact@v4
         with:
           name: os-lens-feed
           path: feed/
           if-no-files-found: error
+
+  publish:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: os-lens-feed
+          path: site/feed
+      - name: the page around the feed
+        run: |
+          cp tools/feed/lens.pub site/lens.pub
+          cp tools/install.sh site/install.sh
+          cp tools/feed/index.html site/index.html
+          ls -lR site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

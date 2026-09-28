@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lens package feed</title>
+<style>
+  :root { --bg: #fafafa; --ink: #1d1f24; --muted: #6f6f6f; --line: #e5e5e5; --accent: #d94f00; --code: #f0f0f0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16171b; --ink: #e8e8ea; --muted: #9a9ca3; --line: #2a2c33; --accent: #ff7a33; --code: #22242a; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 28px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 0 8px; }
+  pre { background: var(--code); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;
+        overflow-x: auto; font-size: 14px; }
+  a { color: var(--accent); }
+  td { padding: 4px 14px 4px 0; vertical-align: top; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Lens for OPNsense</h1>
+  <p class="sub">The package feed for <code>os-lens</code>: every device on the network with an identity that
+    survives an address change. Source and documentation:
+    <a href="https://github.com/BxnnyG/opnsense-lens">github.com/BxnnyG/opnsense-lens</a>.</p>
+
+  <h2>Install, as root on the firewall</h2>
+  <pre>fetch -o - https://raw.githubusercontent.com/BxnnyG/opnsense-lens/master/tools/install.sh | sh</pre>
+  <p>After that, updates arrive with System: Firmware: Updates like any other package.</p>
+
+  <h2>Other things the script does</h2>
+  <table>
+    <tr><td><code>| sh -s update</code></td><td>update now</td></tr>
+    <tr><td><code>| sh -s uninstall</code></td><td>remove the package and the feed, keep the data in /var/db/lens</td></tr>
+    <tr><td><code>| sh -s uninstall --purge</code></td><td>the same, and delete the data</td></tr>
+    <tr><td><code>| sh -s status</code></td><td>what is installed, and when the collector last ran</td></tr>
+  </table>
+
+  <h2>What the feed is</h2>
+  <p>A pkg repository signed with an RSA key. Its public half is
+    <a href="https://github.com/BxnnyG/opnsense-lens/blob/master/tools/feed/lens.pub">in the repository</a>,
+    and the install script fetches it from there, not from this page: a key served beside the packages it
+    vouches for would vouch for nothing.</p>
+</main>
+</body>
+</html>

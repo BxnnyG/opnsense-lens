@@ -1872,6 +1872,8 @@ Pages if the repository may be public, signed with a key kept as an Actions
 secret. Core's firmware check upgrades from every configured repository
 (`pkg upgrade -Un`, no `-r`), so once served, updates arrive through
 System: Firmware with nothing else to build.
+**Decided by the operator, 2026-09-27:** GitHub Pages, signed, `os-lens` — built
+as stages 42 and 43; the steps only they can take are in the stage 43 plan.
 **Consequences:** until the operator decides, the artifact's `.pkg` replaces
 building on the box (`pkg add`). The package is marked ABI-independent
 (`PLUGIN_NO_ABI`) because Lens ships no binaries. The first run showed every

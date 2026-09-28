@@ -1,7 +1,30 @@
 # Lens — an OPNsense plugin
 
-**Status: planning. There is no code yet.** This repository currently holds the
-design and the process the plugin will be built under.
+**Status: in daily use on the author's firewalls, version 0.x.** Built stage by
+stage under [docs/PROCESS.md](docs/PROCESS.md); what is router-tested and what is
+built on tests alone is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Install, update, remove
+
+As root on the firewall:
+
+```sh
+fetch -o - https://raw.githubusercontent.com/BxnnyG/opnsense-lens/master/tools/install.sh | sh
+```
+
+That adds the signed Lens package feed and installs `os-lens`; after that,
+updates come with System: Firmware: Updates. The same script does the rest:
+
+| | |
+|---|---|
+| `… \| sh -s update` | update now |
+| `… \| sh -s uninstall` | remove Lens and its feed; the data in `/var/db/lens` stays |
+| `… \| sh -s uninstall --purge` | remove Lens and delete its data |
+| `… \| sh -s source` | build from the current master and install that, without the feed |
+| `… \| sh -s status` | what is installed, and when the collector last ran |
+
+The root shell on OPNsense is csh; the script is always piped to `sh`, so that
+does not matter. What it writes and why: [tools/install.sh](tools/install.sh).
 
 ## What it is meant to be
 
