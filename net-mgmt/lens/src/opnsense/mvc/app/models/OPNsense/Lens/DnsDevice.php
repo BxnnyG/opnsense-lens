@@ -75,16 +75,24 @@ class DnsDevice
             ];
         }, $domains);
 
+        $store = ($raw['source'] ?? 'stats') === 'store';
+
         return [
             'shown' => $rows !== [],
             'rows' => $rows,
+            /* its week of questions, from the store only: a sample would draw a wrong week (§4.70) */
+            'heatmap' => $store && !empty($raw['heatmap']) ? Heatmap::grid((array)$raw['heatmap'], true) : null,
             'summary' => sprintf(
                 gettext('%s questions seen, %s blocked, %d different names.'),
                 number_format((int)($raw['queries'] ?? 0)),
                 number_format((int)($raw['blocked'] ?? 0)),
                 count((array)($raw['domains'] ?? []))
             ),
-            'note' => self::note($raw),
+            'note' => $store
+                ? gettext(
+                    'Every question it asked, from Unbound\'s own record, in the hours it alone held its address.'
+                )
+                : self::note($raw),
         ];
     }
 

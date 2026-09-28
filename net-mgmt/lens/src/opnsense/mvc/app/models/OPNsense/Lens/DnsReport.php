@@ -69,16 +69,133 @@ class DnsReport
                 'blocklist' => number_format((int)($totals['blocklist_size'] ?? 0)),
                 'since' => $totals['start_time'] ?? null,
             ],
-            'headline' => sprintf(
-                gettext('%s questions asked of Unbound in what it keeps, %s of them blocked.'),
-                number_format($total),
-                self::pct($blocked['pct'] ?? 0)
-            ),
+            'headline' => ($raw['source'] ?? 'stats') === 'store'
+                ? sprintf(
+                    gettext('%s questions asked of Unbound in the last %s, %s of them blocked.'),
+                    number_format($total),
+                    (int)($raw['hours'] ?? 24) > 24 ? gettext('7 days') : gettext('24 hours'),
+                    self::pct($blocked['pct'] ?? 0)
+                )
+                : sprintf(
+                    gettext('%s questions asked of Unbound in what it keeps, %s of them blocked.'),
+                    number_format($total),
+                    self::pct($blocked['pct'] ?? 0)
+                ),
             'top' => self::bars((array)($totals['top'] ?? []), false),
             'blocked' => self::bars((array)($totals['top_blocked'] ?? []), true),
             'clients' => self::clients((array)($raw['clients'] ?? []), $rows),
             'clients_read' => !empty($raw['clients_read']),
+            /* from Unbound's own store (§4.70): every question of the range */
+            'source' => (string)($raw['source'] ?? 'stats'),
+            'hours' => (int)($raw['hours'] ?? 24),
+            'by_device' => self::byDevice((array)($raw['devices'] ?? []), $rows),
+            'by_name' => self::byName((array)($raw['names'] ?? []), $rows),
         ];
+    }
+
+    /** mac to its row, every MAC of a folded phone included */
+    private static function index(array $rows): array
+    {
+        $byMac = [];
+        foreach ($rows as $row) {
+            foreach ((array)($row['macs'] ?? [$row['mac']]) as $mac) {
+                $byMac[$mac] = $row;
+            }
+        }
+
+        return $byMac;
+    }
+
+    /**
+     * Who asked what: each device, its questions, how many were blocked, and
+     * the names it asked most. A folded phone is one line.
+     */
+    private static function byDevice(array $devices, array $rows): array
+    {
+        $byMac = self::index($rows);
+        $merged = [];
+        foreach ($devices as $device) {
+            $row = $byMac[$device['mac'] ?? ''] ?? null;
+            $key = $row['mac'] ?? (string)($device['mac'] ?? '');
+            if (!isset($merged[$key])) {
+                $merged[$key] = ['row' => $row, 'mac' => $key, 'queries' => 0, 'blocked' => 0, 'names' => 0,
+                                 'domains' => []];
+            }
+            $merged[$key]['queries'] += (int)($device['queries'] ?? 0);
+            $merged[$key]['blocked'] += (int)($device['blocked'] ?? 0);
+            $merged[$key]['names'] += (int)($device['names'] ?? 0);
+            foreach ((array)($device['domains'] ?? []) as $domain) {
+                $name = (string)$domain['domain'];
+                $merged[$key]['domains'][$name] = [
+                    'count' => ($merged[$key]['domains'][$name]['count'] ?? 0) + (int)$domain['count'],
+                    'blocked' => ($merged[$key]['domains'][$name]['blocked'] ?? 0) + (int)($domain['blocked'] ?? 0),
+                    'blocklist' => $domain['blocklist'] ?? null,
+                ];
+            }
+        }
+        usort($merged, function ($left, $right) {
+            return $right['queries'] <=> $left['queries'];
+        });
+        $largest = max(1, $merged[0]['queries'] ?? 1);
+
+        return array_map(function ($entry) use ($largest) {
+            uasort($entry['domains'], function ($left, $right) {
+                return $right['count'] <=> $left['count'];
+            });
+            $domains = [];
+            foreach (array_slice($entry['domains'], 0, 10, true) as $name => $domain) {
+                $domains[] = [
+                    'domain' => $name,
+                    'count' => number_format($domain['count']),
+                    'blocked' => $domain['blocked'] > 0,
+                    'blocklist' => $domain['blocklist'],
+                ];
+            }
+
+            return [
+                'name' => $entry['row']['name'] ?? $entry['mac'],
+                'link' => $entry['row'] !== null ? '/ui/lens/device?mac=' . rawurlencode($entry['mac']) : null,
+                'icon' => $entry['row']['kind']['icon'] ?? 'fa-circle-o',
+                'interfaces' => array_values((array)($entry['row']['interfaces'] ?? [])),
+                'tags' => array_values((array)($entry['row']['tags'] ?? [])),
+                'queries' => number_format($entry['queries']),
+                'blocked' => number_format($entry['blocked']),
+                'blocked_pct' => self::pct($entry['queries'] ? $entry['blocked'] / $entry['queries'] * 100 : 0),
+                'names' => number_format($entry['names']),
+                'bar' => round($entry['queries'] / $largest * 100, 1),
+                'domains' => $domains,
+            ];
+        }, $merged);
+    }
+
+    /** What was asked, and by whom: each name with the devices that asked it most. */
+    private static function byName(array $names, array $rows): array
+    {
+        $byMac = self::index($rows);
+        $largest = max(1, (int)($names[0]['count'] ?? 1));
+
+        return array_map(function ($name) use ($byMac, $largest) {
+            $askers = [];
+            foreach ((array)($name['askers'] ?? []) as $asker) {
+                $row = $asker['mac'] !== null ? ($byMac[$asker['mac']] ?? null) : null;
+                $askers[] = [
+                    'name' => $row['name'] ?? ($asker['address'] !== null
+                        ? sprintf(gettext('%s (no device then)'), $asker['address'])
+                        : (string)$asker['mac']),
+                    'count' => number_format((int)$asker['count']),
+                ];
+            }
+
+            return [
+                'domain' => (string)$name['domain'],
+                'count' => number_format((int)$name['count']),
+                'blocked' => (int)($name['blocked'] ?? 0) > 0,
+                'blocked_count' => number_format((int)($name['blocked'] ?? 0)),
+                'blocklist' => $name['blocklist'] ?? null,
+                'bar' => round((int)$name['count'] / $largest * 100, 1),
+                'askers' => $askers,
+            ];
+        }, $names);
     }
 
     /** the one sentence that replaces the page when there is nothing on it */

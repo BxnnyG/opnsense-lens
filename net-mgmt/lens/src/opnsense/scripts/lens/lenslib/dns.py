@@ -10,6 +10,8 @@ The shapes below were read from stats.py at stable/26.7, not captured from a box
 (plan stage 36 §2). Every reader here is defensive for that reason.
 """
 
+import time
+
 SLOT = 600
 
 # stats.py details answers at most this many rows per call (its --limit default,
@@ -194,3 +196,137 @@ def device_queries(answers):
 
     return {'queries': queries, 'blocked': blocked, 'capped': capped,
             'domains': listed, 'first': first, 'last': last}
+
+
+# ------------------------------------------------------------ from the store
+#
+# Since stage 44 (§4.70) the counts come from Unbound's own DuckDB store, read
+# through core's duckdb_helper, when it can be read: every question, not the
+# newest 500 of a request. Rows arrive already summed per client, name and hour:
+# (client, domain, hour, questions, blocked, blocklist, resolved, local).
+
+HOUR = 3600
+
+
+def holders(windows):
+    """:return: a function (client, hour) -> the one MAC that held it, or None"""
+    by_address = {}
+    for mac, address, first_seen, last_seen in windows:
+        by_address.setdefault(address, []).append((mac, int(first_seen), int(last_seen)))
+
+    def held(client, hour):
+        found = {mac for mac, first_seen, last_seen in by_address.get(client, [])
+                 if first_seen < hour + HOUR and last_seen >= hour}
+        return found.pop() if len(found) == 1 else None
+    return held
+
+
+def _tally(entry, domain, hour, count, blocked, blocklist):
+    entry['queries'] += count
+    entry['blocked'] += blocked
+    names = entry['domains'].setdefault(domain, [0, 0, None, 0])
+    names[0] += count
+    names[1] += blocked
+    names[2] = names[2] or (blocklist if blocked else None)
+    names[3] = max(names[3], hour)
+    entry['hours'][hour] = entry['hours'].get(hour, 0) + count
+
+
+def by_device(rows, windows):
+    """
+    Every question on the device that held its client address in that hour --
+    the traffic join's rule, at the hour Unbound's rows are summed to.
+
+    :return: (devices, unplaced): mac or client address -> {'queries', 'blocked',
+             'domains': {name: [questions, blocked, blocklist, last hour]},
+             'hours': {hour: questions}, 'addresses': set}
+    """
+    held = holders(windows)
+    devices, unplaced = {}, {}
+    for client, domain, hour, count, blocked, blocklist, *_ in rows:
+        hour, count, blocked = int(hour), int(count), int(blocked or 0)
+        domain = str(domain or '').rstrip('.')
+        mac = held(client, hour)
+        pool, key = (devices, mac) if mac else (unplaced, client)
+        entry = pool.setdefault(key, {'queries': 0, 'blocked': 0, 'domains': {}, 'hours': {}, 'addresses': set()})
+        entry['addresses'].add(client)
+        _tally(entry, domain, hour, count, blocked, blocklist)
+    return devices, unplaced
+
+
+def totals_from_rows(rows, blocklist_size=0):
+    """The overview's figures and top lists, from the same rows (stats.py's shape, typed)."""
+    total = blocked = resolved = local = 0
+    names, first = {}, None
+    for client, domain, hour, count, stopped, blocklist, answered_up, answered_here in rows:
+        count, stopped = int(count), int(stopped or 0)
+        total += count
+        blocked += stopped
+        resolved += int(answered_up or 0)
+        local += int(answered_here or 0)
+        first = int(hour) if first is None else min(first, int(hour))
+        entry = names.setdefault(str(domain or '').rstrip('.'), [0, 0, None])
+        entry[0] += count
+        entry[1] += stopped
+        entry[2] = entry[2] or (blocklist if stopped else None)
+
+    def pct(part, whole):
+        return round(part / whole * 100, 1) if whole else 0.0
+
+    passed = total - blocked
+    top = sorted(((d, e[0] - e[1]) for d, e in names.items() if e[0] > e[1]), key=lambda x: -x[1])[:15]
+    stopped = sorted(((d, e[1], e[2]) for d, e in names.items() if e[1]), key=lambda x: -x[1])[:15]
+    return {
+        'total': total, 'passed': passed, 'blocklist_size': int(blocklist_size or 0),
+        'resolved': {'total': resolved, 'pct': pct(resolved, total)},
+        'blocked': {'total': blocked, 'pct': pct(blocked, total)},
+        'local': {'total': local, 'pct': pct(local, total)},
+        'start_time': first,
+        'top': [{'domain': d, 'count': n, 'pct': pct(n, passed)} for d, n in top],
+        'top_blocked': [{'domain': d, 'count': n, 'pct': pct(n, blocked), 'blocklist': b} for d, n, b in stopped],
+    }
+
+
+def device_summary(entry, keep=10):
+    """One device's line on the overview: its total and its most-asked names."""
+    names = sorted(entry['domains'].items(), key=lambda item: (-item[1][0], item[0]))
+    return {
+        'queries': entry['queries'],
+        'blocked': entry['blocked'],
+        'addresses': sorted(entry['addresses']),
+        'names': len(names),
+        'domains': [{'domain': d, 'count': e[0], 'blocked': e[1], 'blocklist': e[2]} for d, e in names[:keep]],
+    }
+
+
+def names_by_askers(devices, unplaced, keep=25, askers=3):
+    """
+    The other way round: each name, how often, how often blocked, and who asked.
+
+    :return: list of {'domain', 'count', 'blocked', 'blocklist', 'askers': [{'mac', 'address', 'count'}]}
+    """
+    names = {}
+    for pool, placed in ((devices, True), (unplaced, False)):
+        for key, entry in pool.items():
+            for domain, (count, blocked, blocklist, _) in entry['domains'].items():
+                row = names.setdefault(domain, {'domain': domain, 'count': 0, 'blocked': 0,
+                                                'blocklist': None, 'askers': []})
+                row['count'] += count
+                row['blocked'] += blocked
+                row['blocklist'] = row['blocklist'] or blocklist
+                row['askers'].append({'mac': key if placed else None,
+                                      'address': None if placed else key, 'count': count})
+    listed = sorted(names.values(), key=lambda row: (-row['count'], row['domain']))[:keep]
+    for row in listed:
+        row['askers'] = sorted(row['askers'], key=lambda asker: -asker['count'])[:askers]
+    return listed
+
+
+def heatmap_cells(hours):
+    """{hour: questions} -> [dow (0 = Sunday), hour, questions], in the box's own time zone."""
+    cells = {}
+    for at, count in hours.items():
+        local = time.localtime(int(at))
+        key = ((local.tm_wday + 1) % 7, local.tm_hour)
+        cells[key] = cells.get(key, 0) + count
+    return [[dow, hour, count] for (dow, hour), count in sorted(cells.items())]

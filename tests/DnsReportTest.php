@@ -102,4 +102,30 @@ class DnsReportTest extends TestCase
         $this->assertSame('10.0.0.61, 10.0.0.62', $report['clients'][0]['sub']);
         $this->assertNull($report['clients'][1]['link']);
     }
+
+    public function testWhoAskedWhatNamesDevicesAndFoldsAPhone()
+    {
+        $rows = [['mac' => 'e6:00:00:00:00:02', 'macs' => ['e6:00:00:00:00:02', 'e6:00:00:00:00:01'],
+                  'name' => 'Pixel-8', 'kind' => ['icon' => 'fa-mobile']]];
+        $raw = $this->raw() + ['source' => 'store', 'hours' => 168];
+        $raw['devices'] = [
+            ['mac' => 'e6:00:00:00:00:01', 'queries' => 30, 'blocked' => 10, 'names' => 2,
+             'domains' => [['domain' => 'ads.example', 'count' => 10, 'blocked' => 10, 'blocklist' => 'ads']]],
+            ['mac' => 'e6:00:00:00:00:02', 'queries' => 70, 'blocked' => 0, 'names' => 3,
+             'domains' => [['domain' => 'google.com', 'count' => 50, 'blocked' => 0]]],
+        ];
+        $raw['names'] = [['domain' => 'google.com', 'count' => 50, 'blocked' => 0,
+                          'askers' => [['mac' => 'e6:00:00:00:00:02', 'address' => null, 'count' => 40],
+                                       ['mac' => null, 'address' => '10.0.0.9', 'count' => 10]]]];
+
+        $report = DnsReport::describe($raw, $rows, self::ON);
+
+        $this->assertCount(1, $report['by_device'], 'one phone, one line');
+        $this->assertSame('100', $report['by_device'][0]['queries']);
+        $this->assertSame('10%', $report['by_device'][0]['blocked_pct']);
+        $this->assertSame(['google.com', 'ads.example'], array_column($report['by_device'][0]['domains'], 'domain'));
+        $this->assertSame(['Pixel-8', '10.0.0.9 (no device then)'],
+            array_column($report['by_name'][0]['askers'], 'name'));
+        $this->assertStringContainsString('in the last 7 days', $report['headline']);
+    }
 }

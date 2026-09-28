@@ -77,6 +77,25 @@ TIMESERIES = '/usr/local/opnsense/scripts/netflow/get_timeseries.py'
 # stand-in that answers in the same shapes
 UNBOUND_STATS = os.environ.get('LENS_UNBOUND_STATS', '/usr/local/opnsense/scripts/unbound/stats.py')
 UNBOUND_TIMEOUT = 30
+
+# Unbound's own query store, and core's helper for reading it beside the logger
+# that writes it (§4.70); the preview and the tests point both elsewhere
+UNBOUND_DB = os.environ.get('LENS_UNBOUND_DB', '/var/unbound/data/unbound.duckdb')
+SITE_PYTHON = os.environ.get('LENS_SITE_PYTHON', '/usr/local/opnsense/site-python')
+DNSBL_SIZE = '/var/unbound/data/dnsbl.size'
+
+# every question since `since`, summed per client, name and hour -- the grain
+# the attribution works at. `action` 1 is a block, `source` 0 recursion and
+# 1 or 2 an answer from Unbound's own data (stats.py, stable/26.7)
+UNBOUND_SQL = """
+    SELECT client, domain, (time // 3600) * 3600 AS hour, count(*) AS questions,
+           count(*) FILTER (WHERE action = 1) AS blocked, max(blocklist) AS blocklist,
+           count(*) FILTER (WHERE source = 0) AS resolved,
+           count(*) FILTER (WHERE source IN (1, 2)) AS answered_here
+    FROM query
+    WHERE time >= ? %s
+    GROUP BY client, domain, hour
+"""
 PROVIDER = 'FlowSourceAddrTotals'
 RESOLUTION = 3600
 
@@ -532,11 +551,86 @@ def events(store, now, days):
     }
 
 
-def dns(store, now):
+def unbound_rows(since, clients=None):
     """
-    What the network looked up (§4.64): Unbound's totals over what it keeps, and
-    the last 24 hours of clients put onto devices slot by slot. Nothing stored.
+    Unbound's questions since `since` (§4.70), through core's own duckdb_helper,
+    read-only and for one query -- the writer, Unbound's logger, waits for that
+    long and no longer.
+
+    :return: list of UNBOUND_SQL rows; None when the store cannot be read here
+             (no DuckDB module, no helper), which sends the caller to stats.py
     """
+    if not os.path.exists(UNBOUND_DB):
+        return None
+    if SITE_PYTHON not in sys.path:
+        sys.path.insert(0, SITE_PYTHON)
+    try:
+        from duckdb_helper import DbConnection
+    except ImportError:
+        return None
+
+    where, args = '', [int(since)]
+    if clients is not None:
+        if not clients:
+            return []
+        where = 'AND client IN (%s)' % ','.join('?' * len(clients))
+        args += list(clients)
+    try:
+        with DbConnection(UNBOUND_DB, read_only=True) as db:
+            if db is None or db.connection is None or not db.table_exists('query'):
+                return []
+            return db.connection.execute(UNBOUND_SQL % where, args).fetchall()
+    except Exception:                                               # noqa: BLE001 - any failure falls back
+        return None
+
+
+def blocklist_size():
+    try:
+        with open(DNSBL_SIZE) as handle:
+            return int(handle.readline() or 0)
+    except (OSError, ValueError):
+        return 0
+
+
+def dns(store, now, hours=24):
+    """
+    What the network looked up. From Unbound's own store when it can be read
+    (§4.70): every question of the range, by device and by name. Otherwise from
+    stats.py (§4.64): its totals, and the last day's busiest clients.
+    Nothing is stored either way.
+    """
+    hours = 168 if int(hours or 24) > 24 else 24
+    since = now - hours * 3600
+    rows = unbound_rows(since)
+    if rows is not None:
+        clients = sorted({row[0] for row in rows})
+        windows = store.address_windows(clients, since - 3600, now)
+        devices, unplaced = dnslib.by_device(rows, windows)
+        totals = dnslib.totals_from_rows(rows, blocklist_size())
+        return {
+            'available': True,
+            'source': 'store',
+            'reason': None if totals['total'] else 'empty',
+            'now': now,
+            'since': since,
+            'hours': hours,
+            'totals': totals,
+            'clients': sorted(
+                [{'mac': mac, 'queries': e['queries'], 'addresses': sorted(e['addresses'])}
+                 for mac, e in devices.items()]
+                + [{'mac': None, 'queries': e['queries'], 'addresses': [client]}
+                   for client, e in unplaced.items()],
+                key=lambda entry: -entry['queries']),
+            'devices': sorted([dict(dnslib.device_summary(e), mac=mac) for mac, e in devices.items()],
+                              key=lambda entry: -entry['queries'])[:40],
+            'names': dnslib.names_by_askers(devices, unplaced),
+            'clients_read': True,
+        }
+    return dns_from_stats(store, now)
+
+
+def dns_from_stats(store, now):
+    """The stats.py path (§4.64): totals over what Unbound keeps, and the last day's clients."""
     totals_raw, clients_raw = read_json_commands([
         [UNBOUND_STATS, 'totals', '--max', '15'],
         [UNBOUND_STATS, 'rolling', '--interval', str(dnslib.SLOT), '--timeperiod', '24', '--clients'],
@@ -563,6 +657,8 @@ def dns(store, now):
             + [{'mac': None, 'queries': count, 'addresses': [address]} for address, count in unplaced.items()],
             key=lambda entry: -entry['queries']),
         'clients_read': clients_raw is not None,
+        'source': 'stats',
+        'hours': 24,
     }
 
 
@@ -581,6 +677,45 @@ def dns_device(store, now, mac, hours):
     others = [(address, first_seen, last_seen)
               for other, address, first_seen, last_seen
               in store.address_windows([window[0] for window in own], since, now) if other not in macs]
+    addresses = sorted({window[0] for window in own})
+
+    # every question, from Unbound's own store, where it can be read (§4.70):
+    # only the hours this device alone held the address count
+    rows = unbound_rows(since, addresses)
+    if rows is not None:
+        windows = store.address_windows(addresses, since - 3600, now)
+        devices, _ = dnslib.by_device(rows, windows)
+        mine = [devices[m] for m in macs if m in devices]
+        entry = {'queries': 0, 'blocked': 0, 'domains': {}, 'hours': {}, 'addresses': set()}
+        for part in mine:
+            entry['queries'] += part['queries']
+            entry['blocked'] += part['blocked']
+            entry['addresses'] |= part['addresses']
+            for domain, (count, blocked, blocklist, last) in part['domains'].items():
+                names = entry['domains'].setdefault(domain, [0, 0, None, 0])
+                names[0] += count
+                names[1] += blocked
+                names[2] = names[2] or blocklist
+                names[3] = max(names[3], last)
+            for hour, count in part['hours'].items():
+                entry['hours'][hour] = entry['hours'].get(hour, 0) + count
+        listed = sorted(entry['domains'].items(), key=lambda item: (-item[1][0], item[0]))
+        return {
+            'enabled': True,
+            'source': 'store',
+            'hours': hours,
+            'queries': entry['queries'],
+            'blocked': entry['blocked'],
+            'capped': False,
+            'domains': [{'domain': d, 'count': e[0], 'blocked': e[1], 'blocklist': e[2], 'last': e[3]}
+                        for d, e in listed],
+            'heatmap': dnslib.heatmap_cells(entry['hours']),
+            'addresses': addresses,
+            'asked': len(addresses),
+            'answered': len(addresses),
+            'capped_pieces': 0,
+        }
+
     pieces = dnslib.pieces(own, since, now, others, span=86400 if hours > 24 else 6 * 3600)
     answers = read_json_commands(
         [[UNBOUND_STATS, 'details', '--client', address, '--start', str(start), '--end', str(end)]
@@ -1058,7 +1193,7 @@ def main():
         return 0
 
     if args.duty == 'dns':
-        print(json.dumps(dns(Store(DB_PATH), int(time.time()))))
+        print(json.dumps(dns(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'dns-device':

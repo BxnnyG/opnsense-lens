@@ -183,6 +183,11 @@ namespace {
 
             $env = 'LENS_DB=' . escapeshellarg(PREVIEW_DB) . ' '
                 . 'LENS_UNBOUND_STATS=' . escapeshellarg(__DIR__ . '/unbound_stats.py') . ' ';
+            /* the second box's query store, read through core's own helper (§4.70) */
+            if (getenv('LENS_PREVIEW_UNBOUND') === '1') {
+                $env .= 'LENS_UNBOUND_DB=' . escapeshellarg(dirname(PREVIEW_DB) . '/unbound.duckdb') . ' '
+                    . 'LENS_SITE_PYTHON=' . escapeshellarg(getenv('OPNSENSE_CORE') . '/src/opnsense/site-python') . ' ';
+            }
             exec($env . $command . ' ' . $parameters . ' 2>/dev/null', $out, $code);
             $output = implode("\n", $out) . "\n";
 

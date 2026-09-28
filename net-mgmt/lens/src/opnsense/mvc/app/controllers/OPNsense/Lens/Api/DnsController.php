@@ -55,7 +55,8 @@ class DnsController extends ApiControllerBase
         $started = microtime(true);
         $unbound = self::unbound();
 
-        $raw = $unbound['enabled'] && $unbound['stats'] ? self::decode($backend, 'lens dns overview') : [];
+        $hours = (int)$this->request->get('hours', null, 24) > 24 ? 168 : 24;
+        $raw = $unbound['enabled'] && $unbound['stats'] ? self::decode($backend, 'lens dns overview ' . $hours) : [];
         $report = DnsReport::describe($raw, self::rows($backend), $unbound);
         $report['now'] = time();
         $report['timing'] = ['total_ms' => (int)round((microtime(true) - $started) * 1000)];

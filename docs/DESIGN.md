@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-27 against `os-lens-0.27_1`. "Router-tested" means
+*Brought up to date 2026-09-28 against `os-lens-0.28_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -244,7 +244,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
 | S10 · Wallboard / kiosk | 🔨 (stage 14) | built (§4.40, §4.48), not router-tested |
 | S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
-| S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: a per-device hour-of-week heatmap, the policy behind a block |
+| S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round now times every duty on the box. Observe waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34 |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
@@ -1897,3 +1897,18 @@ thing S2 already stores, and prune, purge and a device's deletion take it.
 **Consequences:** the attribution is unchanged — the same overlap rule, tested
 against the old query on the same store. The harvest carries a one-off cost
 after the upgrade while it sums the days it already holds.
+
+### §4.70 — DNS by device comes from Unbound's store, through core's own helper (2026-09-28)
+**Question:** the operator wants to know who asked for what, how often, and
+what was blocked — per device. `stats.py` offers per-client detail only as the
+newest 500 questions per call (§4.64). Read the store directly?
+**Decision:** yes, the way core's own `stats.py` does: `duckdb_helper.DbConnection`
+from `site-python`, read-only, one aggregate per page, summed per client, name
+and hour inside DuckDB. Each hour is put on the device that alone held the
+address, as traffic is (§4.26). Nothing is stored; the reading is the same
+seven days core's page reads, with the same coupling to `logger.py`'s table
+that `stats.py` has. Where the module or the file is missing, the `stats.py`
+path of §4.64 answers.
+**Consequences:** the DNS page and the device card count every question; the
+500 cap and its note disappear where the store is readable. A per-device week
+of questions becomes possible, and is drawn.

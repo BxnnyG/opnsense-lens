@@ -45,9 +45,10 @@ class Heatmap
 
     /**
      * @param array $cells [dow (0 = Sunday), hour, octets]
+     * @param bool $counts the cells are counts (DNS questions), not bytes
      * @return array
      */
-    public static function grid(array $cells): array
+    public static function grid(array $cells, bool $counts = false): array
     {
         $grid = array_fill(0, 7, array_fill(0, 24, 0));
 
@@ -75,7 +76,7 @@ class Heatmap
                 $out[] = [
                     'octets' => $octets,
                     'level' => self::level($octets, $peak),
-                    'text' => Bytes::human($octets),
+                    'text' => $counts ? number_format($octets) : Bytes::human($octets),
                 ];
             }
             $rows[] = $out;
@@ -85,7 +86,7 @@ class Heatmap
             'rows' => $rows,
             'days' => [gettext('Mon'), gettext('Tue'), gettext('Wed'), gettext('Thu'),
                        gettext('Fri'), gettext('Sat'), gettext('Sun')],
-            'peak' => Bytes::human($peak),
+            'peak' => $counts ? number_format($peak) : Bytes::human($peak),
             'busiest' => self::busiest($grid),
             'empty' => $peak === 0,
         ];

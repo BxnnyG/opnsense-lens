@@ -513,6 +513,10 @@ tr.lens-group > td { background: var(--lens-hover); }
     align-items: center; padding: 5px 0; border-top: 1px solid var(--lens-hairline);
 }
 .dns-name { overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+.dns-open { margin-left: 8px; font-size: 11px; }
+.dns-names { margin: 0 0 6px 18px; padding: 4px 0 6px 10px; border-left: 2px solid var(--lens-hairline); }
+.dns-name-line { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 1px 0; }
+
 /* a blocked name is not an alarm -- the blocklist did its job -- so it carries a word, not red */
 .dns-flag { font-size: 11px; color: var(--lens-muted); margin-left: 6px; }
 

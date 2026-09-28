@@ -18,6 +18,7 @@ builds it — core's own commands become the fixtures in `fixtures/`, and
 | `router.php` | `php -S` router: pages inside a copy of core's page chrome, `/api/lens/*` through the real controllers, static files from Lens first and core second |
 | `shoot.js` | Playwright screenshots of every page, three views each, and a warning for any page that scrolls sideways |
 | `fixtures/` | core's commands and config, recorded or shaped like the real thing |
+| `unbound_db.py` | Unbound's query store for the preview (needs the `duckdb` module): write it beside the seeded store as `unbound.duckdb` and the DNS pages read every question, as on a box |
 | `unbound_stats.py` | a stand-in for core's Unbound `stats.py`, answering in its shapes for the seeded devices |
 
 ## Use

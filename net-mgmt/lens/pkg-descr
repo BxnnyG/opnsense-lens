@@ -25,6 +25,16 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.28_1
+
+* DNS: who asked what, and what was asked by whom - every question of the last
+  24 hours or 7 days, per device with its blocked share and its names, and per
+  name with the devices that asked it. Read from Unbound's own record through
+  OPNsense's own reader, each hour on the device that alone held the address
+* a device's DNS card counts every question instead of a sample, and draws its
+  week of questions as a heatmap
+* where Unbound's record cannot be read this way, the page answers as before
+
 0.27_1
 
 * Devices, Events, Who's home and the weekly report answer on a busy box: the

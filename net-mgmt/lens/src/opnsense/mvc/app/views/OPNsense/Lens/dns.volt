@@ -45,7 +45,44 @@
                 .append($('<div/>').addClass('dv-num-cell').text(figure));
         };
 
-        ajaxGet('/api/lens/dns/overview', {}, (report, status) => {
+        const RANGES = { 24: '{{ lang._("24 hours") }}', 168: '{{ lang._("7 days") }}' };
+        const hours = parseInt(new URLSearchParams(location.search).get('hours'), 10) === 168 ? 168 : 24;
+        for (const h of [24, 168]) {
+            $('<a/>').addClass('lens-chip').toggleClass('lens-chip-on', h === hours)
+                .attr('href', location.pathname + '?hours=' + h).text(RANGES[h]).appendTo('#dnsRange');
+        }
+
+        /* who asked what (§4.70): a device, and under it the names it asked most */
+        let byDevice = [];
+        const drawByDevice = () => {
+            const $list = $('#dnsByDevice').empty();
+            for (const device of byDevice.filter(d => Lens.filter.matches(d))) {
+                const $names = $('<div/>').addClass('dns-names').hide();
+                for (const domain of device.domains) {
+                    const $line = $('<div/>').addClass('dns-name-line')
+                        .append($('<span/>').text(domain.domain))
+                        .append($('<span/>').addClass('dv-num-cell').text(domain.count));
+                    if (domain.blocked) {
+                        $line.find('span').first().append($('<span/>').addClass('dns-flag')
+                            .text('{{ lang._("blocked") }}' + (domain.blocklist ? ' \u00b7 ' + domain.blocklist : '')));
+                    }
+                    $names.append($line);
+                }
+                const $row = ranked(device.name, device.names + ' {{ lang._("names") }} \u00b7 '
+                    + device.blocked + ' {{ lang._("blocked") }} (' + device.blocked_pct + ')',
+                    device.bar, device.queries, { link: device.link });
+                const $open = $('<a/>').attr('href', '#').addClass('dns-open').text('{{ lang._("names") }} \u25be')
+                    .on('click', (event) => {
+                        event.preventDefault();
+                        $names.slideToggle(100);
+                    });
+                $row.find('.dns-name').append($open);
+                $list.append($row).append($names);
+            }
+            $('#dnsNoByDevice').toggle(!byDevice.length);
+        };
+
+        ajaxGet('/api/lens/dns/overview', { hours: hours }, (report, status) => {
             $('#dnsLoading').hide();
             if (status !== 'success' || !report || !report.state) {
                 $('#dnsError').show();
@@ -82,6 +119,24 @@
 
             clients = report.clients;
             drawClients();
+
+            /* from Unbound's own store: every question, by device and by name */
+            const store = report.source === 'store';
+            $('#dnsClientsBox').toggle(!store);
+            $('#dnsStoreBoxes').toggle(store);
+            $('#dnsRange').toggle(store);
+            if (store) {
+                byDevice = report.by_device || [];
+                drawByDevice();
+                const $names = $('#dnsByName').empty();
+                for (const name of report.by_name || []) {
+                    $names.append(ranked(name.domain,
+                        (name.blocked ? '{{ lang._("blocked") }} ' + name.blocked_count
+                            + (name.blocklist ? ' \u00b7 ' + name.blocklist : '') + ' \u00b7 ' : '')
+                        + name.askers.map(a => a.name + ' ' + a.count).join(', '),
+                        name.bar, name.count));
+                }
+            }
             $('#dnsReport').show();
         });
 
@@ -96,17 +151,19 @@
             }
             $('#dnsNoClients').toggle(!shown.length);
         };
-        Lens.filter.mount(document.getElementById('dnsClients'), () => {
+        Lens.filter.mount(document.getElementById('dnsFilterHere'), () => {
             if (clients) {
                 drawClients();
+                drawByDevice();
             }
         });
     });
 </script>
 
 <div class="who-head">
-    <div>{{ lang._('What the devices here asked Unbound for, and what its blocklists stopped - by device, not by address. Lens keeps none of it; it reads Unbound\'s own seven days when this page opens.') }}</div>
-    <div><a href="/ui/unbound/overview">{{ lang._('Reporting: Unbound DNS') }} &rsaquo;</a></div>
+    <div>{{ lang._('What the devices here asked Unbound for, and what its blocklists stopped - by device, not by address. Lens keeps none of it; it reads Unbound\'s own seven days when this page opens.') }}
+        <a href="/ui/unbound/overview">{{ lang._('Reporting: Unbound DNS') }} &rsaquo;</a></div>
+    <div id="dnsRange" style="display: none;"></div>
 </div>
 
 <div id="dnsLoading"><i class="fa fa-spinner fa-spin"></i> {{ lang._('Asking Unbound...') }}</div>
@@ -144,7 +201,25 @@
         </div>
     </div>
 
-    <div class="content-box dv-card" style="margin-top: 14px;">
+    <div id="dnsFilterHere"></div>
+    <div id="dnsStoreBoxes" style="display: none;">
+        <div class="dv-grid" style="margin-top: 14px;">
+            <div class="content-box dv-card">
+                <div class="dv-title"><span>{{ lang._('Who asked what') }}</span></div>
+                <div id="dnsByDevice"></div>
+                <div id="dnsNoByDevice" class="dv-sub" style="display: none;">{{ lang._('No device asked anything in this range.') }}</div>
+            </div>
+            <div class="content-box dv-card">
+                <div class="dv-title"><span>{{ lang._('What was asked, and by whom') }}</span></div>
+                <div id="dnsByName"></div>
+            </div>
+        </div>
+        <div class="lens-note-under">
+            {{ lang._('Every question in the range, from Unbound\'s own record. Each hour\'s questions from an address belong to the device that alone held it in that hour; an hour two devices shared belongs to nobody.') }}
+        </div>
+    </div>
+
+    <div id="dnsClientsBox" class="content-box dv-card" style="margin-top: 14px;">
         <div class="dv-title"><span>{{ lang._('Devices asking most, last 24 hours') }}</span></div>
         <div id="dnsClients"></div>
         <div id="dnsNoClients" class="dv-sub">{{ lang._('Unbound named no clients for the last day.') }}</div>

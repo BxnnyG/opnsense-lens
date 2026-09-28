@@ -151,9 +151,9 @@
         };
 
         /* ------------------------------------------------ the week */
-        const heatmap = (grid) => {
-            const $hm = $('#dvHeatmap').empty();
-            $hm.append($('<div/>'));
+        /* a 7 x 24 grid into $hm: the traffic week and the DNS week draw alike */
+        const drawGrid = (grid, $hm) => {
+            $hm.empty().append($('<div/>'));
             for (let hour = 0; hour < 24; hour++) {
                 $hm.append($('<div/>').addClass('hm-hour').text(hour % 3 === 0 ? hour : ''));
             }
@@ -166,6 +166,9 @@
                     $hm.append($cell);
                 });
             });
+        };
+        const heatmap = (grid) => {
+            drawGrid(grid, $('#dvHeatmap'));
             $('#dvHeatmapNote').text(grid.empty
                 ? '{{ lang._("Nothing measured in the last four weeks.") }}'
                 : '{{ lang._("Four weeks folded onto one, local time. Busiest:") }} ' + grid.peak
@@ -349,6 +352,15 @@
                     $('#dvDnsSummary').text(report.summary || '');
                     $('#dvDnsNote').text(report.note || '');
                     $('#dvDnsSettings').toggle(!!report.settings);
+                    /* its week of questions, local time (§4.70) */
+                    $('#dvDnsWeek').toggle(!!report.heatmap);
+                    if (report.heatmap) {
+                        drawGrid(report.heatmap, $('#dvDnsHeatmap'));
+                        $('#dvDnsHeatmapNote').text(report.heatmap.empty ? ''
+                            : '{{ lang._("Questions per hour of the week, local time. Busiest:") }} ' + report.heatmap.peak
+                              + (report.heatmap.busiest ? ' \u00b7 ' + report.heatmap.days[report.heatmap.busiest.day]
+                                 + ' ' + report.heatmap.busiest.hour + ':00' : ''));
+                    }
                     for (const row of report.rows || []) {
                         const $name = $('<div/>').addClass('dns-name').text(row.domain);
                         if (row.blocked) {
@@ -570,6 +582,10 @@
             <div id="dvDnsBusy" style="display: none;"><i class="fa fa-spinner fa-spin"></i> {{ lang._('Asking Unbound about each address it held...') }}</div>
             <div class="dv-sub" id="dvDnsSummary" style="margin-bottom: 6px;"></div>
             <div id="dvDnsRows"></div>
+            <div id="dvDnsWeek" style="display: none; margin-top: 12px;">
+                <div class="hm-scroll"><div class="hm" id="dvDnsHeatmap"></div></div>
+                <div class="dv-sub" id="dvDnsHeatmapNote"></div>
+            </div>
             <div class="lens-note-under" id="dvDnsNote"></div>
             <a href="/ui/lens/settings" id="dvDnsSettings" style="display: none;">{{ lang._('Services: Lens: Settings') }} &rsaquo;</a>
         </div>
