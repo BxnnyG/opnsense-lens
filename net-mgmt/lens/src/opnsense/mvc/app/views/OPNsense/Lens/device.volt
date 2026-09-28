@@ -252,6 +252,8 @@
                     ? '{{ lang._("Tell me about this device again") }}'
                     : '{{ lang._("Stop telling me about this device: its events fold away, its figures stay") }}');
             /* deleting lives on Services: Lens: Privacy, behind its privilege (§4.72) */
+            $('#dvCompare').attr('href', '/ui/lens/compare?devices='
+                + encodeURIComponent((device.macs || [device.mac]).join(',')));
             $('#dvForget').attr('href', '/ui/lens/privacy?mac='
                 + encodeURIComponent((device.macs || [device.mac]).join(',')));
             if (device.label.note) {
@@ -485,6 +487,10 @@
             <a href="#" id="dvMute" class="btn btn-default btn-sm"></a>
             <a href="#" id="dvEdit" class="btn btn-default btn-sm">
                 <i class="fa fa-pencil"></i> {{ lang._('Name it') }}
+            </a>
+            <a href="/ui/lens/compare" id="dvCompare" class="btn btn-default btn-sm"
+               title="{{ lang._('Put this device next to others') }}">
+                <i class="fa fa-columns"></i> {{ lang._('Compare') }}
             </a>
             <a href="/ui/lens/privacy" id="dvForget" class="btn btn-default btn-sm"
                title="{{ lang._('Delete everything Lens holds about this device') }}">

@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-28 against `os-lens-0.30_1`. "Router-tested" means
+*Brought up to date 2026-09-28 against `os-lens-0.31_1`. "Router-tested" means
 the operator clicked it on a box; "built" means tests only — PROCESS calls that
 "plausible".*
 
@@ -237,7 +237,7 @@ the operator clicked it on a box; "built" means tests only — PROCESS calls tha
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 10 (day-long window pieces and summed days since stage 41, §4.69), observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
-| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built; up to four devices side by side since stage 47 (§4.73) |
 | S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
@@ -1943,3 +1943,13 @@ page names each and where it is kept.
 still on the network is seen again at the next observation — the page says so;
 keeping it out for good would need a list of MACs to ignore, which is itself a
 record (BACKLOG).
+
+### §4.73 — A comparison is the device page's reads side by side (2026-09-28)
+**Question:** the operator wants devices compared. A new aggregate, or the
+history each device page already reads?
+**Decision:** the history, per device, aligned on one time axis by `Compare`;
+at most four devices, one line each in the fixed categorical order by their
+place in the URL. Bytes against bytes on one axis — never a second scale.
+**Consequences:** a comparison and a device's page cannot disagree about that
+device. Four is a hard limit: a fifth line is not readable, and a fifth read is
+load for nothing.

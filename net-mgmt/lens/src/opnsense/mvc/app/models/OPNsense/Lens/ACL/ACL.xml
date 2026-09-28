@@ -28,6 +28,7 @@
             <pattern>ui/lens/device*</pattern>
             <pattern>ui/lens/events*</pattern>
             <pattern>ui/lens/report*</pattern>
+            <pattern>ui/lens/compare*</pattern>
             <pattern>api/lens/dashboard/*</pattern>
             <pattern>api/lens/events/*</pattern>
             <pattern>api/lens/metrics/*</pattern>

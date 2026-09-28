@@ -15,6 +15,7 @@
                      selects nothing there and the sidebar collapses (stage 33),
                      the way core keeps system_authservers.php* under Servers -->
                 <Device VisibleName="Device" url="/ui/lens/device*" visibility="hidden"/>
+                <Compare VisibleName="Compare" url="/ui/lens/compare*" visibility="hidden"/>
             </Devices>
             <Presence order="15" VisibleName="Who's home" url="/ui/lens/presence"/>
             <Segments order="20" VisibleName="Networks" url="/ui/lens/segments"/>

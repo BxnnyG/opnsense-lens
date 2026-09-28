@@ -93,8 +93,14 @@ foreach (['Reporting', 'Services'] as $root) {
     foreach ($menu->$root->Lens->children() as $item) {
         $url = (string)$item['url'];
         $items[] = [$root, (string)$item['VisibleName'], $url];
-        if ($url === "/ui/lens/$page" || ($page === 'device' && $url === '/ui/lens/overview')) {
-            $title = "$root: Lens: " . ($page === 'device' ? 'Device' : (string)$item['VisibleName']);
+        if ($url === "/ui/lens/$page") {
+            $title = "$root: Lens: " . (string)$item['VisibleName'];
+        }
+        /* the hidden children of Devices, as core names them: parent, then child */
+        foreach ($item->children() as $child) {
+            if ((string)$child['url'] === "/ui/lens/$page*") {
+                $title = "$root: Lens: " . (string)$item['VisibleName'] . ': ' . (string)$child['VisibleName'];
+            }
         }
     }
 }

@@ -64,6 +64,7 @@ ENDPOINTS = [
     'store/status',
     'settings/get',
     'privacy/kept',
+    'devices/compare?hours=168',
 ]
 
 # PROCESS §4: no page takes longer than a couple of seconds

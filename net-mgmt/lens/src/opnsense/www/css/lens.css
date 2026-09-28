@@ -32,6 +32,11 @@
 
     --lens-received: #2a78d6;
     --lens-sent: #eb6834;
+    /* devices compared: the validated categorical order, slot by slot (§4.73) */
+    --lens-cmp-1: #2a78d6;
+    --lens-cmp-2: #eb6834;
+    --lens-cmp-3: #1baf7a;
+    --lens-cmp-4: #eda100;
     --lens-data: #2a78d6;
     --lens-data-wash: rgba(42, 120, 214, 0.12);
 
@@ -64,6 +69,10 @@ html.lens-dark {
 
     --lens-received: #3987e5;
     --lens-sent: #d95926;
+    --lens-cmp-1: #3987e5;
+    --lens-cmp-2: #d95926;
+    --lens-cmp-3: #199e70;
+    --lens-cmp-4: #c98500;
     --lens-data: #3987e5;
     --lens-data-wash: rgba(57, 135, 229, 0.18);
 
@@ -787,4 +796,30 @@ tr.lens-group > td { background: var(--lens-hover); }
 .lens-forget-note { margin: 10px 0 0; min-height: 1.4em; }
 @media (max-width: 767px) {
     #privPage td.lens-num { text-align: left; }
+}
+
+/* ---------------------------------------------------------------- compare */
+
+.lens-toolbar { margin-bottom: 10px; }
+.cmp-pick { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; }
+.cmp-slot { display: inline-flex; align-items: center; gap: 6px; }
+.cmp-select { width: 16em; max-width: 70vw; }
+.cmp-key { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.cmp-s1 { background: var(--lens-cmp-1); stroke: var(--lens-cmp-1); }
+.cmp-s2 { background: var(--lens-cmp-2); stroke: var(--lens-cmp-2); }
+.cmp-s3 { background: var(--lens-cmp-3); stroke: var(--lens-cmp-3); }
+.cmp-s4 { background: var(--lens-cmp-4); stroke: var(--lens-cmp-4); }
+.cmp-line {
+    fill: none; background: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+.cmp-chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 12px; }
+.cmp-legend { margin-right: 14px; white-space: nowrap; }
+.cmp-chart { display: block; width: 100%; height: 240px; margin-top: 6px; }
+.cmp-table { margin-top: 14px; }
+.cmp-table a { color: inherit; }
+@media (max-width: 767px) {
+    /* stacked on a phone, each figure says what it is */
+    .cmp-table > tbody > tr > td[data-label] { display: flex; justify-content: space-between; text-align: left; }
+    .cmp-table > tbody > tr > td[data-label]::before { content: attr(data-label); color: var(--lens-muted); }
 }

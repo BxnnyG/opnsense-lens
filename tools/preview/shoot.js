@@ -41,6 +41,7 @@ const PAGES = {
     preflight: '/ui/lens/preflight',
     settings: '/ui/lens/settings',
     privacy: '/ui/lens/privacy?mac=2c:aa:8e:40:50:60',
+    compare: '/ui/lens/compare?devices=00:11:32:aa:bb:cc|2c:aa:8e:40:50:60|da:a1:19:5e:00:01&hours=168',
 };
 
 const ALL_VIEWS = [

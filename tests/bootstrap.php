@@ -75,3 +75,4 @@ require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/L
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceReport.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Wall.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Privacy.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Compare.php';

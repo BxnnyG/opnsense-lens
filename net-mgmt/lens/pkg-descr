@@ -25,6 +25,13 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.31_1
+
+* compare up to four devices: one chart with a line each, what each moved,
+  sent and received, its share and its busiest hour or day, and the difference
+  in one sentence - over 24 hours, 7 or 30 days. From a device's page
+  ("Compare")
+
 0.30_1
 
 * Services: Lens: Privacy: what Lens keeps about the devices on the network,

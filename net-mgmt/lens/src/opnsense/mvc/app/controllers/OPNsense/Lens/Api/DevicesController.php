@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\Bytes;
+use OPNsense\Lens\Compare;
 use OPNsense\Lens\Destinations;
 use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceProfile;
@@ -137,6 +138,73 @@ class DevicesController extends ApiControllerBase
             LineQuality::describe($raw['gateways'], []),
             (array)($raw['internet']['latest'] ?? [])
         );
+
+        return $report;
+    }
+
+    /**
+     * Up to four devices side by side (§4.73): `devices` is each device's MACs,
+     * comma-separated, and the devices separated by `|`.
+     *
+     * @return array
+     */
+    public function compareAction()
+    {
+        $groups = array_values(array_filter(explode('|', (string)$this->request->get('devices', null, ''))));
+        if (count($groups) > Compare::MAX) {
+            return ['status' => 'failed', 'message' => gettext('Choose between one and four devices.')];
+        }
+        $lists = [];
+        foreach ($groups as $group) {
+            $macs = DeviceReport::macs($group);
+            if ($macs === null) {
+                return ['status' => 'failed', 'message' => gettext('not a MAC address')];
+            }
+            $lists[] = $macs;
+        }
+
+        $backend = new Backend();
+        $calls = [];
+        $hours = Window::hours($this->request->get('hours', null, 168));
+        $status = self::decode($backend, 'lens status', $calls);
+        $rows = DeviceReport::describe(
+            self::decode($backend, 'lens devices', $calls),
+            self::decode($backend, 'interface list macdb', $calls),
+            [],
+            isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,
+            time(),
+            [],
+            (bool)($status['fold_randomised'] ?? true)
+        )['devices'];
+
+        $entries = [];
+        foreach ($lists as $macs) {
+            $row = null;
+            foreach ($rows as $candidate) {
+                if (array_intersect($macs, (array)($candidate['macs'] ?? [$candidate['mac']])) !== []) {
+                    $row = $candidate;
+                    break;
+                }
+            }
+            $entries[] = [
+                'row' => $row,
+                'macs' => $macs,
+                'raw' => self::decode($backend, 'lens device ' . implode(',', $macs) . ' ' . $hours, $calls),
+            ];
+        }
+
+        $report = Compare::describe($entries, $hours);
+        /* what the pickers offer: every device, by the name every page uses */
+        $report['choices'] = array_map(function ($row) {
+            return [
+                'macs' => implode(',', (array)($row['macs'] ?? [$row['mac']])),
+                'name' => $row['name'] . (!empty($row['owner']) ? ' (' . $row['owner'] . ')' : ''),
+            ];
+        }, $rows);
+        usort($report['choices'], function ($left, $right) {
+            return strcasecmp($left['name'], $right['name']);
+        });
+        $report['timing'] = ['calls' => $calls];
 
         return $report;
     }

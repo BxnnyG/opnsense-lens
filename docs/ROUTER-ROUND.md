@@ -155,6 +155,9 @@ The preview (`tools/preview`) already showed every page at desktop, dark and
       with plausible services; the store size on Services: Lens grows by
       megabytes, not hundreds
 - [ ] **Networks** (stage 17): cards, rings, sparklines; a card opens its devices
+- [ ] **Compare** (stage 47): from a device's page, add two more; each line
+      keeps its colour when the range changes; the table's totals match each
+      device's own page for the same range
 - [ ] **Wallboard** (stages 14, 45): on the real screen it will hang on. Fill
       the screen: clock, figures, the live panel and *Just now* all fit without
       scrolling, and are readable from across the room. The round's timing for
