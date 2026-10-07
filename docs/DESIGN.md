@@ -2024,3 +2024,21 @@ it.
 *unknown* depends on which interfaces have ever had a device on them. A device
 appearing for the first time on a new VLAN does not re-sort the settled hours
 before it. Device totals are unaffected.
+
+### §4.77 — The first page after installing has something on it (2026-10-07)
+**Question:** the self-check (VISION, 2026-10-07) found Lens's first impression
+empty: "learning", "not watching yet", for up to thirty minutes after install —
+while core already held a day of per-device NetFlow and the ARP table.
+**Decision:** the post-install script starts one observation and one harvest in
+the background, detached, five seconds after configd is back.
+**What that gives, and what it does not.** At once: the devices on the network,
+the internet panel and the line, DNS where Unbound records, and 23 hours of
+traffic **per network** — the Networks page, the dashboard's timeline and its
+heatmap. **Not** traffic per *device* for the hours before the install: Lens
+learns who held which address from that moment on, so those hours stay
+"before Lens watched" (§4.28) — said, not hidden.
+**What could close that, recorded rather than built:** DHCP leases carry when
+an address was handed to which MAC (ISC and Kea say so outright; dnsmasq gives
+only an expiry). Seeded into attribution — but **not** into presence, since a
+lease is not proof anyone was home — they would make the backfilled day
+attributable per device too. BACKLOG #48.

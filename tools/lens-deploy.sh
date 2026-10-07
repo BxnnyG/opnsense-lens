@@ -41,12 +41,12 @@ deploy() {
 		return
 	fi
 
-	rsync -a --delete --exclude vendor --exclude .git -e "$ssh" \
+	rsync -a --no-owner --no-group --delete --exclude vendor --exclude .git -e "$ssh" \
 		"$REPO/" "root@$host:$REMOTE/"
 
 	# version.sh wants a .git it does not have here; the warning is expected
 	# and harmless, so only the lines that matter are kept.
-	if $ssh "root@$host" "cd $REMOTE/net-mgmt/lens && make package && make upgrade" \
+	if $ssh "root@$host" "chown -R root:wheel $REMOTE && cd $REMOTE/net-mgmt/lens && make package && make upgrade" \
 		2>&1 | grep -Ev 'not a git repository|version\.sh.*returned non-zero'; then
 		:
 	else

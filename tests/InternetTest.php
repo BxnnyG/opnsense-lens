@@ -147,4 +147,12 @@ class InternetTest extends TestCase
         $this->assertSame('2003:e0::1', $net['wan']['ipv6']);
         $this->assertSame('ModemDHCP', $net['wan']['name']);
     }
+
+    public function testALinkLocalAddressIsNotShownAsTheInternetAddress()
+    {
+        $net = Internet::describe(['wan' => [['address' => '93.1.2.3'], ['address' => 'fe80::a6bf:1ff:fe2e:e533%igb0']]],
+                                  $this->probes([]), [], self::WAN, self::NOW);
+
+        $this->assertNull($net['wan']['ipv6']);
+    }
 }

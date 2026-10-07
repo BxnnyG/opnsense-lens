@@ -118,7 +118,10 @@ class Internet
             return null;
         }
 
-        return (string)$entry['address'];
+        /* a link-local address is no address on the internet; the second
+           firewall's IPv6 WAN showed fe80::... until this said so */
+        $address = (string)$entry['address'];
+        return stripos($address, 'fe80:') === 0 ? null : $address;
     }
 
     private static function probes(array $probes): array

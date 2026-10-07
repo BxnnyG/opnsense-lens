@@ -7,3 +7,15 @@
 # 2026-08-30. This is the same line q-feeds-connector ships for the same reason.
 
 /usr/local/sbin/pluginctl -s cron restart
+
+# The first page after installing should not say "not watching yet" (§4.77).
+# Core already holds a day of per-device NetFlow and the ARP table at this
+# moment; one observation and one harvest turn that into devices, a day of
+# traffic per network and an internet panel before anyone opens Lens.
+#
+# In the background, because a harvest on a busy box takes seconds and the
+# package manager should not wait for it; detached with daemon(8), because
+# this script's shell is gone by then. configd was restarted above this point
+# in the generated script, so configctl reaches it. Upgrades run it too, which
+# costs one observation and one "already up to date".
+/usr/sbin/daemon -f /bin/sh -c 'sleep 5; /usr/local/sbin/configctl lens observe; /usr/local/sbin/configctl lens harvest' >/dev/null 2>&1 || true

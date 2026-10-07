@@ -219,6 +219,12 @@ data Lens already keeps; none is planned before the router round.
   a Kea box, mentioned nowhere a reader would look.
 - **#47 — Two or three outside testers** from the forum, before stage 50.
 
+- **#48 — Leases as past identity.** At install, DHCP leases (ISC and Kea give a
+  start; dnsmasq only an expiry) could say who held an address in the day core
+  already holds, so the backfilled hours attribute per device too. Into
+  attribution only, never into presence: a lease is not proof anyone was home.
+  (§4.77)
+
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed.
 

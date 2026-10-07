@@ -968,7 +968,55 @@ class Store:
         )
 
     def network_heatmap(self, since):
-        """The same, for everything on the operator's own segments."""
+        """
+        The same, for everything on the operator's own segments.
+
+        Settled hours come from the sums (§4.76): what a device sent and
+        received, plus everything unattributed that was not the far end, is
+        exactly the traffic on the operator's own segments. Only the hours not
+        settled yet are read raw. Four weeks of raw buckets took 3.5 s on the
+        second firewall.
+        """
+        done = self.done_hours(since, FOREVER)
+        per_bucket = {}
+        for bucket, octets in self.db.execute(
+                """SELECT bucket, sum(sent + received) FROM device_hour
+                   WHERE bucket >= ? GROUP BY bucket""", (since,)):
+            per_bucket[bucket] = per_bucket.get(bucket, 0) + (octets or 0)
+        for bucket, octets in self.db.execute(
+                """SELECT bucket, sum(octets) FROM unattributed_hour
+                   WHERE bucket >= ? AND reason <> 'far_end' GROUP BY bucket""", (since,)):
+            per_bucket[bucket] = per_bucket.get(bucket, 0) + (octets or 0)
+        # raw, but only across the gaps: while a big store catches up the
+        # unsettled hours are the newest few *and* the oldest ones
+        for start, end in self._gaps(since, done):
+            for bucket, octets in self.db.execute(
+                    """SELECT bucket, sum(octets) FROM traffic_hour
+                       WHERE bucket >= ? AND bucket < ?
+                         AND interface IN (SELECT DISTINCT interface FROM address_observation)
+                       GROUP BY bucket""", (start, end)):
+                per_bucket[bucket] = per_bucket.get(bucket, 0) + (octets or 0)
+
+        # local time, as SQLite's 'localtime' did: the firewall's own clock
+        cells = {}
+        for bucket, octets in per_bucket.items():
+            moment = time.localtime(bucket)
+            key = ((moment.tm_wday + 1) % 7, moment.tm_hour)      # 0 = Sunday, as strftime('%w')
+            cells[key] = cells.get(key, 0) + octets
+        return [{'dow': dow, 'hour': hour, 'octets': octets} for (dow, hour), octets in cells.items()]
+
+    def _gaps(self, since, done):
+        """:return: [start, end) ranges from `since` onward that are not settled"""
+        gaps, start = [], since
+        for bucket in sorted(done):
+            if bucket > start:
+                gaps.append((start, bucket))
+            start = max(start, bucket + 3600)
+        gaps.append((start, FOREVER))
+        return gaps
+
+    def _network_heatmap_raw(self, since):
+        """The raw form, kept for the test that holds the two equal."""
         return self.db.execute(
             """SELECT CAST(strftime('%w', bucket, 'unixepoch', 'localtime') AS INTEGER) AS dow,
                       CAST(strftime('%H', bucket, 'unixepoch', 'localtime') AS INTEGER) AS hour,

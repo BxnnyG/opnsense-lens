@@ -110,6 +110,20 @@ class SettledTest(unittest.TestCase):
         self.assertNotIn('aa', after[0])
         self.assertSameTotals(self.live(BASE, self.now), after)
 
+    def heat(self, rows):
+        return {(r['dow'], r['hour']): r['octets'] for r in rows}
+
+    def test_the_network_week_is_the_same_settled_or_raw(self):
+        raw = self.heat(self.store._network_heatmap_raw(0))
+
+        self.assertEqual(raw, self.heat(self.store.network_heatmap(0)))
+        self.store.fill_hours(self.now, limit=5)          # partly settled: gaps both ends
+        self.store.commit()
+        self.assertEqual(raw, self.heat(self.store.network_heatmap(0)))
+        self.store.fill_hours(self.now)
+        self.store.commit()
+        self.assertEqual(raw, self.heat(self.store.network_heatmap(0)))
+
     def test_purge_and_prune_take_the_sums_with_them(self):
         self.store.fill_hours(self.now)
         self.store.commit()
