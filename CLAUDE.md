@@ -24,10 +24,15 @@ It lives in its own repository and is not going upstream (§4.1, §4.2).
 5. **Do not fix past the report.** Reproduce first — here that means capturing
    the API response or the store rows that produced the symptom, as a fixture.
    If it cannot be reproduced, prove that instead of editing a correct file.
-6. **Read-only, with one named exception.** Lens reads core's data and writes
+6. **Read-only, with two named exceptions.** Lens reads core's data and writes
    its own store. It may switch on the data sources it needs (§4.5) — never on
    install, never silently, always reversibly. It never writes a firewall rule,
-   a route, an alias or a DNS policy (§4.9).
+   a route, an alias or a DNS policy (§4.9) — **except one rule and one alias
+   for pausing a device (§4.74, operator's decision 2026-10-07):** one floating
+   block rule named "Lens: paused devices" and one MAC alias `lens_paused`, both
+   created through core's own API so they show in the GUI and the config
+   history, only ever on the operator's click, removed on uninstall. Nothing
+   else in this line moves.
 7. **The box must stay a firewall.** State the load cost of every new query
    (§4.8), measure it on real hardware, and check after every install that the
    web interface is still responsive and the collector is not running hot. A

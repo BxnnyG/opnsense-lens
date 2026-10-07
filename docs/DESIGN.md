@@ -1953,3 +1953,22 @@ place in the URL. Bytes against bytes on one axis — never a second scale.
 **Consequences:** a comparison and a device's page cannot disagree about that
 device. Four is a hard limit: a fifth line is not readable, and a fifth read is
 load for nothing.
+
+### §4.74 — The second exception: one rule and one alias, to pause a device (2026-10-07, operator)
+**Question:** stage 49 was planned in full and blocked on the one line an agent
+may not move: CLAUDE.md rule 6 and §4.9, Lens never writes a firewall rule or
+an alias. The operator was asked to decide.
+**Decision (operator, 2026-10-07: "gerne"):** the line moves for this one case
+and no other. Lens may create **one** floating block rule, "Lens: paused
+devices", and **one** MAC alias, `lens_paused`; pausing adds a device's MACs to
+the alias, resuming removes them, the rule stays and stays empty when nothing is
+paused. Everything goes through core's own API, so it is visible in the GUI, in
+the configuration history and in a backup like a rule written by hand, and the
+uninstall removes both.
+**What it does not license:** any other rule, any other alias, any route, any
+DNS policy, any change without a click. A third exception would need its own
+decision of this kind.
+**Order:** recorded now, built after the router round passes (BACKLOG, restated
+2026-10-07). The guards in the stage 49 plan — never the firewall's own MACs,
+never the device the click came from, never the management network, every pause
+an Event — are part of the decision, not options.

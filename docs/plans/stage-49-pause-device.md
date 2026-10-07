@@ -1,4 +1,4 @@
-# Stage 49 — Pause a device (Plan, blocked on the operator)
+# Stage 49 — Pause a device (Plan, decided 2026-10-07 — §4.74)
 
 > Systems: S1, S5 · Operator's request 2026-09-27 ("Gerät pausieren, maybe
 > doch, wenn es eine gut erkennbare Regel im globalen Regelwerk erstellt") ·
@@ -40,3 +40,10 @@ routed traffic, not traffic between two devices on the same network.
 1. Amend rule 6 / §4.9 with this one named exception — yes or no.
 2. MAC alias (follows the device across addresses) or host alias (simpler,
    loses it on a new lease)?
+
+
+## 6. Decided (2026-10-07)
+
+The operator said yes. CLAUDE.md rule 6 now names this exception and §4.74
+records it, including what it does not license. Built once the router round
+passes.

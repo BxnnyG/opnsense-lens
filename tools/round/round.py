@@ -88,10 +88,32 @@ section dns;       configctl unbound qstats totals 10 2>&1
 section ipv6;      start=$(date +%s); ping -6 -c 3 -t 4 -q 2620:fe::fe > /dev/null 2>&1; code=$?; echo "exit=$code seconds=$(( $(date +%s) - start ))"
 # what each page waits for, measured on the box itself (stage 41)
 section timings
+# Timed in Python, not with /usr/bin/time: the first round on both boxes
+# (2026-10-07) reported every duty as "did not answer" on two versions alike,
+# which is the shape of a missing tool, not of nine broken duties.
 for duty in devices status 'traffic 24' 'traffic 168' baseline 'events 7' 'events 30' 'presence 24' 'segments 24'; do
-    real=$( { /usr/bin/time -p configctl lens $duty > /dev/null 2>&1; } 2>&1 | awk '/^real/ {print $2}' )
+    real=$(/usr/local/bin/python3 -c '
+import subprocess, sys, time
+start = time.time()
+try:
+    done = subprocess.run(["/usr/local/sbin/configctl", "lens"] + sys.argv[1:],
+                          capture_output=True, text=True, timeout=120)
+except subprocess.TimeoutExpired:
+    print("timeout after 120 s")
+    sys.exit()
+took = time.time() - start
+answer = (done.stdout or "").strip()
+if not answer.startswith(("{", "[")):
+    print("answered %r" % answer[:80])
+else:
+    print("%.2f" % took)
+' $duty 2>&1 | tail -1)
     echo "$duty=$real"
 done
+# whatever python is eating the CPU, with its whole command line: on router-01
+# one ran at 99% for 1422 minutes and top only says "python3.13"
+section python
+ps -axww -o pid,etime,time,pcpu,command | grep '[p]ython' | sort -k4 -rn | head -6
 section end
 '''
 
@@ -268,13 +290,13 @@ def judge_ssh(report, sec, expected_version):
         try:
             seconds = float(real)
         except ValueError:
-            report.check('duty %s' % duty, 'FAIL', 'did not answer')
+            report.check('duty %s' % duty, 'FAIL', real.strip() or 'did not answer')
             continue
         report.check('duty %s' % duty,
                      'ok' if seconds <= DUTY_OK else ('look' if seconds <= DUTY_SLOW else 'FAIL'),
                      '%.2f s on the box' % seconds)
 
-    for name in ('cpu', 'uptime', 'segments', 'settings'):
+    for name in ('python', 'cpu', 'uptime', 'segments', 'settings'):
         if sec.get(name):
             report.note(name, sec[name])
 
