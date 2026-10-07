@@ -206,6 +206,22 @@ data Lens already keeps; none is planned before the router round.
 - **#41 — Say how sure the device type is.** 🔨 built 2026-09-27 as stage 38 (§4.66). Certain, likely, vendor only —
   never a percentage Lens has no model to produce.
 
+### From the self-check, 2026-10-07 (see [VISION.md](VISION.md))
+
+- **#44 — Services from DNS.** A curated map of domain suffixes to services, so
+  "who asked what" becomes "who uses Netflix, WhatsApp, Steam" — the feeling
+  Zenarmor gives on day one, from what stages 36 and 44 already store. Limits on
+  the page: Unbound only, approximate behind CDNs, blind to DNS over HTTPS.
+- **#45 — Backfill at install.** One observation and one harvest from the
+  post-install script, so the first page after installing already shows the day
+  core was holding, instead of "not watching yet".
+- **#46 — Kea, said and tested.** Supported in code since stage 4, never seen on
+  a Kea box, mentioned nowhere a reader would look.
+- **#47 — Two or three outside testers** from the forum, before stage 50.
+
+**Rule for now, restated because it was broken:** nothing new starts until
+`tools/round` has run on both boxes and its findings are fixed.
+
 ## 3. P2 — Worth doing
 
 - **#7 — A package feed.** 🔨 the build half done 2026-09-27 as stage 40

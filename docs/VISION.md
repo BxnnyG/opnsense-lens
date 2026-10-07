@@ -274,3 +274,84 @@ The dashboard shipped today closes most of the *look* gap to Zenarmor. The
 from data already kept. The *depth* gap for technical users is #27 and #30. The
 *trust* gap for everyone is #20, because "is it slow" is the question every one
 of these people has eventually, and Lens cannot answer the latency half of it.
+
+## Self-check: why it does not yet feel like "oh — OPNsense, but properly" (2026-10-07)
+
+Asked by the operator after 0.16: *"ist schon geiler, gibt mir aber nicht das
+AHH GEIL"* — the feeling of installing Zenarmor and thinking OPNsense is not so
+plain after all. Written with an outside review in hand, which is answered point
+by point at the end.
+
+### The first finding is not about features
+
+The last time anyone saw Lens on a router was 0.16, on 2026-09-25. Since then
+0.17 to 0.31 were built — the design pass with one stylesheet for both themes,
+the palette, Events, the DNS pages, the second wallboard, compare, privacy —
+and looked at only in `tools/preview`. Twenty-five rows of the roadmap read
+"awaiting router test", "looked at in tools/preview" or "waiting on the
+operator". The feeling being reported is the feeling of 0.16.
+
+That is not an excuse, it is the finding: this project has been building faster
+than it has been looking, which is the exact pattern its own BACKLOG warns
+against — and every design pass so far improved most from a screenshot, not
+from the editor (§4.47, §4.48). `tools/round` exists for this. Nothing new
+should start until it has run on both boxes.
+
+### What the moment after installing Zenarmor actually consists of
+
+1. **Names of services, within a minute.** Not addresses and bytes — "Netflix",
+   "WhatsApp", "Steam", "iCloud". That is the feeling, more than any layout.
+   Zenarmor gets it from inspecting packets. **Lens already has a way to most of
+   it**: stages 36 and 44 hold, per device, what it asked Unbound. A curated map
+   of domain suffixes to services (`nflxvideo.net` → Netflix) turns "who asked
+   what" into "who uses which service", with bytes beside it from the same
+   hour. Honest limits, said on the page: only where Unbound is the resolver,
+   approximate behind shared CDNs, and blind to DNS over HTTPS. This is the
+   largest gap in feeling, and the raw material is already on disk. BACKLOG #44.
+2. **Something to look at in the first minute.** Zenarmor sits inline, so it
+   has data at once. A fresh Lens shows "learning" and "not watching yet": the
+   first observation within five minutes, the first harvest within thirty,
+   the baseline after three weeks. But at the moment of install, core already
+   holds 24 hours of per-device NetFlow and Unbound's own history. The
+   post-install script only restarts cron. Running one observation and one
+   harvest at install would put a day of history on the very first page load.
+   Small, and it changes the first impression completely. BACKLOG #45.
+3. **A lever.** Zenarmor's toggles are half its pull. Lens has none, by design.
+   Stage 49 (pause a device) is planned in full and blocked on one decision only
+   the operator can make — an exception to CLAUDE.md rule 6 and §4.9. It is the
+   most-requested lever there is; the decision is overdue, not the code.
+4. **Polish that only comes from looking.** See the first finding.
+
+### The outside review, point by point
+
+| Point | Verdict |
+|---|---|
+| Validate before building more | **Agreed, and first.** Twenty-five unverified stages. |
+| Distribution is not real yet | **Agreed.** Stage 43 waits on the operator: a signing key, a repository secret, GitHub Pages. Until then a stranger cannot use the one-line install. |
+| Kea is missing | **Half wrong, and the docs are why.** The collector has read `/var/db/kea/kea-leases4.csv` and the preflight has probed Kea since stage 4. But it has never run on a Kea box, and neither README nor VISION says it is supported. Fix the docs; test once on a box that uses Kea. BACKLOG #46. |
+| Pause via an alias the admin's rule points at | **Matches the stage 49 plan.** The plan uses core's alias API, so membership is in the config and survives a reboot — a runtime-only pf table would not. Still blocked on the operator's decision. |
+| Firewall health, rule analyser | **Agreed: a different product.** Not Lens. |
+| Persona 3 and multi-site | **Partly.** The persona already says Lens sees one box; `/metrics` (§4.55) is the bridge to aggregate several in Grafana, and VISION should say so. |
+| ntopng and Netdata missing from the comparison | **Agreed.** Below. |
+| Two or three outside testers | **Agreed.** The largest unknown is whether a stranger understands the page, and nothing in the test suite can answer that. BACKLOG #47. |
+
+### ntopng and Netdata, since experienced users already run them
+
+**ntopng** sees flows and applications live, in depth, and is the closest thing
+to what Lens shows — but it keys on addresses, keeps history in its own
+database at its own cost, and puts its full historical views behind a licence.
+**Netdata** is superb at the firewall's own health, second by second, and
+knows nothing about which device on the network is which. What neither does is
+the thing Lens is built on: **identity kept over time** — this MAC was this
+phone, on this address, in this hour, a month ago — joined to traffic at the
+moment it happened, on the firewall, without another database to run.
+
+### Order, from here
+
+1. Run `tools/round` on both boxes; read it; fix what it finds. Nothing new first.
+2. Backfill at install (#45) — the empty first impression.
+3. Services from DNS (#44) — the "Netflix" moment.
+4. The operator's two decisions: the feed's signing and hosting (stage 43), and
+   the pause exception (stage 49).
+5. Kea: say it, test it once (#46).
+6. Two or three outside testers (#47).
