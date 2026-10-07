@@ -4,6 +4,7 @@
 #
 # Run it from anywhere:   tools/lens-deploy.sh
 # One box only:           tools/lens-deploy.sh router-01
+# Deploy, then the round: tools/lens-deploy.sh --round   (one password per box)
 #
 # It replaces four commands and two of the four password prompts: one SSH
 # connection per box is opened once and reused for both the copy and the build
@@ -20,7 +21,14 @@ set -eu
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 REMOTE=/root/opnsense-lens
 
-only=${1:-}
+only=""
+round=""
+for arg in "$@"; do
+	case "$arg" in
+		--round) round=1 ;;
+		*) only=$arg ;;
+	esac
+done
 failed=""
 
 say() { printf '\n\033[1m== %s\033[0m %s\n' "$1" "${2:-}"; }
@@ -30,8 +38,10 @@ deploy() {
 	host=$2
 	port=$3
 
-	socket="/tmp/lens-deploy-$name.sock"
-	ssh="ssh -p $port -o ControlMaster=auto -o ControlPath=$socket -o ControlPersist=120"
+	# the same socket as tools/round/round.py: with --round the connection stays
+	# open, and the round after the deploy needs no second password
+	socket="/tmp/lens-$name.sock"
+	ssh="ssh -p $port -o ControlMaster=auto -o ControlPath=$socket -o ControlPersist=600"
 
 	say "$name" "($host)"
 
@@ -56,7 +66,7 @@ deploy() {
 	printf '   '
 	$ssh "root@$host" 'configctl lens status' || true
 
-	$ssh -O exit "root@$host" 2>/dev/null || true
+	[ -n "$round" ] || $ssh -O exit "root@$host" 2>/dev/null || true
 }
 
 box() {
@@ -79,3 +89,10 @@ if [ -n "$failed" ]; then
 fi
 
 printf '\ndone.\n'
+if [ -n "$round" ]; then
+	python3 "$REPO/tools/round/round.py" $only
+	# the round is over: close what the deploy kept open
+	for sock in /tmp/lens-*.sock; do
+		[ -S "$sock" ] && ssh -o ControlPath="$sock" -O exit dummy 2>/dev/null || true
+	done
+fi

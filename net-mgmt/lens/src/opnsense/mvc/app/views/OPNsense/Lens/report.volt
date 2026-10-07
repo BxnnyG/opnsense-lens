@@ -192,5 +192,5 @@
         <div class="dv-title"><span>{{ lang._('Networks') }}</span></div>
         <div id="rpNetworks"></div>
     </div>
-    <div class="lens-note-under">{{ lang._('Every line here is the one its own page says; Lens reads OPNsense\'s data and keeps its own, and nothing on this page left the firewall.') }}</div>
+    <div class="lens-note-under">{{ lang._("Every line here is the one its own page says; Lens reads OPNsense's data and keeps its own, and nothing on this page left the firewall.") }}</div>
 </div>

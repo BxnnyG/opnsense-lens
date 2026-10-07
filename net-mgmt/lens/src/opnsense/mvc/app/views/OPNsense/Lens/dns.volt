@@ -214,7 +214,7 @@
 </script>
 
 <div class="who-head">
-    <div>{{ lang._('What the devices here asked Unbound for, and what its blocklists stopped - by device, not by address. Lens keeps none of it; it reads Unbound\'s own seven days when this page opens.') }}
+    <div>{{ lang._("What the devices here asked Unbound for, and what its blocklists stopped - by device, not by address. Lens keeps none of it; it reads Unbound's own seven days when this page opens.") }}
         <a href="/ui/unbound/overview">{{ lang._('Reporting: Unbound DNS') }} &rsaquo;</a></div>
     <div id="dnsRange" style="display: none;"></div>
 </div>
@@ -276,7 +276,7 @@
             </div>
         </div>
         <div class="lens-note-under">
-            {{ lang._('Every question in the range, from Unbound\'s own record. Each hour\'s questions from an address belong to the device that alone held it in that hour; an hour two devices shared belongs to nobody.') }}
+            {{ lang._("Every question in the range, from Unbound's own record. Each hour's questions from an address belong to the device that alone held it in that hour; an hour two devices shared belongs to nobody.") }}
         </div>
     </div>
 

@@ -170,7 +170,7 @@
     <div class="content-box lens-box">
         <div class="lens-box-head">{{ lang._('Forget one device') }}</div>
         <div class="lens-box-intro">
-            {{ lang._('Deletes the device, your note about it, the addresses it held and every hour of traffic and every destination those addresses cover - also hours it shared an address with another device. The network totals drop by what it moved. Core\'s own copies below are not touched.') }}
+            {{ lang._("Deletes the device, your note about it, the addresses it held and every hour of traffic and every destination those addresses cover - also hours it shared an address with another device. The network totals drop by what it moved. Core's own copies below are not touched.") }}
         </div>
         <div class="lens-forget">
             <select id="privDevice" class="form-control"></select>

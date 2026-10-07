@@ -198,6 +198,28 @@ else
 	say "node or python3 is not installed here - view scripts unchecked"
 fi
 
+# ---------------------------------------------------------------- lint-volt
+# what an older Volt compiles wrongly: 26.1 drops the backslash of \' inside
+# lang._('...') and the page dies with "unexpected identifier s" (box-2,
+# 2026-10-07). Core and every plugin write such text in double quotes. And an
+# apostrophe in a translated string inside a script would end a JS string.
+head_ "lint-volt"
+vo=0
+for f in $(find "${PLUGIN}/src/opnsense/mvc/app/views" -name '*.volt' -type f 2>/dev/null); do
+	python3 - "${f}" <<'PY' || vo=$((vo + 1))
+import re, sys
+view = open(sys.argv[1], encoding='utf-8').read()
+bad = [m.group(0)[:70] for m in re.finditer(r"lang\._\('(?:[^'\\]|\\.)*\\'(?:[^'\\]|\\.)*'\)", view)]
+for script in re.findall(r'<script>(.*?)</script>', view, re.S):
+    bad += [m.group(0)[:70] for m in re.finditer(r'lang\._\("[^"]*\'[^"]*"\)', script)]
+for found in bad:
+    print('  %s: %s' % (sys.argv[1].rsplit('/', 1)[-1], found))
+sys.exit(1 if bad else 0)
+PY
+done
+say "volt translations checked, files with errors: ${vo}"
+errors=$((errors + vo))
+
 # ---------------------------------------------------------------- lint-shell
 # the two package scripts that write the crontab; they run as root at install
 head_ "lint-shell"

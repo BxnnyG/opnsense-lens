@@ -323,7 +323,7 @@
 
     /* ----------------------------------------------------- palette (§4.65) */
 
-    const INDEX_KEY = 'lens.index';
+    const INDEX_KEY = 'lens.index.2';     /* .2: carries core's menu since 0.33 */
     const INDEX_FOR = 5 * 60 * 1000;
     /*
      * Core's own menu, as its search box at the top reads it (layouts/default.volt):
@@ -336,7 +336,9 @@
             const text = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html')
                 .documentElement.textContent;
             const name = text(item.breadcrumb);
-            return { name: name, sub: '', url: text(item.Url), icon: 'fa-bars', haystack: name.toLowerCase() };
+            const url = text(item.Url);
+            return { name: name, sub: '', url: url.charAt(0) === '/' ? url : '/' + url, icon: 'fa-bars',
+                     haystack: name.toLowerCase() };
         }))
         .catch(() => []);
 
@@ -461,7 +463,7 @@
             }
         };
 
-        const open = () => {
+        const open = (from, text) => {
             if (!root) {
                 root = document.createElement('div');
                 root.className = 'lens-palette';
@@ -497,10 +499,24 @@
                 document.body.appendChild(root);
             }
             root.style.display = '';
-            input.value = '';
+            input.value = text || '';
             cursor = 0;
             draw();
             input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+            /* grown out of core's box at the top, so it reads as that box, larger */
+            const panel = root.querySelector('.lens-palette-box');
+            const calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (from && panel.animate && !calm) {
+                const to = panel.getBoundingClientRect();
+                panel.animate([
+                    { transformOrigin: 'top left', opacity: 0.4,
+                      transform: 'translate(' + (from.left - to.left) + 'px,' + (from.top - to.top) + 'px) scale('
+                          + (from.width / to.width) + ',' + Math.min(1, from.height / to.height) + ')' },
+                    { transformOrigin: 'top left', opacity: 1, transform: 'none' }
+                ], { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+                root.animate([{ backgroundColor: 'rgba(0, 0, 0, 0)' }, {}], { duration: 220 });
+            }
             if (!index) {
                 fetchIndex().then(draw);
             }
@@ -510,21 +526,25 @@
            takes a, f and h without modifiers, and nothing here (§4.65). */
         document.addEventListener('keydown', (event) => {
             const typing = /^(input|textarea|select)$/i.test(event.target.tagName || '') || event.target.isContentEditable;
+            const box = document.getElementById('menu_search_box');
+            const from = box && box.offsetParent ? box.getBoundingClientRect() : null;
             if ((event.ctrlKey || event.metaKey) && !event.altKey && (event.key === 'k' || event.key === 'K')) {
                 event.preventDefault();
-                open();
+                open(from);
             } else if (event.key === '/' && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
                 event.preventDefault();
-                open();
+                open(from);
             } else if (event.key === 'Escape' && root && root.style.display !== 'none') {
                 close();
             }
         });
 
         /*
-         * The way in is core's own search box at the top, not a second one
-         * beside the title: on a Lens page it says Ctrl K, and it learns the
-         * devices and networks too, so both searches lead to the same places.
+         * One search, not two (operator, 2026-10-07): on a Lens page core's own
+         * box at the top is the way in. Focusing it opens this search grown out
+         * of it -- core's whole menu plus the devices -- with whatever was
+         * typed carried over. Elsewhere core's box is untouched: a plugin has
+         * no way into it there (§4.79).
          */
         document.addEventListener('DOMContentLoaded', () => {
             const box = document.getElementById('menu_search_box');
@@ -532,26 +552,13 @@
                 return;
             }
             box.setAttribute('placeholder', 'Search \u00b7 Ctrl K');
-            /* core builds its typeahead after its own request returns; join it then */
-            let tries = 0;
-            const join = () => {
-                const typeahead = window.jQuery ? window.jQuery(box).data('typeahead') : null;
-                if (!typeahead || !Array.isArray(typeahead.source)) {
-                    if (++tries < 20) {
-                        setTimeout(join, 250);
-                    }
-                    return;
-                }
-                const ready = index ? Promise.resolve() : fetchIndex();
-                ready.then(() => {
-                    const known = new Set(typeahead.source.map(item => item.id));
-                    const more = (index.devices || []).concat(index.networks || [])
-                        .filter(item => item.url && !known.has(item.url))
-                        .map(item => ({ id: item.url, name: 'Lens: ' + item.name + (item.sub ? ' \u00b7 ' + item.sub : '') }));
-                    typeahead.source = typeahead.source.concat(more);
-                });
-            };
-            join();
+            box.addEventListener('focus', () => {
+                const from = box.getBoundingClientRect();
+                const text = box.value;
+                box.value = '';
+                box.blur();
+                open(from, text);
+            });
         });
 
         return { open: open, close: close };

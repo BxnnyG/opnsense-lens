@@ -650,6 +650,6 @@
             <div class="dash-meter-label"><span>{{ lang._('Disk') }}</span><span class="value"></span></div>
             <div class="track"><div class="fill"></div></div>
         </div>
-        <div class="dash-sub">{{ lang._('Computed exactly as OPNsense\'s own system widgets compute them.') }}</div>
+        <div class="dash-sub">{{ lang._("Computed exactly as OPNsense's own system widgets compute them.") }}</div>
     </div>
 </div>

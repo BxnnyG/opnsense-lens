@@ -2095,11 +2095,26 @@ depth the chosen use beats the platform; else nobody does, and the run says so.
 Refreshing is a development step with a reviewed diff, like any other change.
 **Search: one, core's.** A plugin cannot add to core's menu search on every
 page — core builds it from `/api/core/menu/search/` with no way in. On Lens's
-own pages it can, so: core's box says "Search · Ctrl K" and learns Lens's
-devices and networks; Ctrl-K opens the larger search, which now reads core's
-whole menu through the same request, so it finds every page of OPNsense the
-user may open, not only Lens's. The separate "Find a device" link beside the
-title is gone. **Recorded for upstream:** a way for plugins to add results to
+own pages it can, so there is one search there: core's box at the top says
+"Search · Ctrl K", and focusing it opens the larger search grown out of it
+(the box animates from where core's sits), carrying over what was typed. That
+search reads core's whole menu through the same request core uses, plus the
+devices and networks, so every page of OPNsense the user may open is found
+there — the first try of 0.33_2 kept the two apart and was rightly called
+walled off. The separate "Find a device" link beside the title is gone.
+**Recorded for upstream:** a way for plugins to add results to
 core's search on every page would make this work beyond Lens's pages; that is
 a pull request to core, not something a plugin should patch in.
+
+### §4.80 — A page that compiles on one Volt and not the other (2026-10-07, box-2)
+**What happened:** the dashboard and the DNS page died on box-2 (26.1) with
+"unexpected identifier s" in the compiled view, while every API answered and
+the round said 0 FAIL. 26.1's Volt drops the backslash of `\'` inside
+`lang._('...')`; 26.7's keeps it. Core and every plugin write such text in
+double quotes, and so does Lens now. **Two guards:** the `lint-volt` gate
+refuses `\'` in a translated string, and an apostrophe in one inside a script;
+the round compiles every Lens view with the box's own Volt and runs `php -l`
+over the result — the check that would have caught it on the box, before the
+operator did. And `lens-deploy.sh --round` deploys and runs the round over one
+SSH connection per box: one password, not two.
 

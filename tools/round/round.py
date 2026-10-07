@@ -124,6 +124,24 @@ if [ -f /tmp/PHP_errors.log ]; then
 else
     echo "lines=0"
 fi
+# every Lens view through the box's own Volt compiler, then php -l: 26.1's
+# compiler read lang._('...\'s') differently from 26.7's and two pages died
+# on box-2 while every API answered (2026-10-07)
+section volt
+/usr/local/bin/php -r '
+$compiler = new Phalcon\Mvc\View\Engine\Volt\Compiler();
+foreach (glob("/usr/local/opnsense/mvc/app/views/OPNsense/Lens/*.volt") as $view) {
+    $out = tempnam("/tmp", "lensvolt");
+    try {
+        file_put_contents($out, $compiler->compileString(file_get_contents($view)));
+        exec("/usr/local/bin/php -l " . escapeshellarg($out) . " 2>&1", $lines, $code);
+        echo basename($view), "=", $code === 0 ? "ok" : trim(implode(" ", array_slice($lines, -2))), "\n";
+    } catch (\Throwable $error) {
+        echo basename($view), "=", $error->getMessage(), "\n";
+    }
+    $lines = [];
+    unlink($out);
+}' 2>&1
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
@@ -145,7 +163,9 @@ def boxes():
 
 
 def ssh_sections(box):
-    socket = '/tmp/lens-round-%s.sock' % box['name']
+    # the same socket as tools/lens-deploy.sh, so `lens-deploy.sh --round`
+    # asks for each box's password once
+    socket = '/tmp/lens-%s.sock' % box['name']
     # The script travels on stdin to `sh -s`. root's login shell on OPNsense is
     # csh, and handing it the script as a quoted argument failed silently: csh
     # cannot quote across lines, so no section ran and the report read "not
@@ -350,6 +370,12 @@ def judge_ssh(report, sec, expected_version):
     report.check('PHP errors from Lens (the crash reporter)', 'FAIL' if lens_lines else 'ok',
                  ' // '.join(lens_lines[-6:]).replace('|', '/') if lens_lines
                  else 'none naming Lens (%s)' % (php.splitlines()[0] if php else 'no answer'))
+
+    for line in sec.get('volt', '').splitlines():
+        view, _, verdict = line.partition('=')
+        if view.endswith('.volt'):
+            report.check('page %s compiles on this box' % view, 'ok' if verdict == 'ok' else 'FAIL',
+                         verdict.replace('|', '/')[:160])
 
     for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash'):
         if sec.get(name):
