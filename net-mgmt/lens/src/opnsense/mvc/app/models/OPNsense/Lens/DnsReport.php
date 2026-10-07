@@ -81,6 +81,7 @@ class DnsReport
                     number_format($total),
                     self::pct($blocked['pct'] ?? 0)
                 ),
+            'quiet' => self::quiet($total, count($rows), (int)($raw['hours'] ?? 24)),
             'top' => self::bars((array)($totals['top'] ?? []), false),
             'blocked' => self::bars((array)($totals['top_blocked'] ?? []), true),
             'clients' => self::clients((array)($raw['clients'] ?? []), $rows),
@@ -218,6 +219,30 @@ class DnsReport
                 'askers' => $askers,
             ];
         }, $names);
+    }
+
+    /**
+     * Too few questions for the devices Lens knows: they ask another resolver.
+     * Any phone asks hundreds of names a day; ten per device per day is far
+     * below what a network that resolves here looks like (router-01, 2026-10-07:
+     * two questions in a day, both Unbound priming the root).
+     */
+    public static function quiet(int $total, int $devices, int $hours): ?string
+    {
+        $days = max(1, intdiv($hours, 24));
+        if ($devices === 0 || $total >= 10 * $devices * $days) {
+            return null;
+        }
+
+        return sprintf(
+            gettext(
+                'Only %s questions from a network of %d devices: they most likely ask another resolver. '
+                . 'Check what DHCP hands out as DNS server, or whether a Pi-hole or AdGuard sits in between - '
+                . 'Unbound only sees what it is asked, and so does this page.'
+            ),
+            number_format($total),
+            $devices
+        );
     }
 
     /** the one sentence that replaces the page when there is nothing on it */

@@ -325,6 +325,21 @@
 
     const INDEX_KEY = 'lens.index';
     const INDEX_FOR = 5 * 60 * 1000;
+    /*
+     * Core's own menu, as its search box at the top reads it (layouts/default.volt):
+     * the same request, so Ctrl-K finds every page of OPNsense the user may open,
+     * not only Lens's (operator, 2026-10-07: one search, not two).
+     */
+    const menu = () => fetch('/api/core/menu/search/', { credentials: 'same-origin' })
+        .then(reply => reply.ok ? reply.json() : [])
+        .then(items => (Array.isArray(items) ? items : []).filter(item => item.Url).map((item) => {
+            const text = (html) => new DOMParser().parseFromString(String(html || ''), 'text/html')
+                .documentElement.textContent;
+            const name = text(item.breadcrumb);
+            return { name: name, sub: '', url: text(item.Url), icon: 'fa-bars', haystack: name.toLowerCase() };
+        }))
+        .catch(() => []);
+
     const palette = (() => {
         let index = null;
         let root = null;
@@ -343,9 +358,13 @@
             } catch (e) {
                 /* no storage: ask every time */
             }
-            return fetch('/api/lens/devices/index', { credentials: 'same-origin' })
-                .then(reply => reply.ok ? reply.json() : Promise.reject(reply.status))
-                .then((data) => {
+            return Promise.all([
+                fetch('/api/lens/devices/index', { credentials: 'same-origin' })
+                    .then(reply => reply.ok ? reply.json() : Promise.reject(reply.status)),
+                menu()
+            ])
+                .then(([data, items]) => {
+                    data.menu = items;
                     index = data;
                     try {
                         sessionStorage.setItem(INDEX_KEY, JSON.stringify({ at: Date.now(), data: data }));
@@ -372,8 +391,8 @@
             if (!words.length) {
                 return [['Pages', index.pages], ['Devices here now', index.devices.filter(d => d.here).slice(0, 8)]];
             }
-            return [['Devices', pick(index.devices, 12)], ['Networks', pick(index.networks, 5)],
-                    ['Pages', pick(index.pages, 5)]];
+            return [['Devices', pick(index.devices, 10)], ['Networks', pick(index.networks, 5)],
+                    ['Pages', pick((index.menu || []).length ? index.menu : index.pages, 8)]];
         };
 
         const draw = () => {
@@ -448,10 +467,10 @@
                 root.className = 'lens-palette';
                 root.innerHTML = '<div class="lens-palette-box" role="dialog" aria-label="Find">'
                     + '<input class="lens-palette-input" type="text" autocomplete="off" spellcheck="false"'
-                    + ' placeholder="A device, an address, a MAC, a network or a page">'
+                    + ' placeholder="Search OPNsense: a page, a device, an address, a MAC, a network">'
                     + '<ul class="lens-palette-list"></ul>'
                     + '<div class="lens-palette-foot">\u2191\u2193 to move \u00b7 Enter to open \u00b7 Esc to close'
-                    + ' \u00b7 core\'s own pages: the menu search at the top</div></div>';
+                    + '</div></div>';
                 input = root.querySelector('input');
                 list = root.querySelector('ul');
                 root.addEventListener('click', (event) => {
@@ -502,20 +521,37 @@
             }
         });
 
-        /* the way in for a mouse: a hint beside the page's title */
+        /*
+         * The way in is core's own search box at the top, not a second one
+         * beside the title: on a Lens page it says Ctrl K, and it learns the
+         * devices and networks too, so both searches lead to the same places.
+         */
         document.addEventListener('DOMContentLoaded', () => {
-            const head = document.querySelector('.page-content-head .list-inline');
-            if (!head || document.querySelector('.lens-palette-hint')) {
+            const box = document.getElementById('menu_search_box');
+            if (!box) {
                 return;
             }
-            const hint = document.createElement('li');
-            hint.className = 'lens-palette-hint';
-            hint.innerHTML = '<a href="#"><i class="fa fa-search"></i> Find a device <kbd>Ctrl</kbd> <kbd>K</kbd></a>';
-            hint.firstChild.addEventListener('click', (event) => {
-                event.preventDefault();
-                open();
-            });
-            head.appendChild(hint);
+            box.setAttribute('placeholder', 'Search \u00b7 Ctrl K');
+            /* core builds its typeahead after its own request returns; join it then */
+            let tries = 0;
+            const join = () => {
+                const typeahead = window.jQuery ? window.jQuery(box).data('typeahead') : null;
+                if (!typeahead || !Array.isArray(typeahead.source)) {
+                    if (++tries < 20) {
+                        setTimeout(join, 250);
+                    }
+                    return;
+                }
+                const ready = index ? Promise.resolve() : fetchIndex();
+                ready.then(() => {
+                    const known = new Set(typeahead.source.map(item => item.id));
+                    const more = (index.devices || []).concat(index.networks || [])
+                        .filter(item => item.url && !known.has(item.url))
+                        .map(item => ({ id: item.url, name: 'Lens: ' + item.name + (item.sub ? ' \u00b7 ' + item.sub : '') }));
+                    typeahead.source = typeahead.source.concat(more);
+                });
+            };
+            join();
         });
 
         return { open: open, close: close };

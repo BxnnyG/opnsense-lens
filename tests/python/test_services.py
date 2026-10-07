@@ -4,6 +4,7 @@ service whose suffix it ends in, on a label boundary, longest suffix first;
 a name nothing matches stays a name.
 """
 
+import json
 import os
 import sys
 import unittest
@@ -39,18 +40,37 @@ class MatchTest(unittest.TestCase):
         for name in ('', '.', 'com', 'example.org', 'fritz.box', None):
             self.assertIsNone(services.match(name))
 
-    def test_no_suffix_is_claimed_by_two_services(self):
+    def test_no_suffix_of_lens_own_is_claimed_by_two_services(self):
         seen = {}
-        for key, (_, _, _, suffixes) in services.SERVICES.items():
+        for key, (_, _, _, _, suffixes) in services.SERVICES.items():
             for suffix in suffixes:
                 self.assertNotIn(suffix, seen, '%s is in %s and %s' % (suffix, seen.get(suffix), key))
                 seen[suffix] = key
 
-    def test_every_service_has_a_kind_the_page_shows(self):
-        for key, (name, kind, icon, suffixes) in services.SERVICES.items():
+    def test_every_service_has_a_kind_the_page_shows_and_a_source(self):
+        for key, (name, kind, icon, lists, suffixes) in services.SERVICES.items():
             self.assertIn(kind, services.KINDS, key)
             self.assertTrue(icon.startswith('fa-'), key)
-            self.assertTrue(suffixes, key)
+            self.assertTrue(lists or suffixes, key)
+
+    def test_the_shipped_lists_say_where_they_came_from(self):
+        with open(services.DOMAINS_FILE) as handle:
+            shipped = json.load(handle)
+        self.assertIn('v2fly/domain-list-community', shipped['source'])
+        self.assertEqual(40, len(shipped['commit']))
+        self.assertTrue(shipped['license'].startswith('MIT'))
+        # every service with a v2fly list got something from it
+        found = set(shipped['domains'].values())
+        for key, (_, _, _, lists, _) in services.SERVICES.items():
+            if lists:
+                self.assertIn(key, found, key)
+        # what a hosting provider serves is nobody's service
+        for host in ('amazonaws.com', 'cloudfront.net', 'akamaized.net', 'azureedge.net'):
+            self.assertNotIn(host, shipped['domains'])
+
+    def test_lens_own_suffixes_win_a_disagreement(self):
+        self.assertEqual('youtube', services.match('youtubei.googleapis.com'))
+        self.assertEqual('zdf', services.match('www.zdf.de'))
 
 
 class FromDomainsTest(unittest.TestCase):

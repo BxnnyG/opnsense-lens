@@ -446,7 +446,7 @@ tr.lens-group > td { background: var(--lens-hover); }
 
 /* printing any Lens page: the page, not OPNsense's frame around it */
 @media print {
-    .page-side, .navbar, .page-content-head, .lens-palette-hint, .lens-filterbar, .rp-noprint,
+    .page-side, .navbar, .page-content-head, .lens-filterbar, .rp-noprint,
     .lens-palette, .lens-tip { display: none !important; }
     .page-content-main, .page-content, main.page-content { margin: 0 !important; padding: 0 !important;
         width: 100% !important; left: 0 !important; }
@@ -510,11 +510,6 @@ tr.lens-group > td { background: var(--lens-hover); }
                           text-overflow: ellipsis; white-space: nowrap; }
 .lens-palette-item.on { background: var(--lens-data-wash); }
 .lens-palette-foot { padding: 7px 16px; font-size: 11px; color: var(--lens-muted); border-top: 1px solid var(--lens-border); }
-.lens-palette-hint { float: right; font-size: 12px; line-height: 1; padding-top: 22px; }
-.lens-palette-hint a { color: var(--lens-muted); }
-.lens-palette-hint a:hover { color: var(--lens-accent); text-decoration: none; }
-.lens-palette-hint kbd { font-size: 10px; padding: 1px 4px; }
-@media (max-width: 767px) { .lens-palette-hint { display: none; } }
 
 /* ------------------------------------------------------------ dns (§4.64) */
 .dns-row {

@@ -142,6 +142,7 @@
 
             const figures = report.figures;
             $('#dnsHeadline').text(report.headline);
+            $('#dnsQuiet').toggle(!!report.quiet).find('span').text(report.quiet || '');
             $('#dnsTotal').text(figures.total);
             $('#dnsSince').text(figures.since
                 ? '{{ lang._("since") }} ' + new Date(figures.since * 1000).toLocaleDateString([], {
@@ -230,6 +231,7 @@
 
 <div id="dnsReport" style="display: none;">
     <div class="ev-headline" id="dnsHeadline" style="margin-bottom: 12px;"></div>
+    <div id="dnsQuiet" class="alert alert-warning" style="display: none;"><i class="fa fa-info-circle"></i> <span></span></div>
     <div class="dv-facts">
         <div class="content-box dv-fact"><div class="dv-num" id="dnsTotal"></div>
             <div class="dv-sub">{{ lang._('questions') }} <span id="dnsSince"></span></div></div>

@@ -115,6 +115,16 @@ done
 # one ran at 99% for 1422 minutes and top only says "python3.13"
 section python
 ps -axww -o pid,etime,time,pcpu,command | grep '[p]ython' | sort -k4 -rn | head -6
+# what the crash reporter shows: core files every PHP warning there, and the
+# operator meets it as "a crash" on the next page (box-2, 2026-10-07)
+section php_errors
+if [ -f /tmp/PHP_errors.log ]; then
+    echo "lines=$(wc -l < /tmp/PHP_errors.log | tr -d ' ')"
+    grep -i 'lens' /tmp/PHP_errors.log | tail -12
+else
+    echo "lines=0"
+fi
+section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
 
@@ -335,7 +345,13 @@ def judge_ssh(report, sec, expected_version):
                      'ok' if seconds <= DUTY_OK else ('look' if seconds <= DUTY_SLOW else 'FAIL'),
                      '%.2f s on the box' % seconds)
 
-    for name in ('python', 'cpu', 'uptime', 'segments', 'settings'):
+    php = sec.get('php_errors', '')
+    lens_lines = [line for line in php.splitlines() if not line.startswith('lines=')]
+    report.check('PHP errors from Lens (the crash reporter)', 'FAIL' if lens_lines else 'ok',
+                 ' // '.join(lens_lines[-6:]).replace('|', '/') if lens_lines
+                 else 'none naming Lens (%s)' % (php.splitlines()[0] if php else 'no answer'))
+
+    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash'):
         if sec.get(name):
             report.note(name, sec[name])
 

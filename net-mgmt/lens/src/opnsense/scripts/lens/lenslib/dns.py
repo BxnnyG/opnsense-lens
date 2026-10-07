@@ -26,6 +26,15 @@ def _int(value):
         return 0
 
 
+def name(domain):
+    """
+    A name as a page shows it: without the trailing dot -- except the root
+    itself, which Unbound asks when it starts and which would otherwise be an
+    empty line with a number beside it (router-01, 2026-10-07).
+    """
+    return str(domain or '').rstrip('.') or '.'
+
+
 def _pct(value):
     """'12.34', or the integer 0 when there was nothing to divide"""
     try:
@@ -174,7 +183,7 @@ def device_queries(answers):
                 continue
             at = _int(row.get('time'))
             action = str(row.get('action') or '')
-            entry = domains.setdefault(row['domain'].rstrip('.'), {
+            entry = domains.setdefault(name(row['domain']), {
                 'count': 0, 'blocked': 0, 'last': 0, 'blocklist': None, 'types': set()})
             entry['count'] += 1
             entry['last'] = max(entry['last'], at)
@@ -245,7 +254,7 @@ def by_device(rows, windows):
     devices, unplaced = {}, {}
     for client, domain, hour, count, blocked, blocklist, *_ in rows:
         hour, count, blocked = int(hour), int(count), int(blocked or 0)
-        domain = str(domain or '').rstrip('.')
+        domain = name(domain)
         mac = held(client, hour)
         pool, key = (devices, mac) if mac else (unplaced, client)
         entry = pool.setdefault(key, {'queries': 0, 'blocked': 0, 'domains': {}, 'hours': {}, 'addresses': set()})
@@ -265,7 +274,7 @@ def totals_from_rows(rows, blocklist_size=0):
         resolved += int(answered_up or 0)
         local += int(answered_here or 0)
         first = int(hour) if first is None else min(first, int(hour))
-        entry = names.setdefault(str(domain or '').rstrip('.'), [0, 0, None])
+        entry = names.setdefault(name(domain), [0, 0, None])
         entry[0] += count
         entry[1] += stopped
         entry[2] = entry[2] or (blocklist if stopped else None)

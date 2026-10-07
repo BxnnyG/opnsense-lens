@@ -128,4 +128,14 @@ class DnsReportTest extends TestCase
             array_column($report['by_name'][0]['askers'], 'name'));
         $this->assertStringContainsString('in the last 7 days', $report['headline']);
     }
+
+    public function testANetworkThatAsksElsewhereIsToldSo()
+    {
+        $this->assertStringContainsString('ask another resolver', DnsReport::quiet(2, 31, 24));
+        $this->assertNull(DnsReport::quiet(5000, 31, 24));
+        $this->assertNull(DnsReport::quiet(2, 0, 24));
+        // a week asks seven times as much
+        $this->assertNotNull(DnsReport::quiet(2000, 31, 168));
+        $this->assertNull(DnsReport::quiet(2200, 31, 168));
+    }
 }

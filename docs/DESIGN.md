@@ -2048,8 +2048,9 @@ attributable per device too. BACKLOG #48.
 "who asked what" in names — `nflxso.net`, `mmg.whatsapp.net` — where Zenarmor
 answers "who uses Netflix" on day one. Can Lens say the second without a DPI
 engine, and without saying more than it knows?
-**Decision:** a fixed, curated map of domain suffixes to forty-six
-services (`lenslib/services.py`), laid over the questions Lens already reads:
+**Decision:** a map of domain suffixes to forty-six
+services (`lenslib/services.py`; who keeps the domains: §4.79), laid over the
+questions Lens already reads:
 Unbound's store (§4.70) for the DNS page and the device page, stats.py's
 per-device answers (§4.64) for the device page where the store cannot be read.
 Nothing new is stored and nothing new is asked of the box.
@@ -2074,4 +2075,31 @@ filter (§4.65) applies to the cards by the interfaces and tags of their askers.
 **Not done, recorded:** traffic volume per service. DNS says who asked, not how
 many bytes followed; joining answers to flows needs the resolved addresses,
 which Unbound's store does not keep per answer.
+
+### §4.79 — Not Lens's list, and not Lens's search (2026-10-07, operator)
+**Two questions from the operator on seeing 0.33 on both boxes.** Who keeps
+the service domains? And why does Lens have a search of its own when OPNsense
+already has one at the top right — "integrate it, don't wall it off".
+**Domains: v2fly's domain-list-community.** MIT, one file per service, kept by
+many hands and updated weekly; nDPI (LGPL) and AdGuard's registry (GPL) were
+the other candidates, and neither license is one Lens wants to carry into a
+BSD plugin. `tools/services/refresh.py` reads the lists `services.py` names at
+one pinned commit, follows their includes (never into another service's list,
+never into AWS, Azure or a CA's names — those are hosting, not use), drops
+`@ads` entries and every `regexp:`/`keyword:` rule, and writes
+`services_domains.json` plus the MIT notice beside it. Both ship; the box never
+fetches. Lens keeps only what v2fly does not say — name, kind, icon — and a
+handful of suffixes v2fly has no list for, which win a disagreement. When two
+services claim a suffix, the one naming it in its own list keeps it; at equal
+depth the chosen use beats the platform; else nobody does, and the run says so.
+Refreshing is a development step with a reviewed diff, like any other change.
+**Search: one, core's.** A plugin cannot add to core's menu search on every
+page — core builds it from `/api/core/menu/search/` with no way in. On Lens's
+own pages it can, so: core's box says "Search · Ctrl K" and learns Lens's
+devices and networks; Ctrl-K opens the larger search, which now reads core's
+whole menu through the same request, so it finds every page of OPNsense the
+user may open, not only Lens's. The separate "Find a device" link beside the
+title is gone. **Recorded for upstream:** a way for plugins to add results to
+core's search on every page would make this work beyond Lens's pages; that is
+a pull request to core, not something a plugin should patch in.
 
