@@ -54,6 +54,7 @@ from lenslib import dns as dnslib                               # noqa: E402
 from lenslib import events as eventlib                          # noqa: E402
 from lenslib import parse                                       # noqa: E402
 from lenslib import presence as presencelib                     # noqa: E402
+from lenslib import services                                    # noqa: E402
 from lenslib import settings as settingslib                     # noqa: E402
 from lenslib import uptime                                      # noqa: E402
 from lenslib.store import Store                                 # noqa: E402
@@ -621,12 +622,20 @@ def dns(store, now, hours=24):
                 + [{'mac': None, 'queries': e['queries'], 'addresses': [client]}
                    for client, e in unplaced.items()],
                 key=lambda entry: -entry['queries']),
-            'devices': sorted([dict(dnslib.device_summary(e), mac=mac) for mac, e in devices.items()],
+            'devices': sorted([dict(dnslib.device_summary(e), mac=mac, services=device_services(e))
+                               for mac, e in devices.items()],
                               key=lambda entry: -entry['queries'])[:40],
             'names': dnslib.names_by_askers(devices, unplaced),
+            'services': services.network(devices, unplaced),
             'clients_read': True,
         }
     return dns_from_stats(store, now)
+
+
+def device_services(entry, keep=6):
+    """one device's services (#44), from the names it asked"""
+    found, _ = services.from_domains((d, v[0], v[1]) for d, v in entry['domains'].items())
+    return found[:keep]
 
 
 def dns_from_stats(store, now):
@@ -710,6 +719,7 @@ def dns_device(store, now, mac, hours):
             'domains': [{'domain': d, 'count': e[0], 'blocked': e[1], 'blocklist': e[2], 'last': e[3]}
                         for d, e in listed],
             'heatmap': dnslib.heatmap_cells(entry['hours']),
+            'services': device_services(entry, keep=12),
             'addresses': addresses,
             'asked': len(addresses),
             'answered': len(addresses),
@@ -723,6 +733,9 @@ def dns_device(store, now, mac, hours):
         UNBOUND_TIMEOUT)
 
     report = dnslib.device_queries(answers)
+    report['services'], _ = services.from_domains(
+        (d['domain'], d['count'], d.get('blocked', 0)) for d in report.get('domains', []))
+    report['services'] = report['services'][:12]
     report.update({
         'enabled': True,
         'hours': hours,

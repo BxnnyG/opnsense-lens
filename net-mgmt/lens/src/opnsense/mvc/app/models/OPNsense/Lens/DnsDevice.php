@@ -81,6 +81,8 @@ class DnsDevice
             'shown' => $rows !== [],
             'rows' => $rows,
             /* its week of questions, from the store only: a sample would draw a wrong week (§4.70) */
+            'services' => ServiceReport::chips((array)($raw['services'] ?? [])),
+            'services_limits' => ServiceReport::limits(),
             'heatmap' => $store && !empty($raw['heatmap']) ? Heatmap::grid((array)$raw['heatmap'], true) : null,
             'summary' => sprintf(
                 gettext('%s questions seen, %s blocked, %d different names.'),

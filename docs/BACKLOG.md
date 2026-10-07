@@ -208,11 +208,11 @@ data Lens already keeps; none is planned before the router round.
 
 ### From the self-check, 2026-10-07 (see [VISION.md](VISION.md))
 
-- **#44 — Services from DNS.** A curated map of domain suffixes to services, so
+- **#44 — Services from DNS.** 🔨 built 2026-10-07 (§4.78). A curated map of domain suffixes to services, so
   "who asked what" becomes "who uses Netflix, WhatsApp, Steam" — the feeling
   Zenarmor gives on day one, from what stages 36 and 44 already store. Limits on
   the page: Unbound only, approximate behind CDNs, blind to DNS over HTTPS.
-- **#45 — Backfill at install.** One observation and one harvest from the
+- **#45 — Backfill at install.** 🔨 built 2026-10-07 (§4.77). One observation and one harvest from the
   post-install script, so the first page after installing already shows the day
   core was holding, instead of "not watching yet".
 - **#46 — Kea, said and tested.** Supported in code since stage 4, never seen on

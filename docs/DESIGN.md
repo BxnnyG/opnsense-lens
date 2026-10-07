@@ -2042,3 +2042,36 @@ an address was handed to which MAC (ISC and Kea say so outright; dnsmasq gives
 only an expiry). Seeded into attribution — but **not** into presence, since a
 lease is not proof anyone was home — they would make the backfilled day
 attributable per device too. BACKLOG #48.
+
+### §4.78 — Services from the names the devices asked for (2026-10-07)
+**Question:** the self-check (VISION, 2026-10-07) found the DNS page answering
+"who asked what" in names — `nflxso.net`, `mmg.whatsapp.net` — where Zenarmor
+answers "who uses Netflix" on day one. Can Lens say the second without a DPI
+engine, and without saying more than it knows?
+**Decision:** a fixed, curated map of domain suffixes to forty-six
+services (`lenslib/services.py`), laid over the questions Lens already reads:
+Unbound's store (§4.70) for the DNS page and the device page, stats.py's
+per-device answers (§4.64) for the device page where the store cannot be read.
+Nothing new is stored and nothing new is asked of the box.
+**The rules.** A name belongs to the service whose suffix it ends in, on a
+label boundary (`a.nflxvideo.net` yes, `notnflxvideo.net` no), longest suffix
+first (`tv.apple.com` is Apple TV+, `icloud.com` is Apple). A name nothing
+matches stays a name: never guessed into a service. No suffix belongs to two
+services (a test holds that). A phone whose MACs are folded (§4.61) counts once;
+an address no device held in that hour is counted apart, as an address.
+**What devices ask by themselves is drawn apart.** Apple, Google, Microsoft,
+Samsung and Amazon background names sit under "asked by the devices
+themselves", greyed: an iPhone checking iCloud is not a person doing something.
+**What it cannot see, said on the page, every time it shows a service:**
+asking is not watching (an app checks in, a link previews, a page embeds a
+video); approximate behind shared CDNs; blind to DNS over HTTPS, another
+resolver, a VPN. The DNS page also says what share of the questions matched a
+service at all, so an empty map reads as coverage, not as absence.
+**Where it shows.** DNS page: one card per service, grouped by kind, with the
+devices that asked most; the "who asked what" list carries each device's
+services as chips. Device page: its services as chips above its names. The
+filter (§4.65) applies to the cards by the interfaces and tags of their askers.
+**Not done, recorded:** traffic volume per service. DNS says who asked, not how
+many bytes followed; joining answers to flows needs the resolved addresses,
+which Unbound's store does not keep per answer.
+

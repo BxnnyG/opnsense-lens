@@ -521,7 +521,30 @@
         return { open: open, close: close };
     })();
 
+    /*
+     * A device's services (#44) as a row of chips, most asked first. What the
+     * device asks by itself (platform) is drawn quieter than what someone chose.
+     */
+    const services = (list) => {
+        const row = document.createElement('div');
+        row.className = 'svc-chips';
+        for (const service of list || []) {
+            const chip = document.createElement('span');
+            chip.className = 'svc-chip' + (service.platform ? ' svc-platform' : '')
+                + (service.blocked ? ' svc-blocked' : '');
+            const icon = document.createElement('i');
+            icon.className = 'fa fa-fw ' + service.icon;
+            const count = document.createElement('span');
+            count.className = 'svc-count';
+            count.textContent = service.queries;
+            chip.append(icon, document.createTextNode(' ' + service.name + ' '), count);
+            row.appendChild(chip);
+        }
+        return row;
+    };
+
     window.Lens = {
-        theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette
+        theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
+        services: services
     };
 })();

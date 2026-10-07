@@ -90,6 +90,9 @@ class DnsReport
             'hours' => (int)($raw['hours'] ?? 24),
             'by_device' => self::byDevice((array)($raw['devices'] ?? []), $rows),
             'by_name' => self::byName((array)($raw['names'] ?? []), $rows),
+            /* which services, from the same questions (#44, §4.78) */
+            'services' => ServiceReport::network((array)($raw['services'] ?? []), $rows),
+            'services_limits' => ServiceReport::limits(),
         ];
     }
 
@@ -119,7 +122,15 @@ class DnsReport
             $key = $row['mac'] ?? (string)($device['mac'] ?? '');
             if (!isset($merged[$key])) {
                 $merged[$key] = ['row' => $row, 'mac' => $key, 'queries' => 0, 'blocked' => 0, 'names' => 0,
-                                 'domains' => []];
+                                 'domains' => [], 'services' => []];
+            }
+            foreach ((array)($device['services'] ?? []) as $service) {
+                $name = (string)$service['service'];
+                if (!isset($merged[$key]['services'][$name])) {
+                    $merged[$key]['services'][$name] = array_merge($service, ['queries' => 0, 'blocked' => 0]);
+                }
+                $merged[$key]['services'][$name]['queries'] += (int)$service['queries'];
+                $merged[$key]['services'][$name]['blocked'] += (int)($service['blocked'] ?? 0);
             }
             $merged[$key]['queries'] += (int)($device['queries'] ?? 0);
             $merged[$key]['blocked'] += (int)($device['blocked'] ?? 0);
@@ -164,8 +175,19 @@ class DnsReport
                 'names' => number_format($entry['names']),
                 'bar' => round($entry['queries'] / $largest * 100, 1),
                 'domains' => $domains,
+                'services' => ServiceReport::chips(self::mostAsked($entry['services'])),
             ];
         }, $merged);
+    }
+
+    /** a folded device's services, most asked first */
+    private static function mostAsked(array $services): array
+    {
+        usort($services, function ($left, $right) {
+            return $right['queries'] <=> $left['queries'];
+        });
+
+        return array_slice($services, 0, 6);
     }
 
     /** What was asked, and by whom: each name with the devices that asked it most. */

@@ -366,6 +366,13 @@
                               + (report.heatmap.busiest ? ' \u00b7 ' + report.heatmap.days[report.heatmap.busiest.day]
                                  + ' ' + report.heatmap.busiest.hour + ':00' : ''));
                     }
+                    /* which services, from the same questions (#44) */
+                    const $services = $('#dvDnsServices').empty();
+                    if ((report.services || []).length) {
+                        $services.append(Lens.services(report.services))
+                            .append($('<div/>').addClass('dv-sub').text(report.services_limits || ''));
+                    }
+                    $services.toggle(!!(report.services || []).length);
                     for (const row of report.rows || []) {
                         const $name = $('<div/>').addClass('dns-name').text(row.domain);
                         if (row.blocked) {
@@ -594,6 +601,7 @@
             </a>
             <div id="dvDnsBusy" style="display: none;"><i class="fa fa-spinner fa-spin"></i> {{ lang._('Asking Unbound about each address it held...') }}</div>
             <div class="dv-sub" id="dvDnsSummary" style="margin-bottom: 6px;"></div>
+            <div id="dvDnsServices" style="display: none; margin-bottom: 10px;"></div>
             <div id="dvDnsRows"></div>
             <div id="dvDnsWeek" style="display: none; margin-top: 12px;">
                 <div class="hm-scroll"><div class="hm" id="dvDnsHeatmap"></div></div>

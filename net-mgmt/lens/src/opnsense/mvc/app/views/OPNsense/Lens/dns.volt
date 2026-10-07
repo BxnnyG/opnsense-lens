@@ -71,6 +71,9 @@
                 const $row = ranked(device.name, device.names + ' {{ lang._("names") }} \u00b7 '
                     + device.blocked + ' {{ lang._("blocked") }} (' + device.blocked_pct + ')',
                     device.bar, device.queries, { link: device.link });
+                if ((device.services || []).length) {
+                    $row.find('.dns-name').append(Lens.services(device.services));
+                }
                 const $open = $('<a/>').attr('href', '#').addClass('dns-open').text('{{ lang._("names") }} \u25be')
                     .on('click', (event) => {
                         event.preventDefault();
@@ -80,6 +83,48 @@
                 $list.append($row).append($names);
             }
             $('#dnsNoByDevice').toggle(!byDevice.length);
+        };
+
+        /* which services (#44): a card each, grouped by kind; filtered like the devices */
+        let services = null;
+        const drawServices = () => {
+            const $groups = $('#dnsServices').empty();
+            let shown = 0;
+            for (const group of services.groups) {
+                const cards = group.services.filter(s => Lens.filter.matches(s));
+                if (!cards.length) {
+                    continue;
+                }
+                shown += cards.length;
+                const $grid = $('<div/>').addClass('svc-grid');
+                for (const card of cards) {
+                    const $who = $('<div/>').addClass('svc-card-who');
+                    for (const asker of card.askers) {
+                        const $asker = asker.link ? $('<a/>').attr('href', asker.link) : $('<span/>').addClass('svc-asker');
+                        $asker.append($('<span/>').addClass('svc-count').text(asker.count))
+                            .append($('<i/>').addClass('fa fa-fw ' + asker.icon)).append(' ')
+                            .append(document.createTextNode(asker.name));
+                        $who.append($asker);
+                    }
+                    if (card.more) {
+                        $who.append($('<span/>').addClass('dv-sub').text('+ ' + card.more + ' {{ lang._("more") }}'));
+                    }
+                    $grid.append($('<div/>').addClass('content-box svc-card')
+                        .append($('<div/>').addClass('svc-card-head')
+                            .append($('<i/>').addClass('fa svc-card-icon ' + card.icon))
+                            .append($('<div/>')
+                                .append($('<div/>').addClass('svc-card-name').text(card.name))
+                                .append($('<div/>').addClass('dv-sub').text(card.sub + ' \u00b7 ' + card.queries
+                                    + ' {{ lang._("questions") }}'
+                                    + (card.blocked ? ' \u00b7 ' + card.blocked + ' {{ lang._("blocked") }}' : '')))))
+                        .append($who));
+                }
+                $groups.append($('<div/>').addClass('svc-group')
+                    .toggleClass('svc-platform-group', group.kind === 'platform')
+                    .append($('<div/>').addClass('svc-group-title').text(group.title))
+                    .append($grid));
+            }
+            $('#dnsNoServices').toggle(!shown);
         };
 
         ajaxGet('/api/lens/dns/overview', { hours: hours }, (report, status) => {
@@ -128,6 +173,10 @@
             if (store) {
                 byDevice = report.by_device || [];
                 drawByDevice();
+                services = report.services || { groups: [] };
+                $('#dnsServicesCoverage').text(services.coverage || '');
+                $('#dnsServicesLimits').text(report.services_limits || '');
+                drawServices();
                 const $names = $('#dnsByName').empty();
                 for (const name of report.by_name || []) {
                     $names.append(ranked(name.domain,
@@ -155,6 +204,9 @@
             if (clients) {
                 drawClients();
                 drawByDevice();
+            }
+            if (services) {
+                drawServices();
             }
         });
     });
@@ -203,6 +255,13 @@
 
     <div id="dnsFilterHere"></div>
     <div id="dnsStoreBoxes" style="display: none;">
+        <div class="content-box dv-card" style="margin-top: 14px;">
+            <div class="dv-title"><span>{{ lang._('Which services') }}</span>
+                <span class="dv-sub" id="dnsServicesCoverage"></span></div>
+            <div id="dnsServices"></div>
+            <div id="dnsNoServices" class="dv-sub" style="display: none;">{{ lang._('No question in this range belongs to a service Lens knows by name.') }}</div>
+            <div class="lens-note-under" id="dnsServicesLimits"></div>
+        </div>
         <div class="dv-grid" style="margin-top: 14px;">
             <div class="content-box dv-card">
                 <div class="dv-title"><span>{{ lang._('Who asked what') }}</span></div>
