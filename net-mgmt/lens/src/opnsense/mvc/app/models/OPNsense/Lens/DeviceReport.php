@@ -273,6 +273,27 @@ class DeviceReport
             }
         }
 
+        $unexplained = self::unexplained((array)($traffic['unexplained'] ?? []));
+
+        return [
+            'attributed' => Bytes::human($measured),
+            'attributed_octets' => $measured,
+            'hours' => (int)($traffic['hours'] ?? 0),
+            'rows' => $rows,
+            'unexplained' => $unexplained,
+            'unexplained_on_demand' => !empty($traffic['unexplained_on_demand']),
+        ];
+    }
+
+    /**
+     * The addresses behind the unattributed piles, in words. Public because
+     * the list is fetched on its own when someone opens it (§4.76).
+     *
+     * @param array $entries what `lens unexplained` returned under 'unexplained'
+     * @return array
+     */
+    public static function unexplained(array $entries): array
+    {
         $names = [
             'far_end' => gettext('far end'),
             'not_watching' => gettext('before Lens watched'),
@@ -280,12 +301,12 @@ class DeviceReport
             'ambiguous' => gettext('two devices'),
         ];
 
-        $unexplained = [];
-        foreach ($traffic['unexplained'] ?? [] as $entry) {
-            if (empty($entry['address'])) {
+        $out = [];
+        foreach ($entries as $entry) {
+            if (!is_array($entry) || empty($entry['address'])) {
                 continue;
             }
-            $unexplained[] = [
+            $out[] = [
                 'address' => (string)$entry['address'],
                 'interface' => (string)($entry['interface'] ?? ''),
                 'reason' => $names[$entry['reason'] ?? ''] ?? (string)($entry['reason'] ?? ''),
@@ -294,13 +315,7 @@ class DeviceReport
             ];
         }
 
-        return [
-            'attributed' => Bytes::human($measured),
-            'attributed_octets' => $measured,
-            'hours' => (int)($traffic['hours'] ?? 0),
-            'rows' => $rows,
-            'unexplained' => $unexplained,
-        ];
+        return $out;
     }
 
     private static function device(array $device, array $macdb, ?int $observedAt, int $now, array $names = []): array

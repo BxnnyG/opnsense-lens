@@ -596,17 +596,12 @@
                     .append($('<td/>').addClass('lens-traffic').text(row.what))
                     .append($('<td/>').addClass('lens-cause').text(row.why)));
             }
-            const $worst = $('#lensUnexplained > tbody').empty();
-            for (const row of (accounting.unexplained || [])) {
-                $worst.append($('<tr/>')
-                    .append($('<td/>').addClass('lens-traffic').text(row.what))
-                    .append($('<td/>').text(row.address))
-                    .append($('<td/>').addClass('lens-if').text(row.interface))
-                    .append($('<td/>').addClass('lens-if').text(row.reason))
-                    .append($('<td/>').addClass('lens-if').text(
-                        row.hours + ' {{ lang._("hours") }}')));
-            }
-            $('#lensUnexplainedBlock').toggle((accounting.unexplained || []).length > 0);
+            /* the list is fetched when opened (§4.76); offer it whenever there
+               is something unattributed that is not the far end */
+            const listable = (accounting.rows || []).some(row => row.reason !== 'far_end');
+            $('#lensUnexplainedBlock').toggle(listable);
+            $('#lensUnexplained > tbody').empty();
+            unexplainedLoaded = false;
 
             if ((accounting.rows || []).length) {
                 $('#lensAccountingBlock').show();
@@ -615,9 +610,32 @@
             $('#lensDevicesBlock').show();
         });
 
+        let unexplainedLoaded = false;
         load();
         $('#lensUnexplainedToggle').on('click', function (event) {
             event.preventDefault();
+            if (!unexplainedLoaded) {
+                unexplainedLoaded = true;
+                const $worst = $('#lensUnexplained > tbody').empty().append($('<tr/>').append(
+                    $('<td/>').attr('colspan', 5).text('{{ lang._("Reading the addresses...") }}')));
+                ajaxGet('/api/lens/devices/unexplained', { hours: chosenHours() }, (data, status) => {
+                    $worst.empty();
+                    const rows = (status === 'success' && data && data.unexplained) || [];
+                    for (const row of rows) {
+                        $worst.append($('<tr/>')
+                            .append($('<td/>').addClass('lens-traffic').text(row.what))
+                            .append($('<td/>').text(row.address))
+                            .append($('<td/>').addClass('lens-if').text(row.interface))
+                            .append($('<td/>').addClass('lens-if').text(row.reason))
+                            .append($('<td/>').addClass('lens-if').text(
+                                row.hours + ' {{ lang._("hours") }}')));
+                    }
+                    if (!rows.length) {
+                        $worst.append($('<tr/>').append($('<td/>').attr('colspan', 5)
+                            .text('{{ lang._("Nothing on your own segments was left unattributed.") }}')));
+                    }
+                });
+            }
             $('#lensUnexplainedList').toggle();
             $(this).text($('#lensUnexplainedList').is(':visible')
                 ? '{{ lang._("Hide the addresses") }}'

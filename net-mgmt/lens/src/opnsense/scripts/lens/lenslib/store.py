@@ -14,7 +14,7 @@ import time
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 # No stored window is longer than this (§4.69). A device present for weeks is a
 # chain of day-long pieces, joined back into one stay for every reader; the cap
@@ -187,6 +187,30 @@ MIGRATIONS = {
             PRIMARY KEY (mac, day)
         )""",
         "CREATE TABLE device_day_done (day INTEGER PRIMARY KEY, at INTEGER NOT NULL)",
+    ],
+    # Every settled hour attributed once (§4.76). The device list summed a
+    # week of raw buckets on every page load: 8.3 s on the second firewall
+    # (2.4 million rows). Now the harvest settles each closed hour into per-
+    # device and per-reason sums, and pages add those up.
+    11: [
+        """CREATE TABLE device_hour (
+            bucket INTEGER NOT NULL,
+            mac TEXT NOT NULL,
+            sent INTEGER NOT NULL,
+            sent_packets INTEGER NOT NULL,
+            received INTEGER NOT NULL,
+            received_packets INTEGER NOT NULL,
+            PRIMARY KEY (bucket, mac)
+        )""",
+        """CREATE TABLE unattributed_hour (
+            bucket INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            octets INTEGER NOT NULL,
+            packets INTEGER NOT NULL,
+            rows INTEGER NOT NULL,
+            PRIMARY KEY (bucket, reason)
+        )""",
+        "CREATE TABLE hour_done (bucket INTEGER PRIMARY KEY, at INTEGER NOT NULL)",
     ],
 }
 
@@ -739,6 +763,86 @@ class Store:
             (bucket_seconds, since, until),
         )]
 
+    def settled_before(self, now):
+        """
+        The first bucket that may still change. An hour's attribution depends on
+        which windows overlap it, and a window can still be extended into that
+        hour by the next observation within the gap -- so an hour is settled one
+        hour plus two gaps after it ends, and not before.
+        """
+        return int(now) - 3600 - 2 * self.setting_int('observation_gap')
+
+    def fill_hours(self, now, limit=240):
+        """
+        Attribute settled hours once (§4.76), newest first so the ranges people
+        open fill first. Bounded per run: the first run on a big store has
+        weeks to catch up, and a harvest that ran for minutes would hold the
+        store locked behind it (stage 4's lesson).
+
+        :return: how many hours were settled
+        """
+        from lenslib import attribute
+
+        horizon = self.settled_before(now) - 3600
+        oldest = int(now) - self.setting_int('retention_days') * 86400
+        buckets = [row[0] for row in self.db.execute(
+            """SELECT DISTINCT bucket FROM traffic_hour
+               WHERE bucket <= ? AND bucket >= ?
+                 AND bucket NOT IN (SELECT bucket FROM hour_done)
+               ORDER BY bucket DESC LIMIT ?""", (horizon, oldest, limit))]
+        if not buckets:
+            return 0
+
+        interfaces = self.device_interfaces()
+        watching = self.db.execute("SELECT min(first_seen) FROM address_observation").fetchone()[0]
+
+        for bucket in buckets:
+            per_mac, unattributed, _ = attribute.classify(
+                self.traffic_rows(bucket, until=bucket + 3600), interfaces, watching)
+            self._forget_hour(bucket)
+            self.db.executemany(
+                """INSERT INTO device_hour (bucket, mac, sent, sent_packets, received, received_packets)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                [(bucket, mac, sides['in']['octets'], sides['in']['packets'],
+                  sides['out']['octets'], sides['out']['packets']) for mac, sides in per_mac.items()])
+            self.db.executemany(
+                "INSERT INTO unattributed_hour (bucket, reason, octets, packets, rows) VALUES (?, ?, ?, ?, ?)",
+                [(bucket, reason, c['octets'], c['packets'], c['rows'])
+                 for reason, c in unattributed.items() if c['rows']])
+            self.db.execute("INSERT OR REPLACE INTO hour_done (bucket, at) VALUES (?, ?)", (bucket, int(now)))
+        return len(buckets)
+
+    def _forget_hour(self, bucket):
+        for table in ('device_hour', 'unattributed_hour', 'hour_done'):
+            self.db.execute("DELETE FROM %s WHERE bucket = ?" % table, (bucket,))
+
+    def done_hours(self, since, until):
+        """:return: the settled buckets in [since, until)"""
+        return {row[0] for row in self.db.execute(
+            "SELECT bucket FROM hour_done WHERE bucket >= ? AND bucket < ?", (since, until))}
+
+    def hour_sums(self, since, until):
+        """
+        The settled hours in [since, until), in classify()'s own shapes, so a
+        caller can add live hours to them without knowing which were which.
+        """
+        def counter(octets=0, packets=0, rows=0):
+            return {'octets': octets or 0, 'packets': packets or 0, 'rows': rows or 0}
+
+        per_mac = {}
+        for row in self.db.execute(
+                """SELECT mac, sum(sent), sum(sent_packets), sum(received), sum(received_packets), count(*)
+                   FROM device_hour WHERE bucket >= ? AND bucket < ? GROUP BY mac""", (since, until)):
+            per_mac[row[0]] = {'in': counter(row[1], row[2], row[5]), 'out': counter(row[3], row[4], row[5])}
+
+        unattributed = {reason: counter() for reason in ('far_end', 'not_watching', 'unknown', 'ambiguous')}
+        for row in self.db.execute(
+                """SELECT reason, sum(octets), sum(packets), sum(rows) FROM unattributed_hour
+                   WHERE bucket >= ? AND bucket < ? GROUP BY reason""", (since, until)):
+            unattributed[row[0]] = counter(row[1], row[2], row[3])
+
+        return per_mac, unattributed
+
     def fill_device_days(self, now, limit=31):
         """
         Sum complete days once (§4.69): every hour of the day harvested, and not
@@ -1022,6 +1126,8 @@ class Store:
         self.db.execute("DELETE FROM destination_day WHERE day < ?", (cutoff,))
         self.db.execute("DELETE FROM device_day WHERE day < ?", (cutoff // 86400,))
         self.db.execute("DELETE FROM device_day_done WHERE day < ?", (cutoff // 86400,))
+        for table in ('device_hour', 'unattributed_hour', 'hour_done'):
+            self.db.execute("DELETE FROM %s WHERE bucket < ?" % table, (cutoff,))
         return self.db.total_changes - before
 
     # what a device's windows cover, by the attribution join's overlap rule
@@ -1064,6 +1170,11 @@ class Store:
         # deleted pages are overwritten, not left in the file's free list
         self.db.execute("PRAGMA secure_delete = ON")
         try:
+            # the hours this device was in are summed with it; settle them again
+            for (bucket,) in self.db.execute(
+                    "SELECT DISTINCT bucket FROM traffic_hour WHERE rowid IN (%s)" % (self._COVERED_HOURS % marks),
+                    values).fetchall():
+                self._forget_hour(bucket)
             self.db.execute("DELETE FROM traffic_hour WHERE rowid IN (%s)" % (self._COVERED_HOURS % marks), values)
             self.db.execute("DELETE FROM destination_day WHERE rowid IN (%s)" % (self._COVERED_DAYS % marks),
                             values)
@@ -1100,7 +1211,8 @@ class Store:
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
                       'device_label', 'gateway_sample', 'probe_sample', 'destination_day', 'harvest_state',
-                      'device_day', 'device_day_done', 'run_log'):
+                      'device_day', 'device_day_done', 'device_hour', 'unattributed_hour', 'hour_done',
+                      'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         self.db.commit()
         self.db.execute("VACUUM")

@@ -956,19 +956,75 @@ def traffic(store, now, hours):
     since = now - hours * 3600
     status = store.status()
     interfaces = store.device_interfaces()
-    rows = store.traffic_rows(since)
-    per_mac, unattributed, worst = attribute.classify(rows, interfaces, status['first_observation'])
+    per_mac, unattributed = attributed(store, since, now, interfaces, status)
 
     return {
         'since': since,
         'hours': hours,
         'devices': per_mac,
         'unattributed': unattributed,
-        'unexplained': worst,
+        # the addresses behind the piles are asked for when someone opens them
+        # (`lens unexplained`), not computed on every page load (§4.76)
+        'unexplained': [],
+        'unexplained_on_demand': True,
         'first_bucket': status['first_bucket'],
         'watching_since': status['first_observation'],
         'previous': previous_week(store, since, hours, status, interfaces),
     }
+
+
+def attributed(store, since, until, interfaces, status):
+    """
+    Traffic in [since, until) by device and by reason: settled hours from the
+    sums the harvest made (§4.76), every other hour -- the window's ragged left
+    edge, the last hour or two, anything not settled yet -- through the join
+    itself. Same totals either way; one of them is a lookup.
+    """
+    first_hour = since - since % 3600
+    edge = first_hour + 3600 if first_hour < since else first_hour
+    done = store.done_hours(edge, until)
+
+    per_mac, unattributed = store.hour_sums(edge, until) if done else ({}, {})
+    if not done:
+        unattributed = {reason: {'octets': 0, 'packets': 0, 'rows': 0}
+                        for reason in ('far_end', 'not_watching', 'unknown', 'ambiguous')}
+
+    # every hour in the window that is not settled, as contiguous runs
+    pieces, start = [], None
+    at = first_hour
+    while at < until:
+        live = at < edge or at not in done
+        if live and start is None:
+            start = max(at, since)
+        if not live and start is not None:
+            pieces.append((start, at))
+            start = None
+        at += 3600
+    if start is not None:
+        pieces.append((start, until))
+
+    for start, end in pieces:
+        live_mac, live_unattributed, _ = attribute.classify(
+            store.traffic_rows(start, until=end), interfaces, status['first_observation'])
+        for mac, sides in live_mac.items():
+            into = per_mac.setdefault(mac, {side: {'octets': 0, 'packets': 0, 'rows': 0} for side in ('in', 'out')})
+            for side in ('in', 'out'):
+                for key in ('octets', 'packets', 'rows'):
+                    into[side][key] += sides[side][key]
+        for reason, counter in live_unattributed.items():
+            for key in ('octets', 'packets', 'rows'):
+                unattributed[reason][key] += counter[key]
+
+    return per_mac, unattributed
+
+
+def unexplained(store, now, hours):
+    """The addresses behind the unattributed piles, on demand."""
+    since = now - hours * 3600
+    status = store.status()
+    _, _, worst = attribute.classify(store.traffic_rows(since), store.device_interfaces(),
+                                     status['first_observation'])
+    return {'hours': hours, 'unexplained': worst}
 
 
 def previous_week(store, since, hours, status, interfaces):
@@ -984,7 +1040,7 @@ def previous_week(store, since, hours, status, interfaces):
     if not watched:
         return {'covered': False, 'since': start, 'until': end}
 
-    per_mac, _, _ = attribute.classify(store.traffic_rows(start, until=end), interfaces, status['first_observation'])
+    per_mac, _ = attributed(store, start, end, interfaces, status)
     return {
         'covered': True, 'since': start, 'until': end,
         'devices': {mac: {'octets': sum(side['octets'] for side in sides.values()),
@@ -1080,9 +1136,12 @@ def harvest(store, now):
     if store.settings()['destinations_enabled']:
         said += '; ' + harvest_destinations(store, now)
     summed = store.fill_device_days(now)
+    settled = store.fill_hours(now)
     store.commit()
     if summed:
         said += '; %d days summed' % summed
+    if settled:
+        said += '; %d hours settled' % settled
     return said
 
 
@@ -1179,7 +1238,7 @@ def main():
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
-                 'prune', 'purge', 'forget', 'kept'],
+                 'prune', 'purge', 'forget', 'kept', 'unexplained'],
     )
     parser.add_argument('--mac', help='the device to label, or to forget')
     parser.add_argument('--dry', action='store_true', help='forget: count, delete nothing')
@@ -1269,6 +1328,10 @@ def main():
 
     if args.duty == 'traffic':
         print(json.dumps(traffic(Store(DB_PATH), int(time.time()), args.hours)))
+        return 0
+
+    if args.duty == 'unexplained':
+        print(json.dumps(unexplained(Store(DB_PATH), int(time.time()), args.hours)))
         return 0
 
     if args.duty == 'devices':

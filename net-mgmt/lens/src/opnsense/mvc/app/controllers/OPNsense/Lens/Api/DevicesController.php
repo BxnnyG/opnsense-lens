@@ -261,6 +261,22 @@ class DevicesController extends ApiControllerBase
     }
 
     /**
+     * The addresses behind the unattributed piles -- asked for when someone
+     * opens the list, because the join over a week is the one expensive read
+     * left and almost nobody opens it (§4.76).
+     *
+     * @return array
+     */
+    public function unexplainedAction()
+    {
+        $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
+        $calls = [];
+        $raw = self::decode(new Backend(), 'lens unexplained ' . $hours, $calls);
+
+        return ['hours' => $hours, 'unexplained' => DeviceReport::unexplained((array)($raw['unexplained'] ?? []))];
+    }
+
+    /**
      * When each device was here, across the chosen range.
      *
      * Names and icons come from DeviceReport, run without traffic because none

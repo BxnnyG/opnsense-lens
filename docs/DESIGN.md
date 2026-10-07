@@ -1994,3 +1994,33 @@ arguments (`--provider 300 --start_time 0 …`) had held one of router-01's two
 cores at 99% for 61 days — started three weeks before Lens existed. The operator
 killed it. And every duty "did not answer" in the first round was the round's
 own fault (`/usr/bin/time`), fixed before the second.
+
+### §4.76 — Settle each hour once, and fetch the diagnostic when it is opened (2026-10-07)
+**What the round measured:** on the second firewall (2.4 million traffic rows)
+the device list took 2.3 s for a day and **9.4 s for a week**, of which 8.3 s was
+one call, `lens traffic 168` — the attribution join over every raw bucket in the
+week, done twice (this week and the week before, §4.66), on every page load.
+Router-01, with an eighth of the rows, answered in 1.3 s. Stage 41 had already
+summed complete *days* for the baseline; nothing summed hours for the pages.
+**Decision:** the harvest settles every closed hour once into `device_hour` and
+`unattributed_hour` (schema 11), newest first and at most 240 hours per run, so
+the first runs on a big store catch up over a couple of hours without holding
+the store locked for minutes. A page adds settled hours up and runs the join
+only over what is not settled: the ragged left edge of the window and the last
+hour or two.
+**When an hour is settled:** one hour plus two observation gaps after it ends.
+Until then an observation can still extend a window into it; after that nothing
+can change who held which address in it.
+**What keeps the numbers the same:** a test compares the settled answer with the
+live join over a window with a ragged edge, a shared address, an unknown one and
+the far end — and they must be equal, not close. Forgetting a device unsettles
+every hour it was in, so its bytes leave the sums. Prune and purge take the sums
+with them.
+**What moved:** the list of addresses behind the unattributed piles (§4.31) is
+fetched when someone opens it, through `lens unexplained`, rather than computed
+on every page load. It is the one expensive read left, and almost nobody opens
+it.
+**One drift accepted and stated:** an hour's split between *far end* and
+*unknown* depends on which interfaces have ever had a device on them. A device
+appearing for the first time on a new VLAN does not re-sort the settled hours
+before it. Device totals are unaffected.
