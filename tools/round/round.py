@@ -25,7 +25,8 @@ The human part of the round becomes reading one file and looking at pictures.
 Nothing is written to the box. Output goes to ~/lens-round/<box>-<stamp>/,
 outside the repository, unless --out says otherwise.
 
-Secrets come from the environment and are never written to the report:
+Secrets come from ~/.config/lens-round/<box>.env (one per box, chmod 600,
+KEY=value lines) or from the environment, and are never written to the report:
     LENS_API_KEY, LENS_API_SECRET      an API key of a user holding the Lens privileges
     LENS_UI_USER, LENS_UI_PASS         a GUI login, for the screenshots
     LENS_UI_URL                        when the GUI is not at https://<host>/ (one box only)
@@ -173,6 +174,43 @@ def as_json(text):
         return json.loads(text)
     except (TypeError, ValueError):
         return None
+
+
+CREDENTIALS = os.path.expanduser('~/.config/lens-round')
+
+# what each box's file may set; anything else in it is ignored
+LOADED = set()
+CREDENTIAL_NAMES = ('LENS_API_KEY', 'LENS_API_SECRET', 'LENS_UI_USER', 'LENS_UI_PASS', 'LENS_UI_URL')
+
+
+def load_credentials(name):
+    """
+    Per-box secrets from ~/.config/lens-round/<box>.env, if there is one.
+
+    Each box has its own API key, so one set of environment variables cannot
+    serve two boxes. The files live outside the repository, readable only by
+    their owner, and are never written to a report. A box without a file falls
+    back to the environment, as before.
+    """
+    # forget what the previous box's file set, so one box's key is never sent
+    # to another
+    for key in LOADED:
+        os.environ.pop(key, None)
+    LOADED.clear()
+
+    path = os.path.join(CREDENTIALS, name + '.env')
+    if not os.path.isfile(path):
+        return
+
+    if os.stat(path).st_mode & 0o077:
+        print('   %s is readable by others; chmod 600 it' % path)
+
+    with open(path) as handle:
+        for line in handle:
+            key, _, value = line.strip().partition('=')
+            if key in CREDENTIAL_NAMES and value:
+                os.environ[key] = value
+                LOADED.add(key)
 
 
 def api(base, path, insecure):
@@ -360,6 +398,7 @@ def main():
         base = (os.environ.get('LENS_UI_URL') if args.box else None) or 'https://%s' % box['host']
         report = Report(box)
         print('== %s (%s)' % (box['name'], box['host']))
+        load_credentials(box['name'])
 
         sections, error = ssh_sections(box)
         if sections is None:
