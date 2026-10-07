@@ -188,20 +188,45 @@ class DeviceReportTest extends TestCase
             $this->one(['label' => ['name' => 'Kitchen']])['named_short']);
     }
 
-    public function testWithoutAHostnameTheVendorAndTheMacTailAreUsed()
+    public function testWithoutAHostnameTheVendorInAWordAndItsAddressAreUsed()
     {
         $device = $this->one();
 
-        $this->assertSame('Intel Corporate E154C7', $device['name']);
+        $this->assertSame('Intel 10.0.10.5', $device['name']);
         $this->assertSame('Intel Corporate', $device['vendor']);
     }
 
-    public function testAnUnknownVendorIsNotGuessedAtAndTheMacIsShownInstead()
+    public function testWithoutAnAddressTheMacTailStandsIn()
+    {
+        $device = $this->one(['addresses' => []]);
+
+        $this->assertSame('Intel E154C7', $device['name']);
+    }
+
+    public function testAnUnknownVendorIsNotGuessedAtTheAddressAndMacTailAreShown()
     {
         $device = $this->one(['mac' => 'aa:bb:cc:dd:ee:ff']);
 
-        $this->assertSame('aa:bb:cc:dd:ee:ff', $device['name']);
+        $this->assertSame('10.0.10.5 (DDEEFF)', $device['name']);
         $this->assertNull($device['vendor']);
+        $this->assertSame('aa:bb:cc:dd:ee:ff', $this->one(['mac' => 'aa:bb:cc:dd:ee:ff', 'addresses' => []])['name']);
+    }
+
+    public function testAVendorReadsAsAName()
+    {
+        $this->assertSame('Proxmox', DeviceReport::shortVendor('Proxmox Server Solutions GmbH'));
+        $this->assertSame('Apple', DeviceReport::shortVendor('Apple, Inc.'));
+        $this->assertSame('Samsung', DeviceReport::shortVendor('Samsung Electronics Co.,Ltd'));
+        $this->assertSame('TP-LINK', DeviceReport::shortVendor('TP-LINK TECHNOLOGIES CO.,LTD.'));
+        $this->assertSame('AVM', DeviceReport::shortVendor('AVM Audiovisuelles Marketing und Computersysteme GmbH'));
+    }
+
+    public function testAReverseDnsNameIsAHostnameAndSaysWhereItCameFrom()
+    {
+        $device = $this->one(['hostname' => 'pve-backup.lan', 'hostname_source' => 'reverse DNS']);
+
+        $this->assertSame('pve-backup.lan', $device['name']);
+        $this->assertStringContainsString('reverse DNS', $device['named_by']);
     }
 
     public function testARandomisedMacIsLabelledRatherThanQuietlyListed()

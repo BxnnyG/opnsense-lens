@@ -16,4 +16,32 @@
             <learning>watching so far</learning>
         </translations>
     </lens>
+    <lensinternet>
+        <filename>LensInternet.js</filename>
+        <endpoints>
+            <endpoint>/api/lens/dashboard/internet</endpoint>
+        </endpoints>
+        <translations>
+            <title>Lens: internet</title>
+            <unreachable>Lens did not answer.</unreachable>
+            <open>Lens dashboard</open>
+            <public>public</public>
+            <noanswer>no answer</noanswer>
+            <answered>checks answered</answered>
+            <uptime>uptime today</uptime>
+            <lastoutage>last outage</lastoutage>
+        </translations>
+    </lensinternet>
+    <lensservices>
+        <filename>LensServices.js</filename>
+        <endpoints>
+            <endpoint>/api/lens/dns/overview</endpoint>
+        </endpoints>
+        <translations>
+            <title>Lens: services in use</title>
+            <unreachable>Lens did not answer, or this user may not read DNS (Reporting: Lens: DNS).</unreachable>
+            <nothing>No question today belongs to a service Lens knows by name.</nothing>
+            <open>What was asked, and by whom</open>
+        </translations>
+    </lensservices>
 </metadata>

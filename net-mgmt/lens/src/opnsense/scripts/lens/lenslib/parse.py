@@ -389,3 +389,23 @@ def destinations_from_timeseries(payload, device_interfaces, keep=DESTINATIONS_K
                 rows.append((day, interface, address, '*', 0, 0, direction,
                              other[direction][0], other[direction][1]))
     return rows
+
+
+def public_answer(text):
+    """
+    The address in drill's answer to `whoami.cloudflare CH TXT` -- with -Q it
+    prints only the record's data: "1.2.3.4" in quotes.
+
+    :return: the address, or None when the answer is not one
+    """
+    import ipaddress
+    import re
+    for line in (text or '').splitlines():
+        # -Q gives the data alone; without it the whole record, data quoted last
+        for candidate in re.findall(r'"([^"]+)"', line) + [line.strip()]:
+            try:
+                return str(ipaddress.ip_address(candidate))
+            except ValueError:
+                continue
+    return None
+

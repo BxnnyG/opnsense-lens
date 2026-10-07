@@ -302,8 +302,9 @@ a.dash-fact:hover { text-decoration: none; color: inherit; border-color: var(--l
 }
 .net-gap, .line-loss { fill: var(--lens-bad); }
 .net-uptime-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
-.net-strip { display: flex; gap: 2px; height: 20px; }
-.net-seg { flex: 1; border-radius: 3px; }
+.net-strip { display: flex; gap: 1px; height: 20px; }
+.net-seg { flex: 1; border-radius: 2px; min-width: 1px; transition: transform 0.08s; }
+.net-seg:hover { transform: scaleY(1.35); }
 .net-seg-up { background: var(--lens-good); }
 .net-seg-partial { background: var(--lens-warn); }
 .net-seg-down { background: var(--lens-bad); }
@@ -590,6 +591,11 @@ tr.lens-group > td { background: var(--lens-hover); }
 .who-track { flex: 1; position: relative; height: 16px; border-radius: 4px; background: var(--lens-track); }
 .who-span { position: absolute; top: 0; height: 16px; border-radius: 4px; background: var(--lens-data); min-width: 2px; }
 .who-row.here .who-name { font-weight: 600; }
+.who-name a { color: inherit; }
+.who-name a:hover { color: var(--lens-accent); text-decoration: none; }
+.who-basis a { color: var(--lens-muted); }
+.who-track-link { cursor: pointer; }
+.who-track-link:hover { box-shadow: inset 0 0 0 1px var(--lens-accent); }
 .who-meta { flex: 0 0 8em; text-align: right; color: var(--lens-muted); font-size: 12px; white-space: nowrap; }
 .who-row { padding: 3px 0; }
 .who-ticks { flex: 1; position: relative; height: 14px; }
@@ -844,3 +850,14 @@ tr.lens-group > td { background: var(--lens-hover); }
 .svc-card-who a, .svc-card-who span.svc-asker { display: block; overflow: hidden; text-overflow: ellipsis;
                                                 white-space: nowrap; color: inherit; }
 .svc-card-who .svc-count { float: right; margin-left: 6px; }
+.dash-sentence-text a { color: inherit; }
+.dash-sentence-text a:hover { color: var(--lens-accent); text-decoration: none; }
+.lens-spark { display: block; width: 100%; height: 28px; margin-top: 8px; }
+.lens-spark rect { fill: var(--lens-accent); opacity: 0.75; }
+.svc-platform-group .lens-spark rect { fill: var(--lens-muted); }
+.svc-card .lens-track { margin-top: 6px; height: 4px; }
+.dns-wide { grid-column: 1 / -1; }
+.net-mark { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; padding: 1px 6px;
+            border-radius: 8px; border: 1px solid var(--lens-border); color: var(--lens-muted); vertical-align: middle; }
+.net-mark-good { border-color: var(--lens-good); color: var(--lens-good); }
+.net-mark-warn { border-color: var(--lens-warn); color: var(--lens-warn); }

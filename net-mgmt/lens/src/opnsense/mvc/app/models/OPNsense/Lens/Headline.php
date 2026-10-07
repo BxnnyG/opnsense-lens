@@ -139,7 +139,9 @@ class Headline
             if ($new !== []) {
                 $also[] = self::joined($new);
             }
-            return self::said('notice', 'fa-bell', $sentence, $also);
+            /* the device it names, one click away (operator, 2026-10-07) */
+            $link = !empty($first['mac']) ? '/ui/lens/device?mac=' . rawurlencode((string)$first['mac']) : null;
+            return self::said('notice', 'fa-bell', $sentence, $also, $link);
         }
 
         if ($new !== []) {
@@ -180,8 +182,8 @@ class Headline
         return rtrim(rtrim(number_format((float)$times, 1), '0'), '.');
     }
 
-    private static function said(string $tone, string $icon, string $sentence, array $also): array
+    private static function said(string $tone, string $icon, string $sentence, array $also, ?string $link = null): array
     {
-        return ['tone' => $tone, 'icon' => $icon, 'sentence' => $sentence, 'also' => $also];
+        return ['tone' => $tone, 'icon' => $icon, 'sentence' => $sentence, 'also' => $also, 'link' => $link];
     }
 }

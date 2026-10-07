@@ -174,6 +174,13 @@ class DnsReport
                 'blocked' => number_format($entry['blocked']),
                 'blocked_pct' => self::pct($entry['queries'] ? $entry['blocked'] / $entry['queries'] * 100 : 0),
                 'names' => number_format($entry['names']),
+                /* which one it is, without opening it: its addresses and the name it announced */
+                'addresses' => array_values(array_unique(array_map(function ($address) {
+                    return (string)$address['address'];
+                }, array_filter((array)($entry['row']['addresses'] ?? []), function ($address) {
+                    return !empty($address['current']);
+                })))),
+                'hostname' => $entry['row']['hostname'] ?? null,
                 'bar' => round($entry['queries'] / $largest * 100, 1),
                 'domains' => $domains,
                 'services' => ServiceReport::chips(self::mostAsked($entry['services'])),

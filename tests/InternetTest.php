@@ -155,4 +155,21 @@ class InternetTest extends TestCase
 
         $this->assertNull($net['wan']['ipv6']);
     }
+
+    public function testThePublicAddressIsMarkedSameNatOrCgnat()
+    {
+        $same = Internet::publicAddress(['v4' => '84.1.2.3', 'at' => self::NOW - 60], '84.1.2.3', self::NOW);
+        $this->assertSame('same', $same['relation']['key']);
+
+        $nat = Internet::publicAddress(['v4' => '84.1.2.3', 'at' => self::NOW], '192.168.178.32', self::NOW);
+        $this->assertSame('nat', $nat['relation']['key']);
+        $this->assertSame('84.1.2.3', $nat['ipv4']);
+
+        $cgnat = Internet::publicAddress(['v4' => '84.1.2.3', 'at' => self::NOW], '100.71.4.9', self::NOW);
+        $this->assertSame('cgnat', $cgnat['relation']['key']);
+        $this->assertStringContainsString('forwarded ports', $cgnat['relation']['text']);
+
+        $this->assertNull(Internet::publicAddress([], '84.1.2.3', self::NOW));
+        $this->assertSame('unknown', Internet::publicAddress(['v6' => '2a02::1'], null, self::NOW)['relation']['key']);
+    }
 }

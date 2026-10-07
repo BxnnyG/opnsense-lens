@@ -68,7 +68,10 @@
                     }
                     $names.append($line);
                 }
-                const $row = ranked(device.name, device.names + ' {{ lang._("names") }} \u00b7 '
+                const which = (device.addresses || []).concat(device.hostname && device.hostname !== device.name
+                    ? [device.hostname] : []);
+                const $row = ranked(device.name, (which.length ? which.join(', ') + ' \u00b7 ' : '')
+                    + device.names + ' {{ lang._("names") }} \u00b7 '
                     + device.blocked + ' {{ lang._("blocked") }} (' + device.blocked_pct + ')',
                     device.bar, device.queries, { link: device.link });
                 if ((device.services || []).length) {
@@ -117,6 +120,9 @@
                                 .append($('<div/>').addClass('dv-sub').text(card.sub + ' \u00b7 ' + card.queries
                                     + ' {{ lang._("questions") }}'
                                     + (card.blocked ? ' \u00b7 ' + card.blocked + ' {{ lang._("blocked") }}' : '')))))
+                        .append($('<div/>').addClass('lens-track').append(
+                            $('<div/>').addClass('lens-fill').css('width', Math.max(2, card.bar) + '%')))
+                        .append(Lens.spark(card.series, card.name + ': {{ lang._("questions per hour") }}'))
                         .append($who));
                 }
                 $groups.append($('<div/>').addClass('svc-group')
@@ -172,20 +178,21 @@
             $('#dnsStoreBoxes').toggle(store);
             $('#dnsRange').toggle(store);
             if (store) {
+                /* asked most, and by whom: one list, not two (operator, 2026-10-07) */
+                $('#dnsTopTitle').text('{{ lang._("Asked most, and by whom") }}');
+                const $top = $('#dnsTop').empty();
+                for (const name of (report.by_name || []).slice(0, 15)) {
+                    $top.append(ranked(name.domain,
+                        (name.blocked ? '{{ lang._("blocked") }} ' + name.blocked_count + ' \u00b7 ' : '')
+                        + name.askers.map(a => a.name + ' ' + a.count).join(', '),
+                        name.bar, name.count));
+                }
                 byDevice = report.by_device || [];
                 drawByDevice();
                 services = report.services || { groups: [] };
                 $('#dnsServicesCoverage').text(services.coverage || '');
                 $('#dnsServicesLimits').text(report.services_limits || '');
                 drawServices();
-                const $names = $('#dnsByName').empty();
-                for (const name of report.by_name || []) {
-                    $names.append(ranked(name.domain,
-                        (name.blocked ? '{{ lang._("blocked") }} ' + name.blocked_count
-                            + (name.blocklist ? ' \u00b7 ' + name.blocklist : '') + ' \u00b7 ' : '')
-                        + name.askers.map(a => a.name + ' ' + a.count).join(', '),
-                        name.bar, name.count));
-                }
             }
             $('#dnsReport').show();
         });
@@ -245,7 +252,7 @@
 
     <div class="dv-grid">
         <div class="content-box dv-card">
-            <div class="dv-title"><span>{{ lang._('Asked most, the whole network') }}</span></div>
+            <div class="dv-title"><span id="dnsTopTitle">{{ lang._('Asked most, the whole network') }}</span></div>
             <div id="dnsTop"></div>
         </div>
         <div class="content-box dv-card">
@@ -265,15 +272,12 @@
             <div class="lens-note-under" id="dnsServicesLimits"></div>
         </div>
         <div class="dv-grid" style="margin-top: 14px;">
-            <div class="content-box dv-card">
+            <div class="content-box dv-card dns-wide">
                 <div class="dv-title"><span>{{ lang._('Who asked what') }}</span></div>
                 <div id="dnsByDevice"></div>
                 <div id="dnsNoByDevice" class="dv-sub" style="display: none;">{{ lang._('No device asked anything in this range.') }}</div>
             </div>
-            <div class="content-box dv-card">
-                <div class="dv-title"><span>{{ lang._('What was asked, and by whom') }}</span></div>
-                <div id="dnsByName"></div>
-            </div>
+
         </div>
         <div class="lens-note-under">
             {{ lang._("Every question in the range, from Unbound's own record. Each hour's questions from an address belong to the device that alone held it in that hour; an hour two devices shared belongs to nobody.") }}

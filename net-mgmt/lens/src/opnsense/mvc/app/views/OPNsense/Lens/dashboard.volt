@@ -86,7 +86,9 @@
             if (sentence.sentence) {
                 $('#dashSentence').attr('class', 'content-box dash-sentence dash-' + sentence.tone);
                 $('#dashSentenceIcon').attr('class', 'fa ' + sentence.icon);
-                $('#dashSentenceText').text(sentence.sentence);
+                $('#dashSentenceText').empty().append(sentence.link
+                    ? $('<a/>').attr('href', sentence.link).text(sentence.sentence + ' \u203a')
+                    : document.createTextNode(sentence.sentence));
                 $('#dashSentenceAlso').text((sentence.also || []).join(' '));
                 $('#dashSentence').show();
             }
@@ -349,6 +351,22 @@
             $('#netV4').text(net.wan.ipv4 || '{{ lang._("no IPv4") }}');
             $('#netV6').text(net.wan.ipv6 || '').toggle(!!net.wan.ipv6);
 
+            /* the address the internet sees (§4.81): a line of its own when it is
+               not the WAN's, a mark on the WAN's when it is */
+            const pub = net.public;
+            const same = pub && pub.relation.key === 'same';
+            $('#netPublicRow').toggle(!!pub && !same && !!(pub.ipv4 || pub.ipv6));
+            $('#netSameMark').toggle(!!same).attr('title', same ? pub.relation.text + ' \u00b7 '
+                + '{{ lang._("checked") }} ' + pub.checked : '');
+            if (pub && !same) {
+                $('#netPublic').text(pub.ipv4 || pub.ipv6);
+                $('#netPublicMark').text(pub.relation.key === 'cgnat' ? 'CGNAT' : (pub.relation.key === 'nat' ? 'NAT' : ''))
+                    .toggle(pub.relation.key === 'cgnat' || pub.relation.key === 'nat')
+                    .toggleClass('net-mark-warn', pub.relation.key === 'cgnat');
+                $('#netPublicRow').attr('title', (pub.relation.text ? pub.relation.text + ' \u00b7 ' : '')
+                    + '{{ lang._("checked") }} ' + pub.checked);
+            }
+
             const $probes = $('#netProbes').empty();
             for (const probe of net.probes) {
                 const $p = $('<div/>').addClass('net-probe');
@@ -378,9 +396,35 @@
                 : (uptime.rounds ? '{{ lang._("no outage in this range") }}' : ''));
 
             const $strip = $('#netStrip').empty();
-            for (const state of uptime.strip) {
-                $strip.append($('<span/>').addClass('net-seg net-seg-' + state));
-            }
+            const STATES = { up: '{{ lang._("reachable") }}', down: '{{ lang._("down") }}',
+                             partial: '{{ lang._("down for part of it") }}', none: '{{ lang._("not measured") }}' };
+            uptime.strip.forEach((state, i) => {
+                const $seg = $('<span/>').addClass('net-seg net-seg-' + state).appendTo($strip);
+                const slot = (uptime.slots || [])[i];
+                if (!slot) {
+                    return;
+                }
+                /* hover: when, what, how long, how fast (operator, 2026-10-07) */
+                const [from, to, rounds, down, ms] = slot;
+                const lines = [{ value: STATES[state] || state },
+                               { label: Lens.when(from, 60, true) + ' \u2013 ' + Lens.when(to, 60, true) }];
+                if (rounds) {
+                    lines.push({ label: down
+                        ? down + ' {{ lang._("of") }} ' + rounds + ' {{ lang._("checks found it down, about") }} '
+                          + Math.round(down * (to - from) / rounds / 60) + ' min'
+                        : rounds + ' {{ lang._("checks, all answered") }}' });
+                }
+                if (ms !== null) {
+                    lines.push({ label: '{{ lang._("best round trip") }} ' + ms + ' ms' });
+                }
+                for (const outage of uptime.outages || []) {
+                    if (outage.from < to && outage.to > from) {
+                        lines.push({ label: '{{ lang._("outage") }} ' + new Date(outage.from * 1000).toLocaleString()
+                                     + ', ' + outage.for });
+                    }
+                }
+                Lens.tip($seg[0], lines);
+            });
 
             const $outages = $('#netOutages').empty();
             for (const outage of uptime.outages.slice(0, 3)) {
@@ -538,9 +582,15 @@
             <span class="net-title">{{ lang._('Internet') }}</span>
             <span id="netState" class="net-state-text"></span>
         </div>
+        <div class="net-addr" id="netPublicRow" style="display: none;">
+            <span class="dash-sub">{{ lang._('Public') }}</span>
+            <span class="net-ip" id="netPublic"></span>
+            <span class="net-mark" id="netPublicMark"></span>
+        </div>
         <div class="net-addr">
             <span class="dash-sub" id="netWanName">WAN</span>
             <span class="net-ip" id="netV4"></span>
+            <span class="net-mark net-mark-good" id="netSameMark" style="display: none;">{{ lang._('public') }}</span>
             <span class="net-ip net-v6" id="netV6"></span>
         </div>
     </div>

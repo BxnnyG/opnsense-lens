@@ -2118,3 +2118,40 @@ over the result — the check that would have caught it on the box, before the
 operator did. And `lens-deploy.sh --round` deploys and runs the round over one
 SSH connection per box: one password, not two.
 
+### §4.81 — A device is called what someone would call it (2026-10-07, operator)
+**What the operator saw:** "One thing is unusual today: Proxmox Server
+Solutions GmbH 69B896 moved 605 MB" — and no idea which machine that is.
+Nobody knows a MAC by heart. Box-2's virtual machines hold static addresses,
+so no lease names them, and the name fell through to vendor plus MAC tail.
+**Decision, in order:** the operator's own name; the hostname a lease gives;
+**new:** the name the box's own resolver gives the address (PTR through
+Unbound — host overrides, DHCP registrations, a domain controller), asked
+for the devices nothing has named yet, all at once within three seconds, and
+a name that only spells the address out is no name; **new:** failing all of
+it, the vendor in a word and the address it holds — "Proxmox 10.0.147.23",
+which says where to look. Only with no address left is the MAC tail used.
+The hostname's source is said where the name is explained ("hostname, from
+reverse DNS"). The DNS page's device rows carry their current addresses and
+hostname too, and the dashboard's headline and every Who's home strip link to
+the device they name.
+**The public address.** Behind a modem or CGNAT the WAN address is not what
+the internet sees. Once an hour, while the probes are switched on, Lens asks
+Cloudflare's resolver `whoami.cloudflare` (CH TXT) for IPv4 and IPv6 — the same
+1.1.1.1 the probes already reach, one more question — and keeps the answer in
+`public.json` beside the store, never in the history. The dashboard marks the
+WAN address "public" when it is the same, and otherwise shows the public one
+above it, with NAT or CGNAT said (CGNAT: forwarded ports will not arrive).
+
+### §4.82 — Lens on core's dashboard, and a strip that answers when pointed at
+**Operator, 2026-10-07:** hover the uptime line and see what happened and for
+how long, finer, as UniFi does; and put such things on the standard
+dashboard. **The strip** is now quarter hours over a day (hours over a week),
+and each slice says on hover when it was, how many checks ran, how many found
+the internet down and so for about how long, the best round trip, and the
+outage it belongs to. **Core's dashboard** gets two widgets beside the device
+list: *Lens: internet* (state, public and WAN address, the resolvers' round
+trips, the day's strip with the same hover) and *Lens: services in use* (the
+chosen services of the day, how many devices, a bar each — behind the DNS
+privilege, §4.64, and saying so when refused). Both read the endpoints the Lens
+pages read, so a widget and a page cannot disagree (§4.32).
+

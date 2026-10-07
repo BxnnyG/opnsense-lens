@@ -586,8 +586,37 @@
         return row;
     };
 
+    /* a small bar chart of counts, oldest first: a service's day or week (#44) */
+    const spark = (values, title) => {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        const list = values || [];
+        const top = Math.max(1, ...list);
+        svg.setAttribute('class', 'lens-spark');
+        svg.setAttribute('viewBox', '0 0 ' + Math.max(1, list.length) + ' 20');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        list.forEach((value, i) => {
+            if (!value) {
+                return;
+            }
+            const bar = document.createElementNS(NS, 'rect');
+            const height = Math.max(1, value / top * 20);
+            bar.setAttribute('x', i + 0.1);
+            bar.setAttribute('width', 0.8);
+            bar.setAttribute('y', 20 - height);
+            bar.setAttribute('height', height);
+            svg.appendChild(bar);
+        });
+        if (title) {
+            const tip = document.createElementNS(NS, 'title');
+            tip.textContent = title;
+            svg.appendChild(tip);
+        }
+        return svg;
+    };
+
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
-        services: services
+        services: services, spark: spark
     };
 })();

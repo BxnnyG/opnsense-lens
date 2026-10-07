@@ -71,6 +71,10 @@ class ServiceReport
         }
 
         $cards = [];
+        $series = (array)($raw['series'] ?? []);
+        $largest = max(array_merge([1], array_map(function ($service) {
+            return (int)($service['queries'] ?? 0);
+        }, (array)($raw['services'] ?? []))));
         foreach ((array)($raw['services'] ?? []) as $service) {
             $askers = [];
             foreach ((array)($service['askers'] ?? []) as $asker) {
@@ -110,6 +114,9 @@ class ServiceReport
                     ? number_format((int)$service['blocked']) : null,
                 'devices' => $devices,
                 'sub' => self::who($devices, $addresses),
+                /* how much, against the busiest service, and when: questions per hour (§4.78) */
+                'bar' => round((int)$service['queries'] / $largest * 100, 1),
+                'series' => array_map('intval', (array)($series[(string)$service['service']] ?? [])),
                 'askers' => array_map(function ($asker) {
                     $asker['count'] = number_format($asker['count']);
                     return $asker;

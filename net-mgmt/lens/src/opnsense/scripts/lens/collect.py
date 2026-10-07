@@ -200,6 +200,39 @@ def read_file(path):
         return ''
 
 
+def reverse_names(addresses, budget=3.0):
+    """
+    The PTR name of each address, from the box's own resolver, within one
+    shared time budget: a lookup that has not answered by then is dropped, and
+    asked again at the next observation. A name that only spells the address
+    out ("10-0-0-5.example") names nothing and is dropped too.
+
+    :param addresses: mac -> IPv4 address
+    :return: mac -> name
+    """
+    import socket
+    import threading
+
+    found = {}
+
+    def ask(mac, address):
+        try:
+            name = socket.gethostbyaddr(address)[0].rstrip('.')
+        except (OSError, UnicodeError):
+            return
+        spelled = (address.replace('.', '-'), address)
+        if name and not any(form in name for form in spelled):
+            found[mac] = name
+
+    workers = [threading.Thread(target=ask, args=item, daemon=True) for item in addresses.items()]
+    for worker in workers:
+        worker.start()
+    deadline = time.time() + budget
+    for worker in workers:
+        worker.join(max(0.0, deadline - time.time()))
+    return dict(found)
+
+
 def observe(store, now):
     """Who is on the network, and which addresses they hold right now."""
     arp = parse.parse_arp(read_command(['/usr/sbin/arp', '-an']))
@@ -215,6 +248,16 @@ def observe(store, now):
     local = {mac for mac, _, _, permanent in arp if permanent}
     seen = [(mac, address, interface) for mac, address, interface, _ in arp]
     seen += list(ndp)
+
+    # what the box's own resolver calls the ones no lease names (§4.81): host
+    # overrides, DHCP registrations, a domain controller -- the names the
+    # operator already gave, instead of a hardware vendor nobody recognises
+    unnamed = store.unnamed() - set(hostnames)
+    looked_up = reverse_names({mac: address for mac, address, _, _ in arp
+                               if mac in unnamed and mac not in local})
+    for mac, name in looked_up.items():
+        hostnames[mac] = name
+        sources[mac] = 'reverse DNS'
 
     for mac in {key[0] for key in seen}:
         store.see_device(
@@ -237,11 +280,62 @@ def observe(store, now):
                      else '; gateway samples switched off')
     probes_said = (probe_internet(store, now, conf['probe_targets']) if conf['probe_enabled']
                    else '; probes switched off')
+    # the public address rides on the probes' switch: same resolvers, one more question
+    if conf['probe_enabled']:
+        probes_said += public_address(now)
 
     return '%d devices, %d addresses, %d new windows%s%s' % (
         len({key[0] for key in seen}), len(set(seen)), len(opened),
         gateways_said, probes_said
     )
+
+
+PUBLIC_FILE = os.path.join(os.path.dirname(DB_PATH), 'public.json')
+PUBLIC_EVERY = 3600
+
+
+def public_address(now, every=PUBLIC_EVERY):
+    """
+    The address the internet sees this firewall as (§4.81) -- behind a modem
+    or CGNAT it is not the WAN address. Asked of Cloudflare's resolver by DNS
+    (`whoami.cloudflare`, CH TXT), the same 1.1.1.1 the probes already reach,
+    once an hour, for IPv4 and IPv6. Kept in a small file beside the store,
+    with when it was asked; never in the history.
+    """
+    if not sys.platform.startswith('freebsd'):
+        return ''
+    try:
+        with open(PUBLIC_FILE) as handle:
+            known = json.load(handle)
+    except (OSError, ValueError):
+        known = {}
+    if now - int(known.get('at', 0) or 0) < every:
+        return ''
+
+    found = {'at': now}
+    for family, server in (('v4', '1.1.1.1'), ('v6', '2606:4700:4700::1111')):
+        try:
+            out = subprocess.run(['/usr/bin/drill', '-Q', 'whoami.cloudflare', 'CH', 'TXT', '@' + server],
+                                 capture_output=True, text=True, timeout=4).stdout
+        except (OSError, subprocess.SubprocessError):
+            out = ''
+        found[family] = parse.public_answer(out)
+    try:
+        with open(PUBLIC_FILE + '.tmp', 'w') as handle:
+            json.dump(found, handle)
+        os.replace(PUBLIC_FILE + '.tmp', PUBLIC_FILE)
+    except OSError:
+        return '; public address not kept'
+    return '; public address %s' % (found['v4'] or found['v6'] or 'unknown')
+
+
+def public_known():
+    try:
+        with open(PUBLIC_FILE) as handle:
+            known = json.load(handle)
+        return known if isinstance(known, dict) else None
+    except (OSError, ValueError):
+        return None
 
 
 # three echoes each, and ping gives up on its own after this many seconds
@@ -348,10 +442,11 @@ def internet(store, now, hours):
                'loss': r['loss'], 'at': r['at']}
               for r in store.latest_probes()] if probing else []
 
-    rounds = [(r['at'], r['best_loss']) for r in store.probe_rounds(since)]
+    rounds = [(r['at'], r['best_loss'], r['best_rtt']) for r in store.probe_rounds(since)]
 
-    # the strip: hourly slices for a day, four-hourly for a week, daily beyond
-    slots = hours if hours <= 24 else (hours // 4 if hours <= 168 else hours // 24)
+    # the strip: quarter hours for a day, hours for a week, six hours beyond --
+    # fine enough that a ten-minute outage is its own slice, as UniFi draws it
+    slots = hours * 4 if hours <= 24 else (hours if hours <= 168 else hours // 6)
 
     return {
         'hours': hours,
@@ -363,6 +458,7 @@ def internet(store, now, hours):
         'series': series,
         'latest': latest,
         'uptime': uptime.assess(rounds, since, now, slots),
+        'public': public_known() if probing else None,
     }
 
 
@@ -626,7 +722,8 @@ def dns(store, now, hours=24):
                                for mac, e in devices.items()],
                               key=lambda entry: -entry['queries'])[:40],
             'names': dnslib.names_by_askers(devices, unplaced),
-            'services': services.network(devices, unplaced),
+            'services': dict(services.network(devices, unplaced),
+                             series=services.series(rows, since, hours + 1)),
             'clients_read': True,
         }
     return dns_from_stats(store, now)

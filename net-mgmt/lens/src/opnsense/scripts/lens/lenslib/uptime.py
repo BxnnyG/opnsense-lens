@@ -20,7 +20,9 @@ def assess(rounds, since, now, slots):
     :param slots: how many pieces to cut the strip into
     :return: {'up_pct', 'outages': [[start, end]], 'strip': [state...], 'rounds': n}
     """
-    rounds = [(int(at), loss) for at, loss in rounds if loss is not None]
+    # (at, loss) or (at, loss, best rtt): the rtt only feeds the strip's hover
+    rtts = {int(r[0]): r[2] for r in rounds if len(r) > 2 and r[2] is not None}
+    rounds = [(int(r[0]), r[1]) for r in rounds if r[1] is not None]
 
     outages = []
     start = None
@@ -41,6 +43,7 @@ def assess(rounds, since, now, slots):
         'up_pct': round(up / len(rounds) * 100, 2) if rounds else None,
         'outages': outages,
         'strip': _strip(rounds, since, now, slots),
+        'slots': _slots(rounds, rtts, since, now, slots),
     }
 
 
@@ -69,3 +72,27 @@ def _strip(rounds, since, now, slots):
         else:
             strip.append('up')
     return strip
+
+
+def _slots(rounds, rtts, since, now, slots):
+    """
+    What each slice of the strip is made of, for its hover: when it starts and
+    ends, how many rounds ran, how many found the internet down, and the best
+    round trip of the rounds that answered (operator, 2026-10-07: "hover and
+    see what happened there, and how long").
+
+    :return: list of [start, end, rounds, down, rtt or None]
+    """
+    width = max(1, (now - since) / float(slots))
+    out = [[int(since + i * width), int(since + (i + 1) * width), 0, 0, []] for i in range(slots)]
+    for at, loss in rounds:
+        index = int((at - since) / width)
+        if 0 <= index < slots:
+            out[index][2] += 1
+            out[index][3] += 1 if loss >= 100.0 else 0
+            if at in rtts and loss < 100.0:
+                out[index][4].append(rtts[at])
+    for slot in out:
+        slot[4] = round(sum(slot[4]) / len(slot[4]), 1) if slot[4] else None
+    return out
+

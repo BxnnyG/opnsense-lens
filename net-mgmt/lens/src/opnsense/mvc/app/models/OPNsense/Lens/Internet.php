@@ -67,6 +67,11 @@ class Internet
                 'ipv4' => self::address($v4[0] ?? null),
                 'ipv6' => self::address($v6[1] ?? null),
             ],
+            'public' => self::publicAddress(
+                is_array($probes['public'] ?? null) ? $probes['public'] : [],
+                self::address($v4[0] ?? null),
+                $now
+            ),
             'probes' => self::probes($probes),
             'uptime' => self::uptime((array)($probes['uptime'] ?? []), $now),
             'step' => (int)($probes['step'] ?? 3600),
@@ -110,6 +115,51 @@ class Internet
             default:
                 return ['key' => 'unknown', 'text' => gettext('Not measured yet')];
         }
+    }
+
+    /**
+     * The address the internet sees, beside the WAN's own (§4.81): the same,
+     * behind a modem's NAT, or behind the provider's (CGNAT, 100.64/10) --
+     * the last one is why a port forward does not reach this firewall.
+     */
+    public static function publicAddress(array $public, ?string $wanV4, int $now): ?array
+    {
+        $v4 = isset($public['v4']) && is_string($public['v4']) ? $public['v4'] : null;
+        $v6 = isset($public['v6']) && is_string($public['v6']) ? $public['v6'] : null;
+        if ($v4 === null && $v6 === null) {
+            return null;
+        }
+
+        if ($v4 === null || $wanV4 === null) {
+            $relation = ['key' => 'unknown', 'text' => ''];
+        } elseif ($v4 === $wanV4) {
+            $relation = ['key' => 'same', 'text' => gettext('the WAN address is the public one')];
+        } elseif (self::inRange($wanV4, '100.64.0.0', 10)) {
+            $relation = ['key' => 'cgnat', 'text' => gettext(
+                'the provider shares one public address (CGNAT): forwarded ports will not reach this firewall'
+            )];
+        } else {
+            $relation = ['key' => 'nat', 'text' => gettext('behind another router: the WAN address is a private one')];
+        }
+
+        return [
+            'ipv4' => $v4,
+            'ipv6' => $v6,
+            'relation' => $relation,
+            'checked' => Duration::ago($now - (int)($public['at'] ?? $now)),
+        ];
+    }
+
+    private static function inRange(string $address, string $network, int $bits): bool
+    {
+        $a = ip2long($address);
+        $n = ip2long($network);
+        if ($a === false || $n === false) {
+            return false;
+        }
+        $mask = -1 << (32 - $bits);
+
+        return ($a & $mask) === ($n & $mask);
     }
 
     private static function address($entry): ?string
@@ -163,6 +213,12 @@ class Internet
             'percent' => $uptime['up_pct'] ?? null,
             'rounds' => (int)($uptime['rounds'] ?? 0),
             'strip' => array_values((array)($uptime['strip'] ?? [])),
+            /* what each slice is made of, for its hover: [start, end, rounds, down, ms] */
+            'slots' => array_values(array_map(function ($slot) {
+                $slot = array_values((array)$slot);
+                return [(int)($slot[0] ?? 0), (int)($slot[1] ?? 0), (int)($slot[2] ?? 0), (int)($slot[3] ?? 0),
+                        isset($slot[4]) ? (float)$slot[4] : null];
+            }, (array)($uptime['slots'] ?? []))),
             'outages' => array_reverse($outages),
             'last' => $last,
         ];

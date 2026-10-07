@@ -410,6 +410,10 @@ class Store:
             (mac, now, now, int(randomised), int(is_local), hostname, source),
         )
 
+    def unnamed(self):
+        """:return: the MACs no source has named yet (for the reverse lookup, §4.81)"""
+        return {row[0] for row in self.db.execute('SELECT mac FROM device WHERE hostname IS NULL')}
+
     def devices(self):
         """
         Every device, with every (address, interface) window it has held.
@@ -1102,7 +1106,7 @@ class Store:
         reachable at all. The internet is down when every target was.
         """
         return self.db.execute(
-            """SELECT at, min(loss) AS best_loss, count(*) AS targets
+            """SELECT at, min(loss) AS best_loss, count(*) AS targets, min(rtt) AS best_rtt
                FROM probe_sample WHERE at >= ?
                GROUP BY at ORDER BY at""",
             (since,),

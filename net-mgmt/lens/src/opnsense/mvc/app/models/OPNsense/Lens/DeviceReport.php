@@ -341,7 +341,7 @@ class DeviceReport
 
         return [
             'mac' => $mac,
-            'name' => $chosenName !== '' ? $chosenName : self::name($mac, $hostname, $vendor),
+            'name' => $chosenName !== '' ? $chosenName : self::name($mac, $hostname, $vendor, $addresses),
             'named_by' => $chosenName !== ''
                 ? gettext('you named it')
                 : self::namedBy($hostname, $device, $vendor),
@@ -571,22 +571,60 @@ class DeviceReport
     }
 
     /**
-     * The best name available today. Stage 6 puts the operator's own label in
-     * front of all of these; until then nothing here is invented -- a device
-     * with no hostname and no known vendor is shown as its MAC, not as a guess.
+     * The best name available today, after the operator's own: the hostname a
+     * lease or the box's resolver gave (§4.81). Failing that, the vendor in a
+     * word and the address it holds -- "Proxmox 10.0.147.23" says which one
+     * to look at, "Proxmox Server Solutions GmbH 69B896" did not (operator,
+     * 2026-10-07). Nothing here is invented: no vendor and no address is the MAC.
      */
-    private static function name(string $mac, string $hostname, ?string $vendor): string
+    private static function name(string $mac, string $hostname, ?string $vendor, array $addresses = []): string
     {
         if ($hostname !== '') {
             return $hostname;
         }
 
+        $address = self::shownAddress($addresses);
         $tail = strtoupper(substr(str_replace(':', '', $mac), -6));
         if ($vendor !== null) {
-            return sprintf('%s %s', $vendor, $tail);
+            return sprintf('%s %s', self::shortVendor($vendor), $address ?? $tail);
         }
 
-        return $mac;
+        return $address !== null ? sprintf('%s (%s)', $address, $tail) : $mac;
+    }
+
+    /** the address a person would type: the current IPv4 first, then the newest of any */
+    private static function shownAddress(array $addresses): ?string
+    {
+        $best = null;
+        foreach ($addresses as $address) {
+            $v4 = strpos((string)$address['address'], ':') === false;
+            $rank = [!empty($address['current']), $v4, (int)($address['last_seen'] ?? 0)];
+            if ($best === null || $rank > $best[0]) {
+                $best = [$rank, (string)$address['address']];
+            }
+        }
+
+        return $best[1] ?? null;
+    }
+
+    /** "Proxmox Server Solutions GmbH" -> "Proxmox", "Apple, Inc." -> "Apple" */
+    public static function shortVendor(string $vendor): string
+    {
+        $short = preg_replace(
+            '/[\s,]+(gmbh|ag|inc|co|corp|corporation|ltd|limited|llc|plc|s\.?a|s\.?r\.?l|b\.?v|oy|ab|kg|'
+            . 'technologies|technology|electronics|international|server solutions|solutions|communications|'
+            . 'networks|systems|group|holdings|company|computer|semiconductor|corporate|trading)\.?\b.*$/i',
+            '',
+            trim($vendor)
+        );
+
+        $short = trim((string)$short, " ,.");
+        if ($short === '') {
+            return trim($vendor);
+        }
+
+        /* a name, not a register entry: past twenty letters the first word carries it */
+        return strlen($short) > 20 ? strtok($short, ' ') : $short;
     }
 
     private static function namedBy(string $hostname, array $device, ?string $vendor): string
@@ -599,7 +637,7 @@ class DeviceReport
         }
 
         if ($vendor !== null) {
-            return gettext('hardware vendor only - it announces no name');
+            return gettext('hardware vendor and address - it announces no name, and the resolver knows none');
         }
 
         return gettext('nothing announced, and the vendor is not in the database');

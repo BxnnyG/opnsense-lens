@@ -77,9 +77,16 @@
                                     { label: Lens.when(from, 3600, true) + ' \u2013 ' + Lens.when(to, 3600, true) }]);
             }
 
-            const $name = $('<div/>').addClass('who-name').attr('title', entry.name)
-                .append($('<i/>').addClass('fa ' + entry.icon))
-                .append(document.createTextNode(' ' + entry.name));
+            /* every strip opens its device: when, how much, with whom (operator, 2026-10-07) */
+            const link = entry.mac ? '/ui/lens/device?mac=' + encodeURIComponent(entry.mac) : null;
+            const $label = link ? $('<a/>').attr('href', link) : $('<span/>');
+            $label.append($('<i/>').addClass('fa ' + entry.icon)).append(document.createTextNode(' ' + entry.name));
+            const $name = $('<div/>').addClass('who-name').attr('title', entry.name).append($label);
+            if (link) {
+                $track.addClass('who-track-link').on('click', () => {
+                    location.href = link;
+                });
+            }
             if (entry.here) {
                 $name.append($('<span/>').addClass('who-dot')
                     .attr('title', '{{ lang._("here now") }}'));
@@ -97,7 +104,13 @@
         const person = (entry, start, now) => {
             const $row = row({ name: entry.name, icon: 'fa-user', here: entry.here, spans: entry.spans,
                                present: entry.present }, start, now);
-            $row.find('.who-name').append($('<div/>').addClass('who-basis').text(entry.basis))
+            const $devices = $('<div/>').addClass('who-basis');
+            entry.devices.forEach((device, i) => {
+                $devices.append(i ? ', ' : '').append(device.mac
+                    ? $('<a/>').attr('href', '/ui/lens/device?mac=' + encodeURIComponent(device.mac)).text(device.name)
+                    : document.createTextNode(device.name));
+            });
+            $row.find('.who-name').append($('<div/>').addClass('who-basis').text(entry.basis)).append($devices)
                 .attr('title', entry.devices.map(d => d.name).join(', '));
             return $row;
         };

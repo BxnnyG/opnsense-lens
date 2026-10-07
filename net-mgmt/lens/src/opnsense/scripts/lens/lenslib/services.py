@@ -189,3 +189,24 @@ def network(devices, unplaced):
     for row in listed:
         row['askers'] = sorted(row['askers'], key=lambda asker: -asker['count'])
     return {'services': listed, 'matched': matched, 'total': total}
+
+
+def series(rows, since, hours):
+    """
+    Each service's questions per hour of the range, oldest first: the shape of
+    its day or week, for the card's small chart.
+
+    :param rows: Unbound's rows (client, domain, hour, questions, ...)
+    :return: key -> list of `hours` counts
+    """
+    found = {}
+    start = int(since) - int(since) % 3600
+    for row in rows:
+        key = match(row[1])
+        if key is None:
+            continue
+        slot = (int(row[2]) - start) // 3600
+        if 0 <= slot < hours:
+            found.setdefault(key, [0] * hours)[slot] += int(row[3])
+    return found
+

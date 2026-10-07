@@ -82,7 +82,8 @@ class PresenceReport
                     ? sprintf(gettext('from %s'), implode(', ', $names))
                     : sprintf(gettext('no phone of theirs is known, so from %s'), implode(', ', $names)),
                 'devices' => array_map(function ($device) {
-                    return ['name' => $device['name'], 'icon' => $device['icon'], 'carried' => $device['carried']];
+                    return ['mac' => $device['mac'], 'name' => $device['name'], 'icon' => $device['icon'],
+                            'carried' => $device['carried']];
                 }, $devices),
                 'interfaces' => array_values(array_unique(array_merge(...array_column($devices, 'interfaces')))),
                 'tags' => array_values(array_unique(array_merge(...array_column($devices, 'tags')))),
@@ -156,6 +157,7 @@ class PresenceReport
 
             if (!empty($row['owner'])) {
                 $owned[$row['owner']][] = [
+                    'mac' => $row['mac'],
                     'name' => $row['name'],
                     'icon' => $row['kind']['icon'] ?? 'fa-circle-o',
                     /* a phone or tablet goes where its person goes; a desktop left on does not */
