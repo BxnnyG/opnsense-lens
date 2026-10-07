@@ -1972,3 +1972,25 @@ decision of this kind.
 2026-10-07). The guards in the stage 49 plan — never the firewall's own MACs,
 never the device the click came from, never the management network, every pause
 an Event — are part of the decision, not options.
+
+### §4.75 — The first router round in nine days, and what only a second box could show (2026-10-07)
+**What happened:** after 0.16 nothing was looked at on a router until today.
+The round found, on the operator's second firewall: **no WAN address and no WAN
+rate**, because the internet panel assumed the WAN's config key is `wan` — there
+it is `opt18`, and IPv4 actually leaves through `opt19` (`igb1`) while IPv6
+leaves through `opt18` (`igb0`); and **no disk**, because that box runs
+OPNsense 26.1, where `configctl system diag disk` returns `df`'s raw document,
+while 26.7 returns `disk_info.py`'s prepared one. Router-01 had neither problem.
+**Decision:** the WAN is wherever the default route points, **per protocol**,
+read through `interface routes list -n json` (the same call core's routes page
+makes on both versions, checked on both branches). The disk is read in both
+shapes. Both cases are fixtures in the tests, taken from the box's own answers.
+**Rationale:** this is §4.16 again — *verify against the branch the box runs* —
+and §1's lesson about inventories, in a new place: a formula read from core's
+master is a guess about any box that is not on master. One box on each release
+is worth more than any amount of reading.
+**Also from the round, not Lens:** a `get_timeseries.py` run with nonsense
+arguments (`--provider 300 --start_time 0 …`) had held one of router-01's two
+cores at 99% for 61 days — started three weeks before Lens existed. The operator
+killed it. And every duty "did not answer" in the first round was the round's
+own fault (`/usr/bin/time`), fixed before the second.

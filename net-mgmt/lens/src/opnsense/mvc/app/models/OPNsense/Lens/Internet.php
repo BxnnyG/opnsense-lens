@@ -48,9 +48,14 @@ class Internet
      * @param int $now
      * @return array
      */
-    public static function describe(array $addresses, array $probes, array $line, string $wanName, int $now): array
+    /**
+     * @param array $wan Wan::pick() -- which interface carries each protocol
+     */
+    public static function describe(array $addresses, array $probes, array $line, array $wan, int $now): array
     {
-        $wan = (array)($addresses['wan'] ?? []);
+        $wanName = (string)($wan['name'] ?? 'WAN');
+        $v4 = (array)($addresses[$wan['v4'] ?? 'wan'] ?? []);
+        $v6 = (array)($addresses[$wan['v6'] ?? 'wan'] ?? []);
 
         return [
             'state' => self::state($probes, $line),
@@ -59,8 +64,8 @@ class Internet
             'probing' => (bool)($probes['probing'] ?? true),
             'wan' => [
                 'name' => $wanName,
-                'ipv4' => self::address($wan[0] ?? null),
-                'ipv6' => self::address($wan[1] ?? null),
+                'ipv4' => self::address($v4[0] ?? null),
+                'ipv6' => self::address($v6[1] ?? null),
             ],
             'probes' => self::probes($probes),
             'uptime' => self::uptime((array)($probes['uptime'] ?? []), $now),

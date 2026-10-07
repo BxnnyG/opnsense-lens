@@ -35,6 +35,7 @@ use OPNsense\Lens\Bytes;
 use OPNsense\Lens\Events;
 use OPNsense\Lens\Heatmap;
 use OPNsense\Lens\Internet;
+use OPNsense\Lens\Wan;
 use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\SystemFacts;
@@ -119,12 +120,11 @@ class DashboardController extends ApiControllerBase
         $events = Events::describe(self::decode($backend, 'lens events 7'), $list['devices'], $names, $now);
         $people = PresenceReport::describe($list['devices'], [], $now)['people'];
 
-        $wan = Config::getInstance()->object()->interfaces->wan ?? null;
         $internet = Internet::describe(
             [],
             $raw['internet'] ?? [],
             LineQuality::describe($raw['gateways'] ?? [], []),
-            $wan !== null && (string)$wan->descr !== '' ? (string)$wan->descr : 'WAN',
+            self::wan($backend),
             $now
         );
 
@@ -149,14 +149,11 @@ class DashboardController extends ApiControllerBase
         $backend = new Backend();
         $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
-        $wan = Config::getInstance()->object()->interfaces->wan ?? null;
-        $wanName = $wan !== null && (string)$wan->descr !== '' ? (string)$wan->descr : 'WAN';
-
         return Internet::describe(
             self::decode($backend, 'interface address'),
             self::decode($backend, 'lens internet ' . $hours),
             LineQuality::describe(self::decode($backend, 'interface gateways status'), []),
-            $wanName,
+            self::wan($backend),
             time()
         );
     }
@@ -204,8 +201,22 @@ class DashboardController extends ApiControllerBase
             is_array($sysctl) ? $sysctl : [],
             self::decode($backend, 'system diag disk'),
             self::decode($backend, 'interface show traffic'),
-            time()
+            time(),
+            self::wan($backend)['v4'] ?? 'wan'
         );
+    }
+
+    /**
+     * Wherever the default route points, per protocol (§4.75).
+     */
+    private static function wan(Backend $backend): array
+    {
+        $interfaces = [];
+        foreach (Config::getInstance()->object()->interfaces->children() as $key => $node) {
+            $interfaces[(string)$key] = ['if' => (string)$node->if, 'descr' => (string)$node->descr];
+        }
+
+        return Wan::pick(self::decode($backend, 'interface routes list -n json'), $interfaces);
     }
 
     private static function decode(Backend $backend, string $command): array

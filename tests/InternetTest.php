@@ -36,6 +36,7 @@ use PHPUnit\Framework\TestCase;
 class InternetTest extends TestCase
 {
     private const NOW = 1790000000;
+    private const WAN = ['v4' => 'wan', 'v6' => 'wan', 'name' => 'WAN'];
 
     private function probes(array $latest, array $uptime = []): array
     {
@@ -54,7 +55,7 @@ class InternetTest extends TestCase
         $net = Internet::describe(
             ['wan' => [['address' => '93.184.216.34', 'bits' => 32],
                        ['address' => '2003:e8::1', 'bits' => 64]]],
-            $this->probes([]), [], 'WAN', self::NOW
+            $this->probes([]), [], self::WAN, self::NOW
         );
 
         $this->assertSame('93.184.216.34', $net['wan']['ipv4']);
@@ -66,7 +67,7 @@ class InternetTest extends TestCase
         $net = Internet::describe([], $this->probes([
             $this->probe('Quad9', null, 100), $this->probe('Cloudflare', null, 100),
             $this->probe('Google', null, 100),
-        ]), [], 'WAN', self::NOW);
+        ]), [], self::WAN, self::NOW);
 
         $this->assertSame('down', $net['state']['key']);
     }
@@ -76,21 +77,21 @@ class InternetTest extends TestCase
         $net = Internet::describe([], $this->probes([
             $this->probe('Quad9', 12.0), $this->probe('Cloudflare', 9.0, 33.3),
             $this->probe('Google', 11.0),
-        ]), [], 'WAN', self::NOW);
+        ]), [], self::WAN, self::NOW);
 
         $this->assertSame('degraded', $net['state']['key']);
     }
 
     public function testWithoutProbesTheGatewayDecides()
     {
-        $net = Internet::describe([], $this->probes([]), ['worst' => 'down'], 'WAN', self::NOW);
+        $net = Internet::describe([], $this->probes([]), ['worst' => 'down'], self::WAN, self::NOW);
 
         $this->assertSame('down', $net['state']['key']);
     }
 
     public function testNothingMeasuredIsUnknownNotOnline()
     {
-        $net = Internet::describe([], $this->probes([]), [], 'WAN', self::NOW);
+        $net = Internet::describe([], $this->probes([]), [], self::WAN, self::NOW);
 
         $this->assertSame('unknown', $net['state']['key']);
     }
@@ -100,7 +101,7 @@ class InternetTest extends TestCase
         /* the collector sends no targets and no latest round once they are off,
            so the last round before the switch cannot read as the internet now */
         $probes = ['probing' => false, 'targets' => [], 'latest' => [], 'series' => [], 'uptime' => []];
-        $net = Internet::describe([], $probes, ['worst' => 'good'], 'WAN', self::NOW);
+        $net = Internet::describe([], $probes, ['worst' => 'good'], self::WAN, self::NOW);
 
         $this->assertFalse($net['probing']);
         $this->assertSame('up', $net['state']['key']);
@@ -109,14 +110,14 @@ class InternetTest extends TestCase
 
     public function testAnOlderCollectorThatSaysNothingIsProbing()
     {
-        $net = Internet::describe([], $this->probes([]), [], 'WAN', self::NOW);
+        $net = Internet::describe([], $this->probes([]), [], self::WAN, self::NOW);
 
         $this->assertTrue($net['probing']);
     }
 
     public function testEveryTargetIsListedEvenBeforeItHasAnswered()
     {
-        $net = Internet::describe([], $this->probes([$this->probe('Quad9', 12.0)]), [], 'WAN', self::NOW);
+        $net = Internet::describe([], $this->probes([$this->probe('Quad9', 12.0)]), [], self::WAN, self::NOW);
 
         $this->assertSame(['Quad9', 'Cloudflare', 'Google'], array_column($net['probes'], 'target'));
         $this->assertNull($net['probes'][1]['rtt']);
@@ -127,9 +128,23 @@ class InternetTest extends TestCase
         $net = Internet::describe([], $this->probes([], [
             'up_pct' => 99.3, 'rounds' => 288, 'strip' => ['up', 'down'],
             'outages' => [[self::NOW - 7200, self::NOW - 6900]],
-        ]), [], 'WAN', self::NOW);
+        ]), [], self::WAN, self::NOW);
 
         $this->assertSame('5.0 minutes', $net['uptime']['last']['for']);
         $this->assertSame(99.3, $net['uptime']['percent']);
+    }
+
+    public function testIpv4AndIpv6CanLeaveThroughDifferentInterfaces()
+    {
+        /* the operator's second firewall: v4 through opt19, v6 through opt18 */
+        $net = Internet::describe(
+            ['opt19' => [['address' => '192.168.178.32']], 'opt18' => [['address' => '192.168.178.31'],
+                                                                         ['address' => '2003:e0::1']]],
+            $this->probes([]), [], ['v4' => 'opt19', 'v6' => 'opt18', 'name' => 'ModemDHCP'], self::NOW
+        );
+
+        $this->assertSame('192.168.178.32', $net['wan']['ipv4']);
+        $this->assertSame('2003:e0::1', $net['wan']['ipv6']);
+        $this->assertSame('ModemDHCP', $net['wan']['name']);
     }
 }

@@ -60,14 +60,19 @@ class SystemFacts
      * @param int $now
      * @return array
      */
-    public static function assemble(array $sysctl, array $disk, array $traffic, int $now): array
-    {
+    public static function assemble(
+        array $sysctl,
+        array $disk,
+        array $traffic,
+        int $now,
+        string $wanKey = 'wan'
+    ): array {
         return [
             'uptime' => self::uptime($sysctl, $now),
             'load' => self::load($sysctl),
             'memory' => self::memory($sysctl),
             'disk' => self::disk($disk),
-            'wan' => self::wan($traffic),
+            'wan' => self::wan($traffic, $wanKey),
         ];
     }
 
@@ -137,6 +142,26 @@ class SystemFacts
      */
     private static function disk(array $disk): ?array
     {
+        /*
+         * Two shapes for one configd action. OPNsense 26.7 runs disk_info.py and
+         * answers `devices`; 26.1 runs `df -ahT --libxo json` and answers df's
+         * own document, sizes already in human units. The operator's second
+         * firewall is on 26.1 and showed no disk at all (§4.75).
+         */
+        if (!isset($disk['devices']) && isset($disk['storage-system-information']['filesystem'])) {
+            foreach ($disk['storage-system-information']['filesystem'] as $fs) {
+                if (($fs['mounted-on'] ?? '') === '/') {
+                    $used = trim((string)($fs['used'] ?? ''));
+                    $total = trim((string)($fs['blocks'] ?? ''));
+                    return [
+                        'percent' => (int)($fs['used-percent'] ?? 0),
+                        'text' => sprintf('%s / %s', $used, $total),
+                    ];
+                }
+            }
+            return null;
+        }
+
         foreach ($disk['devices'] ?? [] as $device) {
             if (($device['mountpoint'] ?? '') !== '/') {
                 continue;
@@ -159,9 +184,9 @@ class SystemFacts
      * Cumulative counters and the moment they were read. A rate needs two
      * readings; the page takes the second one itself a few seconds later.
      */
-    private static function wan(array $traffic): ?array
+    private static function wan(array $traffic, string $key): ?array
     {
-        $wan = $traffic['interfaces']['wan'] ?? null;
+        $wan = $traffic['interfaces'][$key] ?? null;
         if (!is_array($wan)) {
             return null;
         }

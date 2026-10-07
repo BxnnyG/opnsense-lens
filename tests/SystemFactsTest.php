@@ -133,4 +133,26 @@ class SystemFactsTest extends TestCase
     {
         $this->assertNull($this->facts(['vm.loadavg' => 'garbage'])['load']);
     }
+
+    public function testTheDiskIsReadFromOpnsense261sRawDfToo()
+    {
+        /* 26.1 answers df's own document, sizes already human (§4.75) */
+        $disk = SystemFacts::assemble([], ['storage-system-information' => ['filesystem' => [
+            ['name' => 'zroot/ROOT/default', 'type' => 'zfs', 'blocks' => '214G', 'used' => '4.2G',
+             'available' => '210G', 'used-percent' => 2, 'mounted-on' => '/'],
+            ['name' => 'zroot/var/log', 'type' => 'zfs', 'used-percent' => 6, 'mounted-on' => '/var/log'],
+        ]]], [], self::NOW)['disk'];
+
+        $this->assertSame(2, $disk['percent']);
+        $this->assertSame('4.2G / 214G', $disk['text']);
+    }
+
+    public function testTheWanRateIsReadFromWhicheverKeyTheWanHas()
+    {
+        $wan = SystemFacts::assemble([], [], ['time' => 1.0, 'interfaces' => [
+            'opt19' => ['bytes received' => 5, 'bytes transmitted' => 7, 'name' => 'ModemDHCP'],
+        ]], self::NOW, 'opt19')['wan'];
+
+        $this->assertSame(5, $wan['received']);
+    }
 }

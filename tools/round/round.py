@@ -180,7 +180,8 @@ CREDENTIALS = os.path.expanduser('~/.config/lens-round')
 
 # what each box's file may set; anything else in it is ignored
 LOADED = set()
-CREDENTIAL_NAMES = ('LENS_API_KEY', 'LENS_API_SECRET', 'LENS_UI_USER', 'LENS_UI_PASS', 'LENS_UI_URL')
+CREDENTIAL_NAMES = ('LENS_API_KEY', 'LENS_API_SECRET', 'LENS_UI_USER', 'LENS_UI_PASS', 'LENS_UI_URL',
+                    'LENS_INSECURE')
 
 
 def load_credentials(name):
@@ -405,11 +406,13 @@ def main():
             report.check('ssh', 'FAIL', error)
         else:
             judge_ssh(report, sections, expected)
-        judge_api(report, base, args.insecure)
+        # a box's file may say its certificate is self-signed, as most are
+        insecure = args.insecure or os.environ.get('LENS_INSECURE') == '1'
+        judge_api(report, base, insecure)
 
         pages = None
         if not args.no_shots:
-            pages, why = shots(base, outdir, args.insecure)
+            pages, why = shots(base, outdir, insecure)
             if pages is None:
                 report.check('pages', 'look', why)
             else:
