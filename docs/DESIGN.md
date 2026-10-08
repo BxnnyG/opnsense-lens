@@ -226,29 +226,32 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-09-28 against `os-lens-0.31_1`. "Router-tested" means
-the operator clicked it on a box; "built" means tests only — PROCESS calls that
-"plausible".*
+*Brought up to date 2026-10-08 against `os-lens-0.34_1`. "Router-tested" means
+the operator clicked it on a box; "round clean" means `tools/round` passed on
+both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
+Volt, screenshots taken) — without the changes made on purpose, the Settings
+round trip, the fix button, purge and forget; "built" means tests only —
+PROCESS calls that "plausible". `0.34_1` has not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
-| S0 · Package skeleton & walking skeleton | ✅ (stage 1) · 🔨 (40) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1`; CI builds the package and a pkg repository on FreeBSD since stage 40 (§4.68) — every build from this repository is `os-lens-devel` unless tagged; publishing waits on the operator |
-| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), not router-tested; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) built, not router-tested |
-| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 10 (day-long window pieces and summed days since stage 41, §4.69), observe every 5 min, harvest every 30. Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; none router-tested |
-| S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, not router-tested |
+| S0 · Package skeleton & walking skeleton | ✅ (stage 1) · 🔨 (40, 43) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1`; CI builds the package and a pkg repository on FreeBSD since stage 40 (§4.68) — every build from this repository is `os-lens-devel` unless tagged or published; the signed feed went out on GitHub Pages 2026-10-07 (Actions run 4) as `0.31_1` and is behind master until the next publish |
+| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), round clean; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) round clean. Unnamed devices take the name the box's own resolver gives their address, else vendor and address, since `0.34_1` (§4.81) |
+| S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 11: day-long window pieces and summed days since stage 41 (§4.69), every closed hour settled once since `0.32_1` (§4.76); observe every 5 min, harvest every 30, one of each started at install since `0.32_2` (§4.77). Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; round clean on both boxes |
+| S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, its click not recorded on a box |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
-| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), built, not router-tested; restyled and seen at 390 px and in the dark theme in `tools/preview` (§4.59). Where it talks (stage 34, §4.62) built, opt-in; what it looked up (stage 36, §4.64) built; up to four devices side by side since stage 47 (§4.73) |
-| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence built, not router-tested; one stylesheet and phone layouts since stage 31 (§4.59) |
-| S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; `/metrics` for Prometheus built (§4.55), never scraped |
+| S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), round clean on both boxes; restyled and seen at 390 px and in the dark theme (§4.59). Where it talks (stage 34, §4.62) opt-in; what it looked up (stage 36, §4.64) and the services it asked for (§4.78); up to four devices side by side since stage 47 (§4.73); the headline and every Who's home strip link to the device since `0.34_1` |
+| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence round clean on both boxes; the network's week read from settled hours since `0.32_2`; one stylesheet and phone layouts since stage 31 (§4.59) |
+| S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; *Lens: internet* and *Lens: services in use* on core's dashboard since `0.34_1` (§4.82), not yet on a box; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
-| S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), built, not router-tested. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
-| S10 · Wallboard / kiosk | 🔨 (stages 14, 45) | built (§4.40, §4.48); since stage 45 one composed call with clock, figures, a live panel and the latest events (§4.71), seen at 1920×1080, 1440 and 390 px in `tools/preview`, not router-tested |
-| S11 · Command palette | 🔨 (37) | Ctrl-K over devices, networks and Lens pages (§4.65), built, not router-tested |
-| S12 · DNS view | 🔨 (36) | built from core's `stats.py` source (§4.64), not from a capture; by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
-| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round now times every duty on the box. Observe waits up to a 4 s probe deadline |
+| S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), round clean. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
+| S10 · Wallboard / kiosk | 🔨 (stages 14, 45) | built (§4.40, §4.48); since stage 45 one composed call with clock, figures, a live panel and the latest events (§4.71), seen at 1920×1080, 1440 and 390 px in `tools/preview`, round clean |
+| S11 · Command palette | 🔨 (37) | one search, core's: on Lens pages core's box opens the larger search grown out of it, with core's whole menu, the devices and the networks (§4.79); seen by the operator on `0.33` |
+| S12 · DNS view | 🔨 (36, 44) | built from core's `stats.py` source (§4.64); by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; services from v2fly's domain lists laid over it since `0.33_1` (§4.78, §4.79), seen by the operator on both boxes; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
+| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round timed a week at 9.4 s on box-2 and hours are settled once since (§4.76) — not re-timed yet. Observe waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34; one device can be forgotten, and what is kept is on Services: Lens: Privacy since stage 46 (§4.72) |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
-| S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); built, not router-tested |
+| S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); the WAN is where the default route points, per protocol, since `0.31_2` (§4.75); the public address asked of Cloudflare hourly and the strip in quarter hours since `0.34_1` (§4.81, §4.82); the rest round clean |
 
 ## 2. Systems & gaps
 
@@ -2142,7 +2145,7 @@ Cloudflare's resolver `whoami.cloudflare` (CH TXT) for IPv4 and IPv6 — the sam
 WAN address "public" when it is the same, and otherwise shows the public one
 above it, with NAT or CGNAT said (CGNAT: forwarded ports will not arrive).
 
-### §4.82 — Lens on core's dashboard, and a strip that answers when pointed at
+### §4.82 — Lens on core's dashboard, and a strip that answers when pointed at (2026-10-07, operator)
 **Operator, 2026-10-07:** hover the uptime line and see what happened and for
 how long, finer, as UniFi does; and put such things on the standard
 dashboard. **The strip** is now quarter hours over a day (hours over a week),

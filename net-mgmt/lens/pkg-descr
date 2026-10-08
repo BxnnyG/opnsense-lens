@@ -25,6 +25,70 @@ Services: Lens: Settings.
 Plugin Changelog
 ================
 
+0.34_1
+
+* a device nothing has named is called what the box's own resolver calls its
+  address (reverse DNS through Unbound: host overrides, DHCP registrations, a
+  domain controller), else the vendor in a word and its address - "Proxmox
+  10.0.147.23" - instead of the vendor and the tail of its MAC
+* the dashboard's headline and every Who's home strip link to the device
+* DNS: the most-asked names list who asked them, each device shows its
+  addresses, and each service a bar and its questions hour by hour
+* the uptime strip is quarter hours, and says on hover when, how many checks,
+  how long the internet was down and the best round trip
+* the public address: once an hour, while the probes are on, Cloudflare's
+  resolver is asked what address it sees; the dashboard says NAT or CGNAT when
+  it is not the WAN's
+* two widgets for OPNsense's own dashboard: Lens: internet, and Lens: services
+  in use
+
+0.33_3
+
+* the dashboard and the DNS page compile on OPNsense 26.1 too, whose Volt
+  drops the backslash of an escaped apostrophe in translated text
+* focusing OPNsense's search box on a Lens page opens the larger search grown
+  out of it, with OPNsense's whole menu and the devices
+
+0.33_2
+
+* the service domains come from v2fly's domain-list-community (MIT, pinned,
+  notice shipped): 5553 suffixes instead of a hand-kept few
+* the DNS page says when the devices plainly ask another resolver, and shows
+  the root as "."
+
+0.33_1
+
+* which services the devices asked for: a card per service on the DNS page,
+  grouped by kind, with the devices that asked most; the services of each
+  device as chips on the device page and the "who asked what" list. What
+  devices ask by themselves is drawn apart, and what DNS cannot say - asking
+  is not watching, shared CDNs, DNS over HTTPS - is said where a service shows
+
+0.32_2
+
+* the first page after installing has something on it: one observation and
+  one harvest start in the background, so devices, the internet and a day of
+  traffic per network show at once. Traffic per device for the hours before
+  the install stays "before Lens watched"
+* the network's week is read from settled hours
+* a link-local IPv6 address is not shown as the WAN's address
+
+0.32_1
+
+* every closed hour is settled once into per-device sums (schema 11), so a
+  week no longer joins every raw bucket on each page load - on the second
+  firewall that join was 8.3 of the device list's 9.4 s. The first runs on a
+  big store catch up over a couple of hours, at most 240 hours a run
+* the addresses behind the unattributed piles are fetched when the list is
+  opened, not on every page load
+
+0.31_2
+
+* the WAN is wherever the default route points, per protocol, rather than the
+  interface named "wan" - so a box whose IPv4 and IPv6 leave through
+  different interfaces shows both
+* the disk is read on OPNsense 26.1 too
+
 0.31_1
 
 * compare up to four devices: one chart with a line each, what each moved,
