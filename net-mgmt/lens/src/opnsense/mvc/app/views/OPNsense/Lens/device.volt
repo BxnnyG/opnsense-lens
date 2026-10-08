@@ -297,6 +297,98 @@
             }
             render(profile);
             talks();
+            pauseState();
+        });
+
+        /* ------------------------------------------------ pause (§4.74) */
+        let pauseMinutes = 60;
+        const clock = (at) => new Date(at * 1000).toLocaleString([], {
+            weekday: 'short', hour: '2-digit', minute: '2-digit'
+        });
+        /* the page asks; whether it may is decided on the box (§4.35), and a
+           user without the privilege gets no button at all */
+        const pauseState = () => ajaxGet('/api/lens/pause/device', { mac: mac }, (reply, status) => {
+            if (status !== 'success' || !reply || reply.status !== 'ok') {
+                $('#dvPause, #dvPaused').hide();
+                return;
+            }
+            const pause = reply.pause;
+            $('#dvPause').toggle(!pause);
+            $('#dvPauseBox').hide();
+            if (!pause) {
+                $('#dvPaused').hide();
+                $('#dvPauseRefused').text(reply.refused || '').toggle(!!reply.refused);
+                $('#dvPauseForm').toggle(!reply.refused);
+                $('#dvPauseUnguarded').toggle(!(reply.guarded || []).length);
+                return;
+            }
+            let text;
+            if (pause.by === 'alias') {
+                text = '{{ lang._("Its MAC is in the alias lens_paused, put there outside Lens.") }}';
+            } else {
+                text = '{{ lang._("Paused since") }} ' + clock(pause.since) + ', '
+                    + (pause.until ? '{{ lang._("until") }} ' + clock(pause.until) + '.'
+                        : '{{ lang._("until it is resumed.") }}');
+            }
+            if (!pause.effective) {
+                text += ' ' + (reply.rule === 'disabled'
+                    ? '{{ lang._("The rule Lens: paused devices is switched off in Firewall: Rules, so nothing is blocked.") }}'
+                    : '{{ lang._("The rule Lens: paused devices is missing, so nothing is blocked.") }}');
+            }
+            $('#dvPausedText').text(text);
+            $('#dvResume').show();
+            $('#dvPaused').show();
+        });
+
+        const morning = () => {
+            const next = new Date();
+            next.setHours(6, 0, 0, 0);
+            if (next <= new Date()) {
+                next.setDate(next.getDate() + 1);
+            }
+            return Math.ceil((next - new Date()) / 60000);
+        };
+
+        $('#dvPause').on('click', (event) => {
+            event.preventDefault();
+            $('#dvPauseError').hide();
+            $('#dvPauseBox').slideToggle(120);
+        });
+        $('#dvPauseCancel').on('click', (event) => {
+            event.preventDefault();
+            $('#dvPauseBox').slideUp(120);
+        });
+        $('#dvPauseFor').on('click', '.lens-chip', function (event) {
+            event.preventDefault();
+            $('#dvPauseFor .lens-chip').removeClass('lens-chip-on');
+            $(this).addClass('lens-chip-on');
+            const wanted = $(this).data('minutes');
+            pauseMinutes = wanted === 'morning' ? morning() : parseInt(wanted, 10);
+        });
+        $('#dvPauseGo').on('click', () => {
+            $('#dvPauseGo').prop('disabled', true);
+            ajaxCall('/api/lens/pause/pause', { mac: mac, minutes: String(pauseMinutes) }, (reply, status) => {
+                $('#dvPauseGo').prop('disabled', false);
+                if (status !== 'success' || !reply || reply.status !== 'ok') {
+                    $('#dvPauseError').text((reply && reply.message)
+                        || '{{ lang._("The device was not paused.") }}').show();
+                    return;
+                }
+                /* the pause card closes on success, so this goes above the page */
+                if (reply.message) {
+                    $('#dvError').text(reply.message).show();
+                }
+                pauseState();
+            });
+        });
+        $('#dvResume').on('click', () => {
+            $('#dvResume').prop('disabled', true);
+            ajaxCall('/api/lens/pause/resume', { mac: macs() }, (reply, status) => {
+                $('#dvResume').prop('disabled', false);
+                if (status === 'success' && reply && reply.status === 'ok') {
+                    pauseState();
+                }
+            });
         });
 
         /* ------------------------------------------------ where it talks (§4.62) */
@@ -503,6 +595,42 @@
                title="{{ lang._('Delete everything Lens holds about this device') }}">
                 <i class="fa fa-trash"></i> {{ lang._('Forget...') }}
             </a>
+            <a href="#" id="dvPause" class="btn btn-default btn-sm" style="display: none;"
+               title="{{ lang._('Take this device off the internet for a while') }}">
+                <i class="fa fa-pause"></i> {{ lang._('Pause...') }}
+            </a>
+        </div>
+    </div>
+
+    <div id="dvPaused" class="alert alert-warning dv-paused" style="display: none;">
+        <i class="fa fa-pause-circle"></i> <span id="dvPausedText"></span>
+        <button id="dvResume" class="btn btn-default btn-sm" style="display: none;">
+            <i class="fa fa-play"></i> {{ lang._('Resume') }}
+        </button>
+    </div>
+
+    <div id="dvPauseBox" class="content-box dv-card" style="display: none; margin-bottom: 14px;">
+        <div class="dv-sub" style="margin-bottom: 8px;">{{ lang._('Pause this device') }}</div>
+        <div id="dvPauseRefused" class="alert alert-info" style="display: none;"></div>
+        <div id="dvPauseForm">
+            <div class="dv-pause-for" id="dvPauseFor">
+                <a href="#" class="lens-chip" data-minutes="30">{{ lang._('30 minutes') }}</a>
+                <a href="#" class="lens-chip lens-chip-on" data-minutes="60">{{ lang._('1 hour') }}</a>
+                <a href="#" class="lens-chip" data-minutes="120">{{ lang._('2 hours') }}</a>
+                <a href="#" class="lens-chip" data-minutes="morning">{{ lang._('until 06:00') }}</a>
+                <a href="#" class="lens-chip" data-minutes="0">{{ lang._('until I resume it') }}</a>
+            </div>
+            <div id="dvPauseUnguarded" class="alert alert-info" style="display: none;">
+                {{ lang._('No network is protected yet, only the one you are clicking from. Tick your management networks under Services: Lens: Settings, Pausing a device.') }}
+            </div>
+            <ul class="dv-sub dv-pause-limits">
+                <li>{{ lang._('One floating rule, "Lens: paused devices", blocks what this device sends through the firewall: the internet, other networks and the firewall itself. It shows in Firewall: Rules and in the configuration history.') }}</li>
+                <li>{{ lang._('It follows the device by its MAC. A phone that switches to a new private address escapes it, unless Lens already shows its addresses as one device.') }}</li>
+                <li>{{ lang._('Devices on the same network still reach each other directly. A timed pause ends within five minutes of its time.') }}</li>
+            </ul>
+            <div id="dvPauseError" class="alert alert-danger" style="display: none;"></div>
+            <button id="dvPauseGo" class="btn btn-primary btn-sm"><i class="fa fa-pause"></i> {{ lang._('Pause now') }}</button>
+            <a href="#" id="dvPauseCancel" style="margin-left: 10px;">{{ lang._('Cancel') }}</a>
         </div>
     </div>
 

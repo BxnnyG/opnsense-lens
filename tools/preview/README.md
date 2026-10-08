@@ -50,6 +50,14 @@ and the device page's DNS card then read `unbound_stats.py`, a stand-in that
 answers in the shapes core's `stats.py` prints (stage 36 §2). Without it the box
 is the first one, on dnsmasq, and the DNS page says why it is empty.
 
+`LENS_PREVIEW_CLIENT=10.10.20.11` seats the browser at a seeded device's
+address (the laptop on HOME), so the pause guard (§4.83) can be seen deciding;
+without it the click comes from `127.0.0.1`, a network Lens cannot tell, and
+every pause is refused until a network is ticked under Settings. A pause made in
+the preview lands in `firewall.json` beside the store — stand-ins for core's
+Alias and Filter models in `stubs.php`, which show the page, not what core does
+with the same calls.
+
 Re-run `seed.py` before comparing screenshots taken far apart: the store's "last
 observation" ages, and after fifteen minutes every page correctly says the
 collector looks stale.

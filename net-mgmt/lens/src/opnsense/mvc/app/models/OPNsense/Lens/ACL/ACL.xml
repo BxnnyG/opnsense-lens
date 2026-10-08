@@ -52,6 +52,17 @@
         </patterns>
     </page-reporting-lens>
     <!--
+        Pausing a device writes the firewall's rules (§4.74): one alias and one
+        floating block rule. Its own privilege, because a user who may read
+        what a device did may not thereby cut it off.
+    -->
+    <page-services-lens-pause>
+        <name>Services: Lens: Pause devices</name>
+        <patterns>
+            <pattern>api/lens/pause/*</pattern>
+        </patterns>
+    </page-services-lens-pause>
+    <!--
         What devices looked up (§4.64). Its own privilege, because core keeps
         the same questions behind Status: DNS Overview: a user who may read
         Lens but not that must not read DNS through Lens.

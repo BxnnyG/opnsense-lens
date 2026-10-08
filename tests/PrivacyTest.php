@@ -102,6 +102,26 @@ class PrivacyTest extends TestCase
         $this->assertStringContainsString('sees it again at the next observation', $done['sentence']);
     }
 
+    public function testAPausedDeviceIsNotForgottenAndSaysWhy()
+    {
+        $answer = Privacy::forgotten(['dry' => true, 'counts' => ['devices' => 1, 'windows' => 2, 'paused' => 1]]);
+
+        $this->assertFalse($answer['ok']);
+        $this->assertTrue($answer['paused']);
+        $this->assertSame('This device is paused. Resume it on its page first, then forget it.', $answer['sentence']);
+    }
+
+    public function testPastPausesAreAKindKeptAfterTheyEnd()
+    {
+        $report = Privacy::describe(['retention_days' => 365, 'pauses' => ['rows' => 2, 'oldest' => 1000]], 1000 + 86400);
+        $pauses = array_values(array_filter($report['kinds'], function ($kind) {
+            return $kind['key'] === 'pauses';
+        }))[0];
+
+        $this->assertSame(2, $pauses['rows']);
+        $this->assertSame('365 days after it ends', $pauses['kept_for']);
+    }
+
     public function testNothingThereAndNoAnswerAreSaidApart()
     {
         $empty = Privacy::forgotten(['dry' => true, 'counts' => ['devices' => 0, 'windows' => 0]]);

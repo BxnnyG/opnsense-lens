@@ -108,6 +108,14 @@ HARVEST_WINDOW = 23 * 3600
 # How far back the traffic view reaches when nothing else is asked for.
 DEFAULT_TRAFFIC_HOURS = 24
 
+# Ends pauses whose time has come, through core's own models (§4.74). PHP,
+# because the alias lives in the firewall's configuration and only core's
+# model classes may write it; started from observe only when one is due.
+PAUSE_SCRIPT = os.environ.get('LENS_PAUSE_SCRIPT', '/usr/local/opnsense/scripts/lens/pause.php')
+
+# how far back the pause history reaches for the device page
+PAUSE_DAYS = 30
+
 # above this a per-hour chart has more bars than a screen has pixels
 DAILY_ABOVE = 72
 
@@ -645,7 +653,79 @@ def events(store, now, days):
         'overlaps': [{'address': row['address'], 'interface': row['interface'],
                       'macs': [row['one'], row['other']], 'at': row['at']}
                      for row in store.address_overlaps(since)],
+        'pauses': store.pauses(since),
     }
+
+
+def pause_macs(raw):
+    """:return: the MACs a pause was given, lower case and checked, or None"""
+    macs = [mac.strip().lower() for mac in (raw or '').split(',') if mac.strip()]
+    if not macs or len(macs) > 16 or any(not parse.is_mac(mac) for mac in macs):
+        return None
+    return macs
+
+
+def pause_start(mac, macs, until):
+    """
+    Remember that a device was paused (§4.74). The controller has already put
+    its MACs in the alias; this is the history that says since and until when.
+    """
+    key, macs = (mac or '').strip().lower(), pause_macs(macs)
+    if not parse.is_mac(key) or macs is None:
+        print('refused: not a MAC address')
+        return 1
+    now = int(time.time())
+    until = int(until or 0)
+    store = Store(DB_PATH)
+    store.start_pause(key, macs, now, until if until > now else None)
+    store.commit()
+    print('started')
+    return 0
+
+
+def pause_end(mac, how):
+    key = (mac or '').strip().lower()
+    if not parse.is_mac(key):
+        print('refused: not a MAC address')
+        return 1
+    store = Store(DB_PATH)
+    try:
+        ended = store.end_pause(key, int(time.time()), how)
+    except ValueError as failure:
+        print('refused: %s' % failure)
+        return 1
+    store.commit()
+    print('ended' if ended else 'none open')
+    return 0
+
+
+def pauses(store, now):
+    """What is paused and what was: open pauses, and the last PAUSE_DAYS of history."""
+    return {
+        'now': now,
+        'open': store.open_pauses(),
+        'history': store.pauses(now - PAUSE_DAYS * 86400),
+        'due': store.due_pauses(now),
+    }
+
+
+def expire_pauses(store, now):
+    """
+    Hand the pauses whose time has come to the PHP side, detached: observe does
+    not wait on a configuration save. With nothing due this is one SELECT.
+
+    :return: True when the PHP side was started
+    """
+    if not store.due_pauses(now) or not os.path.exists(PAUSE_SCRIPT):
+        return False
+    try:
+        subprocess.Popen([PAUSE_SCRIPT, 'expire'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError as failure:
+        # the observation is already stored; the pause ends at the next run that can
+        print('pause expiry not started: %s' % failure, file=sys.stderr)
+        return False
+    return True
 
 
 def unbound_rows(since, clients=None):
@@ -1348,7 +1428,8 @@ def main():
                  'identity', 'baseline', 'timeline', 'presence', 'profile', 'heatmap',
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
-                 'prune', 'purge', 'forget', 'kept', 'unexplained'],
+                 'prune', 'purge', 'forget', 'kept', 'unexplained',
+                 'pause-start', 'pause-end', 'pauses'],
     )
     parser.add_argument('--mac', help='the device to label, or to forget')
     parser.add_argument('--dry', action='store_true', help='forget: count, delete nothing')
@@ -1356,6 +1437,9 @@ def main():
     parser.add_argument('--step', type=int, default=3600, help='how long that slice is')
     parser.add_argument('--fields', help='base64url of a JSON object of label or setting fields')
     parser.add_argument('--days', type=int, default=30, help='how far back destinations and events reach')
+    parser.add_argument('--macs', help='pause-start: every MAC the alias was given for the device')
+    parser.add_argument('--until', type=int, default=0, help='pause-start: when it ends, 0 for until resumed')
+    parser.add_argument('--how', default='resumed', help='pause-end: resumed, expired, outside or uninstall')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
         help='how far back the traffic duty reaches (default: %d)' % DEFAULT_TRAFFIC_HOURS,
@@ -1469,7 +1553,22 @@ def main():
     if args.duty == 'prune':
         return run('prune', lambda store, now: '%d rows removed' % store.prune(now))
 
-    return run(args.duty, observe if args.duty == 'observe' else harvest)
+    if args.duty == 'pause-start':
+        return pause_start(args.mac, args.macs, args.until)
+
+    if args.duty == 'pause-end':
+        return pause_end(args.mac, args.how)
+
+    if args.duty == 'pauses':
+        print(json.dumps(pauses(Store(DB_PATH), int(time.time()))))
+        return 0
+
+    if args.duty == 'observe':
+        code = run('observe', observe)
+        expire_pauses(Store(DB_PATH), int(time.time()))
+        return code
+
+    return run(args.duty, harvest)
 
 
 if __name__ == '__main__':

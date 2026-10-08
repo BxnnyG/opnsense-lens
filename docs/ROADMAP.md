@@ -70,7 +70,7 @@ this one inherits, and 23 stages of experience with it.
 | — | **One search, core's; pages that compile on 26.1** — the round compiles every view with the box's own Volt (§4.79, §4.80) | S11, S15 | 🔨 `0.33_2`–`0.33_3` |
 | — | **Names people recognise, the public address, two widgets on core's dashboard** (§4.81, §4.82) | S1, S16, S7 | 🔨 `0.34_1` · **not yet on a box** |
 | 48 | **Names for destination addresses** ([plan](plans/stage-48-destination-names.md)) | S5, S12, S14 | ⏳ planned · two questions open for the operator; `dump_cache` measured on box-2 before anything is built |
-| 49 | **Pause a device** — one floating rule, one MAC alias, through core's API ([plan](plans/stage-49-pause-device.md), §4.74) | S1, S5 | ⏳ decided 2026-10-07 · not built |
+| 49 | **Pause a device** — one floating rule, one MAC alias, through core's models; its own privilege; never the firewall, the clicking device or a protected network ([plan](plans/stage-49-pause-device.md), §4.74, §4.83) | S1, S5, S14 | 🔨 built 2026-10-08 as `0.35_1` · clicked through in `tools/preview` against stand-ins for core's models · **the write into core's models is unproven until the router round** |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
 knows what the operator's box is collecting; every week it collects nothing is
@@ -88,7 +88,7 @@ against observations from the operator's own network, which stage 4 produces.
 | — | **Router round for everything built since 0.5_2** — stages up to 40 built on tests and the preview alone ([checklist](ROUTER-ROUND.md)) · the pages themselves can now be looked at without a box: `tools/preview` · most of the round is one command since stage 32: `tools/round/round.py` | all | ✅ ran 2026-10-07 on both boxes, twice: the first found the WAN, the disk and a 9.4 s week (§4.75, §4.76), the second was clean — 37 checks, no FAIL. What it does not cover — the Settings round trip, the fix button, purge, forget — was not recorded as done. **`0.34_1` has not been on a box** |
 | — | **Publish `0.34_1`** — the feed serves `0.31_1`, without the fixes from the round | S0 | ⏳ the operator's click: `package` with `publish: true`, or a tag |
 | — | **Round on `0.34_1`** — reverse names, the public address, the two widgets on core's dashboard, and box-2's week re-timed on settled hours | all | ⏳ |
-| 49 | **Pause a device** (§4.74) — decided, planned, the round it waited for has passed | S1, S5 | ⏳ next to build |
+| — | **Round on `0.35_1`: pause** — the click, the rule in Firewall: Rules, the history entry, a ping that stops and starts, expiry, an upgrade that keeps it, an uninstall that leaves nothing ([checklist](ROUTER-ROUND.md) §5) | S1 | ⏳ |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |

@@ -35,6 +35,13 @@ namespace {
         {
             return ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
         }
+
+        /* LENS_PREVIEW_CLIENT sits the browser at a seeded device's address,
+           so the pause guard (§4.83) can be seen deciding */
+        public function getClientAddress()
+        {
+            return getenv('LENS_PREVIEW_CLIENT') ?: ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        }
     }
 
     class PreviewResponse
@@ -118,8 +125,148 @@ namespace OPNsense\Core {
             return $this->xml;
         }
 
-        public function save()
+        public function save($revision = null)
         {
+        }
+
+        public function lock()
+        {
+            return $this;
+        }
+
+        public function unlock()
+        {
+            return $this;
+        }
+    }
+}
+
+/*
+ * Stand-ins for core's Alias and Filter models, just enough for PauseRule
+ * (§4.74): items with fields, Add, del, setNodes, validation that finds
+ * nothing. Kept in firewall.json beside the seeded store, so a pause made in
+ * the preview survives the next request. They prove the page, not core: what
+ * core's real models do with the same calls is the router round's question.
+ */
+namespace OPNsense\Firewall {
+    class PreviewNode
+    {
+        public $__reference;
+        private $fields;
+        private $uuid;
+
+        public function __construct(string $uuid, array &$fields, string $reference)
+        {
+            $this->uuid = $uuid;
+            $this->fields = &$fields;
+            $this->__reference = $reference . '.' . $uuid;
+        }
+
+        public function __get($name)
+        {
+            return (string)($this->fields[$name] ?? '');
+        }
+
+        public function setNodes(array $values)
+        {
+            foreach ($values as $key => $value) {
+                $this->fields[$key] = (string)$value;
+            }
+        }
+
+        public function getAttribute($name)
+        {
+            return $name === 'uuid' ? $this->uuid : null;
+        }
+    }
+
+    class PreviewItems
+    {
+        private $items;
+        private $reference;
+
+        public function __construct(array &$items, string $reference)
+        {
+            $this->items = &$items;
+            $this->reference = $reference;
+        }
+
+        public function iterateItems()
+        {
+            foreach (array_keys($this->items) as $uuid) {
+                yield $uuid => new PreviewNode($uuid, $this->items[$uuid], $this->reference);
+            }
+        }
+
+        public function Add()
+        {
+            $uuid = sprintf('%08x-0000-4000-8000-%012x', mt_rand(), mt_rand());
+            $this->items[$uuid] = [];
+            return new PreviewNode($uuid, $this->items[$uuid], $this->reference);
+        }
+
+        public function del($uuid)
+        {
+            unset($this->items[$uuid]);
+        }
+
+        public function __get($uuid)
+        {
+            return new PreviewNode($uuid, $this->items[$uuid], $this->reference);
+        }
+    }
+
+    class PreviewModel
+    {
+        protected static function file(): string
+        {
+            return dirname(PREVIEW_DB) . '/firewall.json';
+        }
+
+        protected $data;
+
+        public function __construct()
+        {
+            $read = json_decode((string)@file_get_contents(self::file()), true);
+            $this->data = is_array($read) ? $read : ['aliases' => [], 'rules' => []];
+        }
+
+        public function performValidation()
+        {
+            return [];
+        }
+
+        public function serializeToConfig()
+        {
+            $all = json_decode((string)@file_get_contents(self::file()), true) ?: ['aliases' => [], 'rules' => []];
+            $all[static::KEY] = $this->data[static::KEY];
+            file_put_contents(self::file(), json_encode($all, JSON_PRETTY_PRINT));
+        }
+    }
+
+    class Alias extends PreviewModel
+    {
+        const KEY = 'aliases';
+        public $aliases;
+
+        public function __construct()
+        {
+            parent::__construct();
+            $this->aliases = new \stdClass();
+            $this->aliases->alias = new PreviewItems($this->data['aliases'], 'aliases.alias');
+        }
+    }
+
+    class Filter extends PreviewModel
+    {
+        const KEY = 'rules';
+        public $rules;
+
+        public function __construct()
+        {
+            parent::__construct();
+            $this->rules = new \stdClass();
+            $this->rules->rule = new PreviewItems($this->data['rules'], 'rules.rule');
         }
     }
 }

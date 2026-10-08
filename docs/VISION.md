@@ -88,9 +88,11 @@ opens the page sometimes when nothing is wrong, because it is nice to look at.
 - **No template marketplace.** Layout export/import as a file is cheap and will
   exist. Hosting, moderating and trusting community layouts is a product of its
   own.
-- **No firewall or routing configuration.** Lens reads. The one exception is
+- **No firewall or routing configuration.** Lens reads. Two exceptions are
   narrowly defined and consented to: switching on the data sources it needs
-  (§4.5). It never writes a rule, a route or an alias.
+  (§4.5), and pausing a device on the operator's click — one floating block
+  rule and one MAC alias, through core's own models (§4.74). It writes no
+  other rule, no route and no other alias.
 - **No per-packet capture, no DPI, no TLS inspection.** The data ceiling is
   flow records and DNS names. Anything that would need to see payload is out.
 - **No PDF library.** The weekly report is server-rendered HTML with a print
@@ -265,7 +267,9 @@ every address window; these are views nobody has drawn yet.
   the internet. **Recorded as a deliberate no for now**, because a reporting
   plugin that can cut a device off is a different product with a different
   failure mode — and because if it ever exists, it should be an opt-in with its
-  own decision, not a button that slid in behind a chart.
+  own decision, not a button that slid in behind a chart. **That decision was
+  made on 2026-10-07 (§4.74), with its own privilege and guards (§4.83); built
+  as stage 49.**
 
 ### The order this suggests
 

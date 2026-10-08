@@ -30,6 +30,14 @@ def normalise_mac(mac):
     return ':'.join(part.zfill(2).lower() for part in mac.split(':'))
 
 
+MAC = re.compile(r'^[0-9a-f]{2}(:[0-9a-f]{2}){5}$')
+
+
+def is_mac(mac):
+    """True for one whole MAC in the store's own spelling: lower case, six pairs."""
+    return bool(MAC.match(mac or ''))
+
+
 def is_randomised(mac):
     """
     True when the locally administered bit is set -- a MAC the device made up.

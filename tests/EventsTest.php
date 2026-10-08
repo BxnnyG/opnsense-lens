@@ -179,6 +179,32 @@ class EventsTest extends TestCase
         $this->assertSame('10.0.0.5 on HOME was held by two devices at once', $one['events'][0]['title']);
     }
 
+    public function testAPauseIsTwoEventsAndAMuteDoesNotHideThem()
+    {
+        $row = $this->row('a4:77:33:00:00:03', 'TV', ['muted' => true]);
+        $report = $this->describe(['since' => self::NOW - 7 * 86400, 'pauses' => [
+            ['mac' => 'a4:77:33:00:00:03', 'macs' => ['a4:77:33:00:00:03'], 'started' => self::NOW - 7200,
+             'until' => self::NOW - 3600, 'ended' => self::NOW - 3500, 'ended_how' => 'expired'],
+        ]], [$row]);
+
+        $this->assertSame(['resumed', 'paused'], array_column($report['events'], 'kind'));
+        $this->assertSame("TV's pause ended on time", $report['events'][0]['title']);
+        $this->assertSame('TV was paused', $report['events'][1]['title']);
+        $this->assertFalse($report['events'][1]['muted']);
+        $this->assertSame(2, $report['counts']['devices']);
+    }
+
+    public function testAPauseStillRunningHasNoEndAndAnOldStartIsNotRepeated()
+    {
+        $report = $this->describe(['since' => self::NOW - 86400, 'pauses' => [
+            ['mac' => 'a4:77:33:00:00:03', 'macs' => ['a4:77:33:00:00:03'], 'started' => self::NOW - 3 * 86400,
+             'until' => null, 'ended' => self::NOW - 60, 'ended_how' => 'outside'],
+        ]]);
+
+        $this->assertSame(['resumed'], array_column($report['events'], 'kind'));
+        $this->assertStringContainsString('outside Lens', $report['events'][0]['detail']);
+    }
+
     public function testNewestFirst()
     {
         $report = $this->describe([

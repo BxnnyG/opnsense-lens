@@ -14,7 +14,7 @@ import time
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 # No stored window is longer than this (§4.69). A device present for weeks is a
 # chain of day-long pieces, joined back into one stay for every reader; the cap
@@ -212,7 +212,26 @@ MIGRATIONS = {
         )""",
         "CREATE TABLE hour_done (bucket INTEGER PRIMARY KEY, at INTEGER NOT NULL)",
     ],
+    # Pausing a device (§4.74). The firewall's alias says who is paused now;
+    # this says since when, until when and how it ended -- the history the
+    # Events feed is derived from. `mac` is the device's key, `macs` every MAC
+    # the alias was given for it (a folded phone is several).
+    12: [
+        """CREATE TABLE pause (
+            mac TEXT NOT NULL,
+            macs TEXT NOT NULL,
+            started INTEGER NOT NULL,
+            until INTEGER,
+            ended INTEGER,
+            ended_how TEXT,
+            PRIMARY KEY (mac, started)
+        )""",
+        "CREATE INDEX pause_open ON pause (ended)",
+    ],
 }
+
+# how a pause can end, as stored; PHP words them
+PAUSE_ENDINGS = ('resumed', 'expired', 'outside', 'uninstall')
 
 
 # One definition of "who held this address in this hour", used by the list and
@@ -1180,7 +1199,61 @@ class Store:
         self.db.execute("DELETE FROM device_day_done WHERE day < ?", (cutoff // 86400,))
         for table in ('device_hour', 'unattributed_hour', 'hour_done'):
             self.db.execute("DELETE FROM %s WHERE bucket < ?" % table, (cutoff,))
+        # an open pause is the firewall's state, not history: only ended ones age
+        self.db.execute("DELETE FROM pause WHERE ended IS NOT NULL AND ended < ?", (cutoff,))
         return self.db.total_changes - before
+
+    # ------------------------------------------------------------ pause (§4.74)
+
+    def open_pauses(self):
+        """:return: the pauses that have not ended, oldest first"""
+        return [self._pause(row) for row in self.db.execute(
+            "SELECT * FROM pause WHERE ended IS NULL ORDER BY started")]
+
+    def pauses(self, since):
+        """:return: every pause that was running at some point since `since`, newest first"""
+        return [self._pause(row) for row in self.db.execute(
+            "SELECT * FROM pause WHERE ended IS NULL OR ended >= ? ORDER BY started DESC", (since,))]
+
+    def start_pause(self, mac, macs, now, until):
+        """
+        One device paused. A device already paused is paused again from now:
+        its open pause ends as resumed, so two open rows never describe one
+        device.
+        """
+        self.end_pause(mac, now, 'resumed')
+        self.db.execute(
+            "INSERT OR REPLACE INTO pause(mac, macs, started, until, ended, ended_how) VALUES (?, ?, ?, ?, NULL, NULL)",
+            (mac, ','.join(macs), now, until))
+
+    def end_pause(self, mac, now, how):
+        """:return: how many open pauses of this device ended (0 or 1)"""
+        if how not in PAUSE_ENDINGS:
+            raise ValueError('not a way a pause ends: %s' % how)
+        return self.db.execute(
+            "UPDATE pause SET ended = ?, ended_how = ? WHERE mac = ? AND ended IS NULL",
+            (now, how, mac)).rowcount
+
+    def due_pauses(self, now):
+        """:return: keys of open pauses whose time has come"""
+        return [row[0] for row in self.db.execute(
+            "SELECT mac FROM pause WHERE ended IS NULL AND until IS NOT NULL AND until <= ?", (now,))]
+
+    def paused_among(self, macs):
+        """:return: True when any of these MACs is in an open pause"""
+        wanted = {macs} if isinstance(macs, str) else set(macs)
+        return any(wanted & set(pause['macs']) for pause in self.open_pauses())
+
+    @staticmethod
+    def _pause(row):
+        return {
+            'mac': row['mac'],
+            'macs': [mac for mac in row['macs'].split(',') if mac],
+            'started': row['started'],
+            'until': row['until'],
+            'ended': row['ended'],
+            'ended_how': row['ended_how'],
+        }
 
     # what a device's windows cover, by the attribution join's overlap rule
     # (§4.26): an hour whose bucket the window touches, a day it touches
@@ -1214,9 +1287,13 @@ class Store:
             'summed_days': "SELECT count(*) FROM device_day WHERE mac IN (%s)" % marks,
             'labels': "SELECT count(*) FROM device_label WHERE mac IN (%s)" % marks,
             'devices': "SELECT count(*) FROM device WHERE mac IN (%s)" % marks,
+            'pauses': "SELECT count(*) FROM pause WHERE ended IS NOT NULL AND mac IN (%s)" % marks,
         }
         found = {key: self.db.execute(sql, values).fetchone()[0] for key, sql in counts.items()}
-        if dry or not found['devices'] and not found['windows']:
+        # A paused device is in the firewall's alias. Forgetting it here would
+        # leave it blocked with nothing in Lens that says so or can undo it.
+        found['paused'] = 1 if self.paused_among(macs) else 0
+        if dry or found['paused'] or not found['devices'] and not found['windows']:
             return found
 
         # deleted pages are overwritten, not left in the file's free list
@@ -1232,6 +1309,7 @@ class Store:
                             values)
             for table in ('address_observation', 'device_day', 'device_label', 'device'):
                 self.db.execute("DELETE FROM %s WHERE mac IN (%s)" % (table, marks), values)
+            self.db.execute("DELETE FROM pause WHERE ended IS NOT NULL AND mac IN (%s)" % marks, values)
             self.db.commit()
         finally:
             self.db.execute("PRAGMA secure_delete = OFF")
@@ -1253,6 +1331,7 @@ class Store:
             'summed_days': row("SELECT count(*), min(day) * 86400 FROM device_day"),
             'destination_days': row("SELECT count(*), min(day) FROM destination_day"),
             'labels': row("SELECT count(*), min(updated) FROM device_label"),
+            'pauses': row("SELECT count(*), min(started) FROM pause"),
             'owners': row("SELECT count(DISTINCT owner), NULL FROM device_label WHERE owner <> ''"),
             'line_samples': row(
                 "SELECT (SELECT count(*) FROM gateway_sample) + (SELECT count(*) FROM probe_sample),"
@@ -1266,6 +1345,9 @@ class Store:
                       'device_day', 'device_day_done', 'device_hour', 'unattributed_hour', 'hour_done',
                       'run_log'):
             self.db.execute("DELETE FROM %s" % table)
+        # A pause still running stays: the device is in the firewall's alias
+        # either way, and without its row it would end only by hand (§4.74).
+        self.db.execute("DELETE FROM pause WHERE ended IS NOT NULL")
         self.db.commit()
         self.db.execute("VACUUM")
 

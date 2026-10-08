@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Pausing a device wrote one rule and one alias into the firewall's own
+# configuration (§4.74). They go with Lens -- rule first, then alias -- and no
+# device stays blocked by a plugin that is no longer there to say so.
+#
+# Not on an upgrade: pkg runs the old package's PRE_DEINSTALL then too, with
+# PKG_UPGRADE=true (libpkg/scripts.c), and a device paused before the upgrade
+# must still be paused after it. Never fails the removal.
+
+if [ "${PKG_UPGRADE}" != "true" ]; then
+	/usr/local/opnsense/scripts/lens/pause.php uninstall >/dev/null 2>&1 || true
+fi

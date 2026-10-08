@@ -90,6 +90,25 @@ class SettingsTest extends TestCase
         $this->assertSame(3650, $fields['retention_days']['max']);
     }
 
+    public function testThePauseGuardOffersTheBoxesNetworksAndForwardsNoneAsNone()
+    {
+        $networks = ['vlan0.10' => 'MGNT', 'vlan0.20' => 'HOME'];
+        $fields = $this->fields(Settings::form($this->raw(['pause_protected' => ['vlan0.10']]), [], $networks));
+
+        $this->assertSame('interfaces', $fields['pause_protected']['kind']);
+        $this->assertSame($networks, $fields['pause_protected']['choices']);
+        $this->assertSame(['vlan0.10'], $fields['pause_protected']['value']);
+        /* an empty string is how the page says "none ticked" */
+        $this->assertSame(['pause_protected' => ''], Settings::toStore(['pause_protected' => '']));
+    }
+
+    public function testAHandMadeNetworkListIsRefusedInWords()
+    {
+        $outcome = Settings::outcome(['status' => 'invalid', 'errors' => ['pause_protected' => ['bad_name', 2]]]);
+
+        $this->assertSame('These have to be networks of this firewall, at most 64.', $outcome['errors']['pause_protected']);
+    }
+
     public function testTheGapIsStoredInSecondsAndShownInMinutes()
     {
         $fields = $this->fields(Settings::form($this->raw(['observation_gap' => 1200])));

@@ -53,7 +53,8 @@ class SettingsController extends ApiControllerBase
 
         return Settings::form(
             self::decode($backend, 'lens settings'),
-            self::decode($backend, 'lens status')
+            self::decode($backend, 'lens status'),
+            SegmentsController::names()
         );
     }
 

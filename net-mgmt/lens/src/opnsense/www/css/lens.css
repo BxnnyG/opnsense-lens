@@ -411,6 +411,15 @@ tr.lens-group > td { background: var(--lens-hover); }
 
 .dv-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
 .dv-card { padding: 16px 18px; margin: 0; }
+/* the networks a pause never touches (§4.83) */
+.lens-networks { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.lens-network { font-weight: normal; margin: 0; white-space: nowrap; }
+/* a paused device (§4.74): the state first, the way out beside it */
+.dv-paused { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dv-paused #dvResume { margin-left: auto; }
+.dv-pause-for { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.dv-pause-limits { padding-left: 18px; margin: 0 0 12px; }
+.dv-pause-limits li { margin-bottom: 4px; }
 .dv-wide { grid-column: 1 / -1; }
 .dv-chart { width: 100%; height: 170px; display: block; }
 .dv-chart rect { cursor: pointer; }

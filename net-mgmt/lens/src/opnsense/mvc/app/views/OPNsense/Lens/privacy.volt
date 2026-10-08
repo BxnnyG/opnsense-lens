@@ -103,7 +103,9 @@
                     return;
                 }
                 const ok = status === 'success' && reply && reply.ok;
-                $('#privPreview').text(ok ? reply.sentence : '{{ lang._("Lens did not answer.") }}');
+                /* a paused device is refused with its reason, not "no answer" (§4.74) */
+                const said = status === 'success' && reply && (reply.ok || reply.paused);
+                $('#privPreview').text(said ? reply.sentence : '{{ lang._("Lens did not answer.") }}');
                 $('#privForget').prop('disabled', !(ok && reply.found));
             });
         });

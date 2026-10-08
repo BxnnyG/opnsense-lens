@@ -226,17 +226,17 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-08 against `os-lens-0.34_1`. "Router-tested" means
+*Brought up to date 2026-10-08 against `os-lens-0.35_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` has not been on a box.*
+PROCESS calls that "plausible". `0.34_1` and `0.35_1` have not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
 | S0 · Package skeleton & walking skeleton | ✅ (stage 1) · 🔨 (40, 43) | installed and click-tested on the router 2026-08-30 as `os-lens-0.1_1`; CI builds the package and a pkg repository on FreeBSD since stage 40 (§4.68) — every build from this repository is `os-lens-devel` unless tagged or published; the signed feed went out on GitHub Pages 2026-10-07 (Actions run 4) as `0.31_1` and is behind master until the next publish |
-| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), round clean; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) round clean. Unnamed devices take the name the box's own resolver gives their address, else vendor and address, since `0.34_1` (§4.81) |
+| S1 · Identity service | ✅ (stages 5, 6) · 🔨 (33, 49) | router-tested as `0.3_2` and `0.5_2`; MAC-keyed (§4.17), measured continuously (§4.36); rotating private MACs folded by evidence since stage 33 (§4.61), round clean; a per-device mute since stage 35 (§4.63); an owner per device since stage 39 (§4.67). Grouping (§4.33) and tags as a filter (stage 22) round clean. Unnamed devices take the name the box's own resolver gives their address, else vendor and address, since `0.34_1` (§4.81). A device can be paused since `0.35_1` — one MAC alias and one floating rule through core's models, its own privilege, the guards of §4.83 (§4.74) — tested and clicked through in `tools/preview` only |
 | S2 · Own store & collector | ✅ (stage 4) | `/var/db/lens/lens.sqlite`, schema 11: day-long window pieces and summed days since stage 41 (§4.69), every closed hour settled once since `0.32_1` (§4.76); observe every 5 min, harvest every 30, one of each started at install since `0.32_2` (§4.77). Gateway samples (v5) and probes (v6) ride on observe; daily destinations (v7, §4.62) ride on the harvest when switched on; round clean on both boxes |
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, its click not recorded on a box |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
@@ -249,7 +249,7 @@ PROCESS calls that "plausible". `0.34_1` has not been on a box.*
 | S11 · Command palette | 🔨 (37) | one search, core's: on Lens pages core's box opens the larger search grown out of it, with core's whole menu, the devices and the networks (§4.79); seen by the operator on `0.33` |
 | S12 · DNS view | 🔨 (36, 44) | built from core's `stats.py` source (§4.64); by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; services from v2fly's domain lists laid over it since `0.33_1` (§4.78, §4.79), seen by the operator on both boxes; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
 | S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round timed a week at 9.4 s on box-2 and hours are settled once since (§4.76) — not re-timed yet. Observe waits up to a 4 s probe deadline |
-| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34; one device can be forgotten, and what is kept is on Services: Lens: Privacy since stage 46 (§4.72) |
+| S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34; one device can be forgotten, and what is kept is on Services: Lens: Privacy since stage 46 (§4.72); past pauses are a kind of their own there, inside retention, purge and forget, while a pause still running is the firewall's state and survives purge (§4.74) |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
 | S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); the WAN is where the default route points, per protocol, since `0.31_2` (§4.75); the public address asked of Cloudflare hourly and the strip in quarter hours since `0.34_1` (§4.81, §4.82); the rest round clean |
 
@@ -1972,7 +1972,8 @@ uninstall removes both.
 DNS policy, any change without a click. A third exception would need its own
 decision of this kind.
 **Order:** recorded now, built after the router round passes (BACKLOG, restated
-2026-10-07). The guards in the stage 49 plan — never the firewall's own MACs,
+2026-10-07). **Built 2026-10-08 as `0.35_1`** (stage 49), after both boxes'
+second round came back clean; which networks count as "management" is §4.83. The guards in the stage 49 plan — never the firewall's own MACs,
 never the device the click came from, never the management network, every pause
 an Event — are part of the decision, not options.
 
@@ -2158,3 +2159,20 @@ chosen services of the day, how many devices, a bar each — behind the DNS
 privilege, §4.64, and saying so when refused). Both read the endpoints the Lens
 pages read, so a widget and a page cannot disagree (§4.32).
 
+
+### §4.83 — The networks a pause never touches (2026-10-08, operator)
+**Question:** §4.74's guard says "never a device on the management network".
+Which network is that? Core's anti-lockout protects `lan` — on router-01 that
+is HOME, not MGNT — and guessing from a name like "MGNT" is the guess rule 2
+forbids.
+**Decision (operator, 2026-10-08):** the networks are ticked under Services:
+Lens: Settings, *Never pause devices on*. While none is ticked, the network the
+click comes from is protected, and a click whose network Lens cannot tell is
+refused. The device the click comes from and the firewall itself are always
+protected, ticked or not.
+**What "on a network" means here:** any address the device has held there
+while Lens kept its history, not only now. A MAC alias follows the device, so a
+laptop paused on HOME is also cut off when it walks into MGNT; the guard has to
+look at everywhere it goes, not only where it is.
+**Known gap, said on the button:** through a VPN Lens sees the tunnel address,
+not the LAN device behind it.

@@ -66,7 +66,25 @@
             return $('<div/>').addClass('lens-field-input').append($box);
         };
 
+        /* one tick per network the box has; the value is sent as one string so
+           that ticking none still says so (an empty list is never posted) */
+        const networks = (field) => {
+            const $box = $('<div/>').attr('id', 'lensSet_' + field.key).addClass('lens-networks');
+            const chosen = field.value || [];
+            for (const [device, name] of Object.entries(field.choices || {})) {
+                $box.append($('<label/>').addClass('lens-network')
+                    .append($('<input type="checkbox"/>').val(device).prop('checked', chosen.includes(device)))
+                    .append(document.createTextNode(' ' + name)));
+            }
+            return $('<div/>').addClass('lens-field-input').append($box);
+        };
+
         const shown = (field, value) => {
+            if (field.kind === 'interfaces') {
+                return (value || []).length
+                    ? value.map(d => (field.choices || {})[d] || d).join(', ')
+                    : '{{ lang._("none: the network you click from") }}';
+            }
             if (field.kind === 'flag') {
                 return value ? '{{ lang._("on") }}' : '{{ lang._("off") }}';
             }
@@ -88,7 +106,8 @@
 
                 for (const field of block.fields) {
                     const input = field.kind === 'flag' ? flag(field)
-                        : field.kind === 'targets' ? targets(field) : number(field);
+                        : field.kind === 'targets' ? targets(field)
+                        : field.kind === 'interfaces' ? networks(field) : number(field);
 
                     const $help = $('<div/>').addClass('lens-field-help').text(field.help)
                         .append($('<span/>').addClass('lens-field-default text-muted')
@@ -112,7 +131,11 @@
             for (const block of form.blocks) {
                 for (const field of block.fields) {
                     const $el = $('#lensSet_' + field.key);
-                    if (field.kind === 'flag') {
+                    if (field.kind === 'interfaces') {
+                        fields[field.key] = $el.find('input:checked').map(function () {
+                            return $(this).val();
+                        }).get().join(',');
+                    } else if (field.kind === 'flag') {
                         fields[field.key] = $el.prop('checked') ? '1' : '0';
                     } else if (field.kind === 'targets') {
                         fields[field.key] = $el.find('.lens-target').map(function () {

@@ -75,7 +75,7 @@ class ForgetTest(unittest.TestCase):
 
         self.assertEqual(dry, wet)
         self.assertEqual({'traffic_hours': 3, 'destination_days': 1, 'windows': 2, 'summed_days': 1,
-                          'labels': 1, 'devices': 2}, wet)
+                          'labels': 1, 'devices': 2, 'pauses': 0, 'paused': 0}, wet)
 
     def test_only_the_hours_its_windows_cover_go(self):
         self.store.forget([GONE, ROTATED])

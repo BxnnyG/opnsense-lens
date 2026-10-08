@@ -204,3 +204,45 @@ These have been open since the dates beside them. Each is one command.
   harvest, store size).
 - DESIGN §1b: the same.
 - Anything that failed: one issue per failure, the output above as its fixture.
+
+## 5. Pausing a device (stage 49, `0.35_1`, §4.74)
+
+The first build that writes the firewall's rules. Built against core's source
+on both branches and clicked through in `tools/preview` against stand-ins for
+core's models; nothing below has happened on a box yet. Do it on router-01
+first, from a laptop on HOME, with a phone on IOT or GUEST as the victim.
+
+- [ ] `pkg -v` on both boxes, written here: `____ / ____`. An upgrade must find
+      `PKG_UPGRADE=true` in the old package's `+PRE_DEINSTALL` (plan §2).
+- [ ] Settings: *Never pause devices on* lists the box's networks; tick MGNT,
+      save, reload — still ticked.
+- [ ] A device on MGNT: *Pause…* says it has been on MGNT. The laptop itself:
+      "the device you are using right now". The firewall's own row: no pause.
+- [ ] The phone: *Pause…* → 1 hour → *Pause now*. Within seconds:
+      `ping` from the phone to 9.9.9.9 stops; a stream already playing stops
+      (states dropped). Time from click to answer: `____ s` (box-2: `____ s`).
+- [ ] Firewall: Rules (floating): one rule "Lens: paused devices", first, block,
+      in, any interface, IPv4+IPv6, source `lens_paused`, logged.
+      Firewall: Aliases: `lens_paused`, type MAC, the phone's MAC(s).
+- [ ] System: Configuration: History: the first pause made two entries
+      (alias, then rule), later ones one. The user is named.
+- [ ] `pfctl -t lens_paused -T show` lists the phone's IPv4 and IPv6 addresses.
+- [ ] Firewall: Log Files: Live View shows the phone's attempts under the rule.
+- [ ] *Resume*: the phone is back within a few seconds; the rule stays, the
+      alias is empty. Events shows "paused" and "resumed".
+- [ ] A 30-minute pause ends by itself within five minutes of its time
+      (`configctl lens pauses` → `open` empty afterwards; Events "ended on time").
+- [ ] Remove the MAC from the alias by hand in Firewall: Aliases: the device
+      page says it is no longer paused, Events says "outside Lens".
+- [ ] Switch the rule off by hand: a paused device's banner says nothing is
+      blocked. Lens does not switch it back on.
+- [ ] Forget a paused device on Services: Lens: Privacy: refused with the reason.
+- [ ] A user with Reporting: Lens but without *Services: Lens: Pause devices*
+      sees no *Pause…* button, and `api/lens/pause/pause` answers 403.
+- [ ] Load: `top` during a pause on box-2 — the state drop reads the whole state
+      table once per address. And one `list_hosts.py` per minute from then on
+      (core's cost for any MAC alias): note it.
+- [ ] Upgrade with a device paused (`make upgrade`, or the feed): still paused
+      afterwards, rule and alias unchanged.
+- [ ] `pkg delete os-lens` with a device paused: rule and alias are gone, the
+      device is back, no other rule changed. Reinstall.

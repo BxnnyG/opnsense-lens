@@ -55,6 +55,7 @@ class Settings
         'baseline_days',
         'baseline_factor',
         'baseline_floor_mb',
+        'pause_protected',
     ];
 
     /** stored in seconds, which is what the collector compares; shown in minutes */
@@ -63,9 +64,10 @@ class Settings
     /**
      * @param array $raw `lens settings` decoded: values, defaults, bounds
      * @param array $status `lens status` decoded, for what purge would remove
+     * @param array $networks interface device => the operator's name for it
      * @return array blocks of fields, ready to lay out
      */
-    public static function form(array $raw, array $status = []): array
+    public static function form(array $raw, array $status = [], array $networks = []): array
     {
         if (empty($raw['values']) || !is_array($raw['values'])) {
             return ['available' => false, 'blocks' => [], 'purge' => self::purgeSummary($status)];
@@ -256,6 +258,28 @@ class Settings
                         ),
                     ],
                 ],
+                [
+                    'id' => 'pause',
+                    'title' => gettext('Pausing a device'),
+                    'intro' => gettext(
+                        'A pause blocks a device by its MAC on every network it reaches (Services: Lens: '
+                        . 'Pause devices). The firewall and the device you click from are never paused.'
+                    ),
+                    'fields' => [
+                        self::field(
+                            $raw,
+                            'pause_protected',
+                            'interfaces',
+                            gettext('Never pause devices on'),
+                            '',
+                            gettext(
+                                'A device that has been on one of these networks is never paused -- the alias would '
+                                . 'follow it there. Tick your management networks. With none ticked, the network '
+                                . 'you click from is protected, and a click from a network Lens cannot tell is refused.'
+                            )
+                        ) + ['choices' => $networks],
+                    ],
+                ],
             ],
             'backup' => gettext(
                 'These settings live in Lens\'s own store, not in the firewall\'s configuration: a '
@@ -429,6 +453,11 @@ class Settings
         $scale = self::SCALE[$key] ?? 1;
         $low = isset($bounds[$key][0]) ? $bounds[$key][0] / $scale : null;
         $high = isset($bounds[$key][1]) ? $bounds[$key][1] / $scale : null;
+
+        if ($key === 'pause_protected' && in_array($code, ['too_many', 'bad_name', 'bad_row'], true)) {
+            /* the page offers only the box's own networks; this is a hand-made request */
+            return gettext('These have to be networks of this firewall, at most 64.');
+        }
 
         switch ($code) {
             case 'too_small':

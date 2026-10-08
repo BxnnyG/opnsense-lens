@@ -48,6 +48,8 @@ class Events
         'gateway' => 'internet',
         'rotated' => 'identity',
         'overlap' => 'identity',
+        'paused' => 'devices',
+        'resumed' => 'devices',
     ];
 
     /**
@@ -70,7 +72,8 @@ class Events
             self::appeared((array)($raw['new'] ?? []), $byMac, $segments),
             self::unusual((array)($raw['unusual'] ?? []), $byMac),
             self::line((array)($raw['outages'] ?? []), (array)($raw['gateways'] ?? [])),
-            self::overlaps((array)($raw['overlaps'] ?? []), $byMac, $segments)
+            self::overlaps((array)($raw['overlaps'] ?? []), $byMac, $segments),
+            self::pauses((array)($raw['pauses'] ?? []), $byMac, (int)($raw['since'] ?? 0))
         );
 
         usort($events, function ($left, $right) {
@@ -351,6 +354,77 @@ class Events
                 null,
                 '/ui/lens/dashboard',
                 !empty($run['ongoing']) ? ['ongoing' => true] : []
+            );
+        }
+
+        return $events;
+    }
+
+    /**
+     * Every pause that began or ended in the window (§4.74). The operator's
+     * own doing, so a mute does not hide it: a mute is for news about a
+     * device, and this is a change somebody made to the firewall.
+     */
+    private static function pauses(array $pauses, array $byMac, int $since): array
+    {
+        $events = [];
+        foreach ($pauses as $pause) {
+            $mac = (string)($pause['mac'] ?? '');
+            $row = $byMac[$mac] ?? null;
+            foreach ((array)($pause['macs'] ?? []) as $one) {
+                $row = $row ?? ($byMac[$one] ?? null);
+            }
+            $name = $row['name'] ?? $mac;
+            $started = (int)($pause['started'] ?? 0);
+            $until = isset($pause['until']) ? (int)$pause['until'] : null;
+
+            if ($started >= $since) {
+                $events[] = self::event(
+                    'paused',
+                    $started,
+                    'notice',
+                    gettext('Paused'),
+                    sprintf(gettext('%s was paused'), $name),
+                    $until === null
+                        ? gettext('Until resumed, by the rule "Lens: paused devices".')
+                        : sprintf(gettext('Until %s, by the rule "Lens: paused devices".'), date('D H:i', $until)),
+                    $row,
+                    self::page($row, $mac),
+                    ['muted' => false]
+                );
+            }
+
+            if (empty($pause['ended']) || (int)$pause['ended'] < $since) {
+                continue;
+            }
+            $how = [
+                'resumed' => [
+                    sprintf(gettext('%s was resumed'), $name),
+                    gettext('Taken out of the alias on Lens\'s page.'),
+                ],
+                'expired' => [
+                    sprintf(gettext('%s\'s pause ended on time'), $name),
+                    gettext('Lens took it out of the alias at the time that was set.'),
+                ],
+                'outside' => [
+                    sprintf(gettext('%s is no longer paused'), $name),
+                    gettext('Its MAC left the alias lens_paused outside Lens - in Firewall: Aliases, or by a restore.'),
+                ],
+                'uninstall' => [
+                    sprintf(gettext('%s\'s pause ended'), $name),
+                    gettext('Lens was removed, and the rule and the alias with it.'),
+                ],
+            ][(string)($pause['ended_how'] ?? '')] ?? [sprintf(gettext('%s was resumed'), $name), ''];
+            $events[] = self::event(
+                'resumed',
+                (int)$pause['ended'],
+                'info',
+                gettext('Resumed'),
+                $how[0],
+                $how[1],
+                $row,
+                self::page($row, $mac),
+                ['muted' => false]
             );
         }
 

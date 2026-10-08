@@ -116,6 +116,17 @@ class BoundsTest(unittest.TestCase):
         self.assertEqual('1', settings.validate({'probe_enabled': '1'})[0]['probe_enabled'])
         self.assertRefused({'probe_enabled': 'sometimes'}, 'probe_enabled', 'not_a_flag')
 
+    def test_protected_networks_are_interface_names_once_each(self):
+        """§4.83: the networks a pause never touches; none is a valid answer"""
+        self.assertEqual('vlan0.10,igb1', settings.validate({'pause_protected': ['vlan0.10', 'igb1', 'vlan0.10']})[0]
+                         ['pause_protected'])
+        self.assertEqual('', settings.validate({'pause_protected': []})[0]['pause_protected'])
+        self.assertEqual('', settings.validate({'pause_protected': ''})[0]['pause_protected'])
+        self.assertRefused({'pause_protected': ['vlan0.10', 'x;y']}, 'pause_protected', 'bad_name', 2)
+        self.assertRefused({'pause_protected': ['if%d' % n for n in range(65)]}, 'pause_protected', 'too_many')
+        self.assertEqual(['vlan0.10'], settings.load({'pause_protected': 'vlan0.10'})['pause_protected'])
+        self.assertEqual([], settings.load({})['pause_protected'])
+
     def test_a_key_that_does_not_exist_is_said_not_ignored(self):
         self.assertRefused({'schema_version': 1}, 'schema_version', 'unknown')
 

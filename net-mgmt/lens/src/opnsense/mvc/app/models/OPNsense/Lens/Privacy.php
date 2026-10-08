@@ -68,6 +68,9 @@ class Privacy
             ['labels', gettext('Your notes'),
                 gettext('Names, types, tags, notes, mutes and owners you gave devices.'),
                 gettext('what you wrote, shown back to you')],
+            ['pauses', gettext('Pauses'),
+                gettext('Which device you paused, from when, until when, and how it ended.'),
+                gettext('the pause on a device\'s page, and Events')],
             ['line_samples', gettext('Line samples'),
                 gettext('Gateway quality and round trips to public resolvers.'),
                 gettext('the internet panel; describes the line, not a person')],
@@ -87,7 +90,9 @@ class Privacy
                 'rows' => $count,
                 'oldest' => $count > 0 && $oldest !== null ? Duration::ago($now - $oldest) : '',
                 /* a note stays until it is cleared or its device goes (§4.58) */
-                'kept_for' => $key === 'labels' ? gettext('until you clear it, or its device goes') : $keptFor,
+                'kept_for' => $key === 'labels' ? gettext('until you clear it, or its device goes')
+                    /* a pause still running is the firewall's state, not history (§4.74) */
+                    : ($key === 'pauses' ? sprintf(gettext('%s after it ends'), $keptFor) : $keptFor),
                 'state' => $off ? ($count > 0 ? gettext('switched off; what was kept ages out')
                     : gettext('switched off')) : '',
             ];
@@ -160,6 +165,7 @@ class Privacy
             'destination_days' => gettext('%d destination rows'),
             'summed_days' => gettext('%d summed days'),
             'labels' => gettext('your note'),
+            'pauses' => gettext('%d past pauses'),
         ];
         $parts = [];
         foreach ($words as $key => $format) {
@@ -174,6 +180,12 @@ class Privacy
         if (!isset($answer['counts'])) {
             return ['ok' => false, 'found' => false, 'dry' => $dry, 'parts' => [],
                     'sentence' => gettext('Lens did not answer.')];
+        }
+
+        if (!empty($counts['paused'])) {
+            /* forgetting it would leave it blocked with nothing in Lens to say so */
+            return ['ok' => false, 'found' => $found, 'dry' => $dry, 'parts' => $parts, 'paused' => true,
+                    'sentence' => gettext('This device is paused. Resume it on its page first, then forget it.')];
         }
 
         if (!$found) {

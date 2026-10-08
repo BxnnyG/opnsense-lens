@@ -51,9 +51,13 @@ SPEC = {
     'baseline_days': ('int', str(baseline.NEEDS_DAYS), 7, 90),
     'baseline_factor': ('float', repr(baseline.FACTOR), 1.5, 20.0),
     'baseline_floor_mb': ('int', str(baseline.FLOOR // MB), 1, 100000),
+    # Networks a pause never touches (§4.83), as interface devices. Empty means
+    # the network the click comes from; the page offers only real interfaces.
+    'pause_protected': ('interfaces', '', 0, 64),
 }
 
 TARGET_NAME = re.compile(r'^[A-Za-z0-9 ._-]{1,24}$')
+INTERFACE = re.compile(r'^[A-Za-z0-9_.:-]{1,32}$')
 
 
 def defaults():
@@ -129,6 +133,8 @@ def _parse(kind, value, low, high):
         return _number(value, low, high, float)
     if kind == 'flag':
         return _flag(value)
+    if kind == 'interfaces':
+        return _interfaces(value, high)
     return _targets(value, low, high)
 
 
@@ -209,9 +215,31 @@ def _targets(value, low, high):
     return targets, None
 
 
+def _interfaces(value, high):
+    """Accepts the stored form, "vlan0.10,igb1", or a list of names; none is fine."""
+    if isinstance(value, str):
+        names = [part.strip() for part in value.split(',')]
+    elif isinstance(value, (list, tuple)):
+        names = [str(part).strip() for part in value]
+    else:
+        return None, ['bad_row', None]
+
+    out = []
+    for index, name in enumerate([name for name in names if name], start=1):
+        if not INTERFACE.match(name):
+            return None, ['bad_name', index]
+        if name not in out:
+            out.append(name)
+    if high is not None and len(out) > high:
+        return None, ['too_many', None]
+    return out, None
+
+
 def _store(kind, value):
     if kind == 'flag':
         return '1' if value else '0'
+    if kind == 'interfaces':
+        return ','.join(value)
     if kind == 'targets':
         return ','.join('%s=%s' % target for target in value)
     if kind == 'float':

@@ -170,7 +170,8 @@ Filtern."* Recorded as given, ordered by my judgement.
 - **#33 — "Pause this device"** — the most-asked consumer feature, and a
   deliberate no for now: it writes a firewall rule, which is a different product
   with a different failure mode (VISION, self-check). **Decided 2026-10-07 by the
-  operator: yes, as the one named exception in §4.74 — stage 49.**
+  operator: yes, as the one named exception in §4.74 — stage 49.** 🔨 built
+  2026-10-08 as `0.35_1`.
 
 ### From building the settings page, 2026-09-27 (§4.58)
 
@@ -229,8 +230,8 @@ data Lens already keeps; none is planned before the router round.
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two
 rounds on both boxes, the second clean; what the first found is fixed in
-`0.31_2` to `0.33_3` (§4.75, §4.76, §4.80). It applies again to every build
-that has not been on a box — `0.34_1` today.
+`0.31_2` to `0.33_3` (§4.75, §4.76, §4.80). `0.34_1` and `0.35_1` (pause, the
+first build that writes the firewall's rules) have not been on a box since.
 
 ## 3. P2 — Worth doing
 
