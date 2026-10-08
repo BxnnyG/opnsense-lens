@@ -195,6 +195,16 @@ can take from data it already keeps, and what it cannot have without DPI — is
 in [PAGE-REVIEW.md](PAGE-REVIEW.md). It adds BACKLOG #36–#41 and one warning:
 none of it before the eighteen unclicked stages have been on a router.
 
+## What users ask for, and what core started doing (2026-10-08)
+
+An outside look — forum requests, the integrations people already wire up, and
+core's own release notes — is in [USER-NEEDS.md](USER-NEEDS.md). Its first
+finding is about core, not users: since 25.7.11 OPNsense keeps a host database
+of its own (`hostwatch`, on by default), so "identity exists only in the present
+tense" is no longer quite true. What remains Lens's alone is identity *per hour*,
+joined to that hour's traffic. It adds BACKLOG #49–#55 and one decision for the
+operator (#55).
+
 ## Self-check: what would make each kind of person say "oh" (2026-09-24)
 
 Written after the dashboard shipped, by asking of each audience the operator

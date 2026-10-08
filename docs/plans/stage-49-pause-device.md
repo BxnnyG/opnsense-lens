@@ -42,6 +42,20 @@ routed traffic, not traffic between two devices on the same network.
    loses it on a new lease)?
 
 
+### Found 2026-10-08 ([USER-NEEDS.md](../USER-NEEDS.md) §2.3, BACKLOG #50)
+
+- **pf keeps established states.** The rule stops new connections; a game or a
+  stream already running carries on until its states expire. After the alias
+  applies, kill the states of every address the device holds now through
+  core's `POST /api/diagnostics/firewall/kill_states` (filter; `stable/26.7`,
+  `FirewallController::killStatesAction`). Ask the operator whether §4.74
+  covers it.
+- **The alias is resolved, not live.** Core turns the MACs into addresses from
+  hostwatch (on by default since 25.7.11) or ARP. Measure click-to-effect on
+  both boxes and say it on the button.
+- A recurring schedule is **not** covered by §4.74 (no click at the moment of
+  the change). The optional end time is.
+
 ## 6. Decided (2026-10-07)
 
 The operator said yes. CLAUDE.md rule 6 now names this exception and §4.74

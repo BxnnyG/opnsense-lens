@@ -165,14 +165,27 @@ cost a rewrite of the store and the baseline engine.
 | Kea leases | `OPNsense/Kea/Api/Leases{,4,6}Controller` | lease, hostname, MAC, expiry |
 | Dnsmasq leases | `OPNsense/Dnsmasq/Api/LeasesController` → `configctl dnsmasq list leases` → `/var/db/dnsmasq.leases` | same, other DHCP server |
 | MAC vendor database | `configctl interface list macdb` | OUI → vendor, which is where device icons come from |
+| Host discovery (`hostwatch`, since 25.7.11, **on by default**) | `configctl hostwatch dump_full` → `scripts/interfaces/list_hosts.py -v -n`, reading `/var/db/hostwatch/hosts.db` read-only; falls back to `arp`/`ndp` when the daemon is off | per `(protocol, interface, address)`: MAC, `first_seen`, `last_seen`, one `prev_ether_address`, vendor; *new station* and *moved* lines to syslog |
 
 The operator's box runs **dnsmasq** for both DNS and DHCP (confirmed
 2026-08-30), so `/var/db/dnsmasq.leases` is the live path here. Kea and BIND are
 a possible future on the same box — which is why nothing may hard-code one
 server (§4.15).
 
-All of these describe *now*. Nothing keeps a history of which MAC held which
-address last Tuesday. **This is the gap the plugin exists to close.**
+Until 25.7.11 all of these described *now*. **hostwatch** (verified 2026-10-08
+against `opnsense/hostwatch` and core `stable/26.7`; found by the outside look in
+[USER-NEEDS.md](USER-NEEDS.md); it shipped in January 2026, seven months before
+this inventory was written, and the inventory missed it) keeps the first and last sighting of each address and the one MAC that
+held it before — sniffed from every ARP/NDP packet rather than polled, so it
+also sees IPv6 privacy addresses that live between two of Lens's observations.
+Rows not seen for a configurable time are deleted. Core's MAC aliases resolve
+through it when it runs.
+
+What still exists nowhere in core is the **windows**: which MAC held which
+address *in which hour*, once more than two devices have held it, joined to the
+traffic of that hour. **That is the gap the plugin exists to close** — narrower
+than the sentence that stood here until 2026-10-08, and the README and
+`pkg-descr` should say it as narrowly (BACKLOG #49).
 
 ### 1.6 DNS — and the trap in it
 

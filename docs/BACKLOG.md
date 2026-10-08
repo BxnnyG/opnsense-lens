@@ -225,6 +225,35 @@ data Lens already keeps; none is planned before the router round.
   attribution only, never into presence: a lease is not proof anyone was home.
   (§4.77)
 
+### From looking outside, 2026-10-08 (see [USER-NEEDS.md](USER-NEEDS.md))
+
+- **#49 — hostwatch: correct the claim, then read it.** Core has sniffed ARP and
+  NDP into a persistent host database since 25.7.11, on by default (DESIGN
+  §1.5). Lens polls `arp`/`ndp` every five minutes and misses what lives between
+  two polls — IPv6 privacy addresses above all — so their traffic lands in
+  "nobody held it". Read hostwatch's database read-only when it runs, with
+  `arp`/`ndp` as the fallback, and measure box-2's unknown pile before and after.
+  The README's "present tense only" sentence is now too strong; narrow it.
+- **#50 — A pause must end what is already running.** pf keeps established
+  states: the block rule stops new connections, not the game in progress. Kill
+  the device's states through core's `diagnostics/firewall/kill_states` after
+  the alias applies, and measure click-to-effect. Whether that is inside §4.74
+  is the operator's call. A recurring schedule ("bedtime") is not inside it.
+- **#51 — Events to syslog.** One line per Event under Lens's own facility, so
+  core's remote logging carries it to whatever the operator already reads. The
+  first concrete step of #32; no new outbound path.
+- **#52 — Say when a forwarder sits in front of Unbound.** AdGuard Home or a
+  Pi-hole in front makes Unbound see one client, and the DNS page and services
+  would attribute everything to it while the source check calls it fresh (#16).
+- **#53 — The calendar month.** This month so far and last month, per device
+  and in total, with a cycle start day for the ISP's billing date — from the
+  settled days already stored. The forum's oldest request.
+- **#54 — A Home Assistant recipe** for presence, once the presence endpoint is
+  a shape worth keeping stable. Hypothesis until a tester asks.
+- **#55 — Operator's decision: hostwatch upstream, or Lens up the stack.** Core
+  is building the identity half. Offer the history to hostwatch (#14 has a home
+  now), or put Lens's weight on presence, baselines, events and the pause.
+
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed.
 
