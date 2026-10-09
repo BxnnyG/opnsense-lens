@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lens package feed</title>
+<title>Lens for OPNsense</title>
+<meta name="description" content="A calm front page for your OPNsense firewall: who is on the network, what they did, and whether everything is all right.">
 <style>
   :root { --bg: #fafafa; --ink: #1d1f24; --muted: #6f6f6f; --line: #e5e5e5; --accent: #d94f00; --code: #f0f0f0; }
   @media (prefers-color-scheme: dark) {
@@ -18,14 +19,53 @@
         overflow-x: auto; font-size: 14px; }
   a { color: var(--accent); }
   td { padding: 4px 14px 4px 0; vertical-align: top; }
+  main { max-width: 1040px; }
+  .lead { font-size: 19px; margin: 0 0 18px; }
+  figure { margin: 18px 0; }
+  figure img { width: 100%; border: 1px solid var(--line); border-radius: 8px; display: block; }
+  figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  @media (max-width: 640px) { .shots { grid-template-columns: 1fr; } }
+  .shots figure { margin: 0; }
+  ul.what { padding-left: 20px; }
+  ul.what li { margin: 4px 0; }
+  .buttons a { display: inline-block; margin: 0 10px 10px 0; padding: 8px 14px; border: 1px solid var(--accent);
+               border-radius: 6px; text-decoration: none; }
 </style>
 </head>
 <body>
 <main>
   <h1>Lens for OPNsense</h1>
-  <p class="sub">The package feed for <code>os-lens</code>: every device on the network with an identity that
-    survives an address change. Source and documentation:
-    <a href="https://github.com/BxnnyG/opnsense-lens">github.com/BxnnyG/opnsense-lens</a>.</p>
+  <p class="lead">A calm front page for your firewall: who is on the network, what they did, and whether
+    everything is all right &mdash; one sentence first, the reason for each area, the OPNsense page that fixes it.</p>
+  <p class="buttons">
+    <a href="https://github.com/BxnnyG/opnsense-lens">Source and documentation</a>
+    <a href="https://github.com/BxnnyG/opnsense-lens/releases">Releases</a>
+  </p>
+
+  <figure>
+    <img src="screenshots/dashboard.png" alt="The Lens dashboard: one sentence, the areas that need a look, the internet line with an uptime strip">
+    <figcaption>The dashboard. Screenshots from the preview with made-up devices.</figcaption>
+  </figure>
+
+  <h2>What it shows</h2>
+  <ul class="what">
+    <li><b>System</b> &mdash; internet, system, interfaces, temperature, updates, services, certificates, and DynDNS,
+      SMART, WireGuard, NetBird, Tailscale where installed, each with its reason and history.</li>
+    <li><b>Devices</b> &mdash; every device with an identity that survives an address change: its traffic, its
+      addresses over time, where it talks, what it looked up.</li>
+    <li><b>Who's home</b>, <b>Networks</b> with their ports, <b>DNS</b> by device and by service, <b>Events</b>,
+      a <b>weekly report</b> and a <b>wallboard</b>; widgets for OPNsense's own dashboard.</li>
+    <li><b>Pause a device</b> until a time you choose, with a reason &mdash; the only thing Lens ever writes to the
+      firewall, through OPNsense's own models, visible in Firewall: Rules.</li>
+  </ul>
+
+  <div class="shots">
+    <figure><img src="screenshots/system.png" alt="Reporting: Lens: System"><figcaption>System</figcaption></figure>
+    <figure><img src="screenshots/overview.png" alt="Reporting: Lens: Devices"><figcaption>Devices</figcaption></figure>
+    <figure><img src="screenshots/presence.png" alt="Reporting: Lens: Who's home"><figcaption>Who's home</figcaption></figure>
+    <figure><img src="screenshots/device.png" alt="One device's page"><figcaption>A device</figcaption></figure>
+  </div>
 
   <h2>Install, as root on the firewall</h2>
   <pre>fetch -o - https://raw.githubusercontent.com/BxnnyG/opnsense-lens/master/tools/install.sh | sh</pre>

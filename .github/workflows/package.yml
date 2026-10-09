@@ -133,6 +133,7 @@ jobs:
           cp tools/feed/lens.pub site/lens.pub
           cp tools/install.sh site/install.sh
           cp tools/feed/index.html site/index.html
+          cp -r docs/screenshots site/screenshots
           ls -lR site
       - uses: actions/upload-pages-artifact@v3
         with:

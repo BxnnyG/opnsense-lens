@@ -1,8 +1,7 @@
 # Stage 48 — Names for destination addresses (Plan, not started)
 
 > Systems: S5, S12, S14 · Operator's request 2026-09-27 ("Namen für Ziel-IPs,
-> wenn es geht mit 100 % genau") · Decision: open, §4 entry follows the
-> operator's answer
+> wenn es geht mit 100 % genau") · Decision: §4.89 (2026-10-09)
 
 ## 1. The request
 
@@ -52,7 +51,7 @@ labelled "reverse DNS says", opt-in, because it is a lookup to the outside.
 minutes. Measure on the second box: size, time, and Unbound's own latency
 while it dumps.
 
-## 6. Open for the operator
+## 6. Decided by the operator (2026-10-09, §4.89)
 
-- Store names at all? They say which services a household uses, per day.
-- PTR lookups (outbound DNS per unknown address) — yes or no?
+- Store names: **yes**, opt-in, inside retention, purge and forget.
+- PTR lookups: **yes**, opt-in, labelled "reverse DNS says".

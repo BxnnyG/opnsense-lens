@@ -8,8 +8,8 @@ everything the firewall knows off it — traffic history, DNS, presence, the
 internet line. On top of that it answers *is everything all right* in one
 sentence, area by area, from what OPNsense already measures.
 
-**Status:** version 0.x, in daily use on the author's two firewalls
-(OPNsense 26.1 and 26.7). Every release passes a scripted round on both
+**Status:** version 0.x. Every release is installed and checked on two real
+firewalls — OPNsense 26.1 and 26.7 — by a scripted round before it ships
 ([docs/ROUTER-ROUND.md](docs/ROUTER-ROUND.md)); what is proven on a box and what
 only in tests is in [docs/ROADMAP.md](docs/ROADMAP.md).
 

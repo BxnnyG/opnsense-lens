@@ -2285,3 +2285,18 @@ use, so a new page gets them without asking:**
 (`tools/preview/shoot.js`, now with the System page); a page that brings a
 fifth shape for a known thing is a finding, not a style.
 
+### §4.89 — Names for destination addresses: stored, and asked outside (2026-10-09, operator)
+**Question** (stage 48 plan §6, open since 2026-09-27): store which name an
+outside address had — it says which services a household uses, per day — and
+look up a PTR for an address no local answer names, which is one DNS question
+to the outside per address?
+**Answer:** "gerne" to both.
+**Decision, as the plan proposed:** names come first from Unbound's own cache
+(exact: this network resolved name N to address A at a moment Lens saw), kept
+only for addresses that appear in `destination_day`, with the strength said —
+*asked by this device* or *resolved on this network*. A PTR is shown only as
+what it is, "reverse DNS says", never as a name the device asked for. Both are
+**opt-in on Services: Lens: Settings**, beside "who each device talks to", off
+until switched on, inside retention, purge and forget (rule 9). `dump_cache`
+is measured on box-2 before the stage is called done (rule 7).
+

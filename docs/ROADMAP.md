@@ -101,7 +101,7 @@ against observations from the operator's own network, which stage 4 produces.
 | — | **One look, the other eight pages** — DNS, Networks, Settings, Privacy, Data Sources, Weekly report, Wallboard, Compare, and the phone (§4.88) | S6 | ⏳ |
 | — | **Tiles for OpenVPN, IPsec and CARP** (BACKLOG #50) | S16 | ⏳ |
 | — | **Pause a group** — a tag or a person at once (BACKLOG #52) | S1 | ⏳ |
-| 48 | **Names for destination addresses** — two questions open for the operator ([plan](plans/stage-48-destination-names.md) §6) | S5, S12, S14 | ⏳ asked again 2026-10-09 |
+| 48 | **Names for destination addresses** — from Unbound's cache, PTR as "reverse DNS says", both opt-in ([plan](plans/stage-48-destination-names.md), §4.89) | S5, S12, S14 | ⏳ decided 2026-10-09; `dump_cache` to be measured on box-2 first |
 | — | **Two or three outside testers** (BACKLOG #47), once README and release say what Lens now is | — | ⏳ |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
