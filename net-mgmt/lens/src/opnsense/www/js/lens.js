@@ -935,9 +935,38 @@
             });
     };
 
+    /*
+     * The strip (stage 55): time cut into slices, each here, partly here or
+     * away -- the uptime line's look for presence too. spans are [from, to]
+     * pairs; each slice says on hover when it was and how long the device was
+     * there. Returns the strip element.
+     */
+    const strip = (spans, start, end, slots, name) => {
+        const el = document.createElement('div');
+        el.className = 'lens-strip';
+        const width = Math.max(1, (end - start) / slots);
+        for (let i = 0; i < slots; i++) {
+            const from = start + i * width;
+            const to = from + width;
+            let covered = 0;
+            for (const [a, b] of spans) {
+                covered += Math.max(0, Math.min(b, to) - Math.max(a, from));
+            }
+            const share = Math.min(1, covered / width);
+            const seg = document.createElement('span');
+            seg.className = 'net-seg ' + (share >= 0.9 ? 'net-seg-here' : (share > 0 ? 'net-seg-part' : 'net-seg-away'));
+            tip(seg, [{ value: name || '' },
+                      { label: when(from, 60, true) + ' \u2013 ' + when(to, 60, true) },
+                      { label: share > 0 ? Math.round(covered / 60) + ' min here' : 'away' }]);
+            el.appendChild(seg);
+        }
+        return el;
+    };
+
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
         services: services, spark: spark, healthRow: healthRow, lines: lines,
-        display: display, time: time, date: date, stamp: stamp, busy: busy, remembered: remembered
+        display: display, time: time, date: date, stamp: stamp, busy: busy, remembered: remembered,
+        strip: strip
     };
 })();

@@ -83,7 +83,7 @@ class SystemController extends ApiControllerBase
         if (!empty($temperatures)) {
             $out['temperature'] = [];
             foreach ($temperatures as $name => $value) {
-                $out['temperature'][] = ['sensor' => (string)$name,
+                $out['temperature'][] = ['sensor' => Health::sensor((string)$name),
                                          'celsius' => (float)trim(str_replace('C', '', (string)$value))];
             }
         }

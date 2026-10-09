@@ -28,6 +28,14 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.43_1
+
+* one look on every page: every notice a dark card with its tone on the edge
+  (no more light boxes in the dark theme), every state a pill with a dot,
+  presence drawn as the uptime line's strip -- on Who's home and on a
+  device's week -- the Devices page's figures as the dashboard's tiles, and
+  the System page without holes
+
 0.42_2
 
 * pause until a moment you pick, up to seven days ahead, beside the fixed

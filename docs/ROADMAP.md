@@ -79,6 +79,7 @@ this one inherits, and 23 stages of experience with it.
 | — | **Times and dates as the operator writes them** — clock and date order on Settings, every page through `Lens.time` / `Lens.date` (§4.86) | S6, S3 | 🔨 `0.40_1` · saved and read back in `tools/preview` · round clean 2026-10-09, switched by the operator on box-2 |
 | — | **What box-2's dashboard showed** — the health strip, WireGuard without NetBird's peers, waiting said (busy buttons, remembered answers, skeletons), a reason for a pause (§4.87) | S6, S1, S16 | 🔨 `0.41_1` · pause with reasons and resume clicked through in `tools/preview` · **not yet on a box** |
 | 54 | **Load times, at the root** — one Python start per page (`lens bundle`), `lens brief` without whole-table counts, events' days summed only where missing ([plan](plans/stage-54-load-times.md)) | S13 | 🔨 `0.42_1` · equal answers checked in `tools/preview` · events reports its parts' times · **to be measured against box-2's table in the round** |
+| 55 | **One look, on every page** — notice, pill, strip, tile, columns (§4.88) | S6, S5, S10 | 🔨 `0.43_1` · every page photographed in `tools/preview` (Playwright, dark theme) before and after · Dashboard, System, Devices, Device, Who's home and Events looked at; the other eight pages photographed, their notices restyled by the shared rule, not yet looked at one by one · **not yet on a box** |
 
 Stages 2 and 3 come before anything visual on purpose. As of 2026-08-29 nobody
 knows what the operator's box is collecting; every week it collects nothing is

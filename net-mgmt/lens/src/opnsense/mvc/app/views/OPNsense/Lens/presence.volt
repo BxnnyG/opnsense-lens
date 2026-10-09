@@ -66,16 +66,11 @@
         };
 
         const row = (entry, start, now) => {
+            /* the strip, as the uptime line draws time (stage 55): quarter hours
+               over a day, hours over a week, six hours beyond */
             const span = Math.max(1, now - start);
-            const $track = $('<div/>').addClass('who-track');
-            for (const [from, to] of entry.spans) {
-                const $span = $('<div/>').addClass('who-span').css({
-                    left: ((from - start) / span * 100) + '%',
-                    width: ((to - from) / span * 100) + '%'
-                }).appendTo($track);
-                Lens.tip($span[0], [{ value: entry.name },
-                                    { label: Lens.when(from, 3600, true) + ' \u2013 ' + Lens.when(to, 3600, true) }]);
-            }
+            const slots = span <= 86400 ? 96 : (span <= 7 * 86400 ? 168 : 120);
+            const $track = $(Lens.strip(entry.spans, start, now, slots, entry.name)).addClass('who-track');
 
             /* every strip opens its device: when, how much, with whom (operator, 2026-10-07) */
             const link = entry.mac ? '/ui/lens/device?mac=' + encodeURIComponent(entry.mac) : null;

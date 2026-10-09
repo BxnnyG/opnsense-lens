@@ -2259,3 +2259,29 @@ Services: Lens - homework, bedtime" — reasons only: a device's name is the
 LAN's word and stays out of core's configuration (edge case 6). Resuming and
 expiry rewrite the description to the reasons still running.
 
+### §4.88 — One look, on every page (2026-10-09, operator)
+**The operator:** "du änderst Sachen nur da, wo es blutet, aber nicht die
+generelle Versorgung … die beiden Sachen sehen geil aus … zieh das durch, das
+geht bei allem." Screenshots of all fourteen pages (tools/preview with
+Playwright, dark theme) showed four shapes for one thing: a light bootstrap
+alert in a dark theme beside the dashboard's dark sentence card; "here now" as
+green text on one page and an outlined pill on the next; presence as a solid
+bar where the uptime line was a strip; figures in one box here and in tiles
+there; the System page's sections in a row grid that left a screen of nothing.
+**Decision — five parts, used everywhere, from the classes the pages already
+use, so a new page gets them without asking:**
+1. **The notice**: every `.alert` on a Lens page is a dark card with its tone
+   on the left edge, as the dashboard's sentence; "unusual" is one too.
+2. **The pill**: a state is a dot and a word in an outline — here now, home
+   now, paused, unusual, the event's kind, a health area.
+3. **The strip**: time in slices, as the uptime line — Who's home (quarter
+   hours over a day, hours over a week, six hours beyond) and a device's week,
+   each slice saying when and how long on hover (`Lens.strip`).
+4. **The tile**: a figure with its icon, as on the dashboard — the Devices
+   page's figures too.
+5. **Sections that fill from the top**: the System page in columns, history
+   across.
+**How it is held:** every page is photographed in the preview before it ships
+(`tools/preview/shoot.js`, now with the System page); a page that brings a
+fifth shape for a known thing is a finding, not a style.
+

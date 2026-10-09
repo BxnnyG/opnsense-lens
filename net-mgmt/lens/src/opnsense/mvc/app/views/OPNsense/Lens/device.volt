@@ -190,13 +190,8 @@
                 $('#dvStripNote').text('{{ lang._("Not seen in the last seven days.") }}');
                 return;
             }
-            for (const [from, to] of mine.spans) {
-                const $span = $('<div/>').addClass('dv-span').css({
-                    left: ((from - report.start) / span * 100) + '%',
-                    width: ((to - from) / span * 100) + '%'
-                }).appendTo($strip);
-                Lens.tip($span[0], [{ label: Lens.when(from, 3600, true) + ' \u2013 ' + Lens.when(to, 3600, true) }]);
-            }
+            /* the strip, hour by hour, as Who's home and the uptime line draw time (stage 55) */
+            $strip.removeClass('dv-strip').append(Lens.strip(mine.spans, report.start, report.now, 168, mine.name || ''));
             $('#dvStripNote').text('{{ lang._("Present for") }} ' + mine.present
                                    + ' {{ lang._("of the last seven days") }} (' + mine.coverage + '%)');
         });

@@ -381,7 +381,6 @@ tr:hover .lens-edit { opacity: 1; }
 .lens-chart { width: 100%; height: 140px; display: block; }
 tr.lens-group > td { background: var(--lens-hover); }
 
-#lensSummary { display: flex; flex-wrap: wrap; gap: 18px 34px; }
 
 /* ------------------------------------------------------------ device page */
 
@@ -750,7 +749,6 @@ tr.lens-group > td { background: var(--lens-hover); }
     .hm-scroll { overflow-x: auto; }
     .hm-scroll .hm { min-width: 520px; }
 
-    #lensSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .lens-caption { max-width: none; }
 
     /* the device table becomes one card per device */
@@ -956,3 +954,56 @@ a.health-chip:hover { border-color: var(--lens-accent); color: inherit; text-dec
 .dv-pause-reason { margin: 8px 0; max-width: 32em; }
 .dv-pause-until { display: flex; align-items: center; gap: 10px; margin: 8px 0; max-width: 32em; }
 .dv-pause-until input { max-width: 16em; }
+
+/* ================================================================ one look (stage 55)
+   The operator, 2026-10-09: the strip and the "n / m all right" chips look
+   right -- "zieh das durch, das geht bei allem". So: one notice, one pill, one
+   strip, one tile, on every page, from the classes the pages already use. */
+
+/* the notice: every alert on a Lens page, as the dashboard's sentence -- a dark
+   card, the tone on its left edge; never the light bootstrap box in a dark theme */
+.page-content-main .alert {
+    background: var(--lens-panel); color: inherit; text-shadow: none; box-shadow: none;
+    border: 1px solid var(--lens-border); border-left: 4px solid var(--lens-muted); border-radius: 3px;
+    padding: 12px 16px; margin-bottom: 14px;
+}
+.page-content-main .alert-success { border-left-color: var(--lens-good); }
+.page-content-main .alert-info { border-left-color: var(--lens-accent); }
+.page-content-main .alert-warning { border-left-color: var(--lens-warn); }
+.page-content-main .alert-danger { border-left-color: var(--lens-bad); }
+.page-content-main .alert a { color: var(--lens-accent); }
+
+/* the pill: a state, wherever it is said -- a dot and a word in an outline */
+.lens-pill, .dv-pill, .lens-here, .ev-word {
+    display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 12px;
+    border: 1px solid var(--lens-border); font-size: 12px; line-height: 1.6; white-space: nowrap;
+    font-weight: 500; text-transform: none; letter-spacing: 0; color: inherit; width: max-content;
+}
+.lens-pill::before, .dv-pill::before, .lens-here::before, .ev-word::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--lens-muted); flex: 0 0 auto;
+}
+.lens-here, .dv-pill.home, .lens-pill.good { border-color: var(--lens-good); color: inherit; }
+.lens-here::before, .dv-pill.home::before, .lens-pill.good::before { background: var(--lens-good); }
+.dv-pill.warn, .lens-pill.warn, .ev-notice .ev-word { border-color: var(--lens-warn); color: inherit; }
+.dv-pill.warn::before, .lens-pill.warn::before, .ev-notice .ev-word::before { background: var(--lens-warn); }
+.lens-pill.bad, .ev-alert .ev-word { border-color: var(--lens-bad); color: inherit; }
+.lens-pill.bad::before, .ev-alert .ev-word::before { background: var(--lens-bad); }
+.dv-pill.away, .ev-info .ev-word { color: var(--lens-muted); }
+
+/* the strip: time in slices, as the uptime line -- presence, coverage, history */
+.net-seg-here { background: var(--lens-data); }
+.net-seg-part { background: var(--lens-data); opacity: 0.45; }
+.net-seg-away { background: var(--lens-track); }
+.lens-strip { display: flex; gap: 1px; height: 16px; flex: 1; }
+.lens-strip .net-seg { border-radius: 2px; }
+.who-track.lens-strip { background: transparent; border-radius: 0; }
+.lens-under-facts { margin: 6px 2px 14px; }
+
+/* the System page without holes: the history across, the rest in columns that
+   fill from the top (stage 55) -- a grid of rows left a short section beside a
+   tall one with a screen of nothing under it */
+.lens-sys-sections { display: block; columns: 2 30em; column-gap: 14px; }
+.lens-sys-sections > .lens-sys-section { break-inside: avoid; display: inline-block; width: 100%; margin: 0 0 14px; }
+.lens-sys-sections > #system { column-span: all; }
+/* "unusual" is a notice like every other (stage 55) */
+#lensBaselineBox { border-left: 4px solid var(--lens-warn); }

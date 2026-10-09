@@ -142,7 +142,7 @@ class Health
     }
 
     /** a sensor named as core's own temperature widget labels it: "CPU 1", "Zone 0" */
-    private static function sensor(string $name): string
+    public static function sensor(string $name): string
     {
         $number = preg_match('/(\d+)/', $name, $match) ? ' ' . $match[1] : '';
         $labels = [

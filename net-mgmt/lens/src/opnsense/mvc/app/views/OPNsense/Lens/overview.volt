@@ -395,10 +395,14 @@
                 return;
             }
 
-            const cell = (figure, caption, warn) => $('<div/>').addClass('lens-stat')
-                .append($('<div/>').addClass('lens-figure' + (warn ? ' lens-degraded' : ''))
-                    .text(figure))
-                .append($('<div/>').addClass('lens-caption').text(caption));
+            /* the dashboard's tile, here too (stage 55): an icon, a figure, what it is */
+            const icons = ['fa-home', 'fa-exchange', 'fa-signal', 'fa-user-plus', 'fa-eye-slash'];
+            let n = 0;
+            const cell = (figure, caption, warn) => $('<div/>').addClass('content-box dash-fact')
+                .append($('<i/>').addClass('fa ' + icons[Math.min(n++, icons.length - 1)]))
+                .append($('<div/>')
+                    .append($('<div/>').addClass('dash-num' + (warn ? ' lens-degraded' : '')).text(figure))
+                    .append($('<div/>').addClass('dash-sub').text(caption)));
 
             const $strip = $('#lensSummary').empty();
 
@@ -414,6 +418,8 @@
 
             if (summary.busiest) {
                 $strip.append(cell(summary.busiest.what, summary.busiest.name));
+            } else {
+                n++;
             }
 
             /* "new" is only a statement about the network once Lens has been
@@ -664,10 +670,8 @@
 </div>
 
 <div id="lensDevicesBlock" style="display: none;">
-    <div class="content-box lens-box">
-        <div id="lensSummary"></div>
-        <div id="lensDevicesHeadline" class="lens-box-foot"></div>
-    </div>
+    <div id="lensSummary" class="dash-facts"></div>
+    <div id="lensDevicesHeadline" class="dash-sub lens-under-facts"></div>
 
     <div id="lensBaselineBox" class="content-box lens-box" style="display: none;">
         <div id="lensBaselineHeadline" class="lens-box-head"></div>
