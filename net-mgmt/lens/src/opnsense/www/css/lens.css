@@ -954,3 +954,5 @@ a.health-chip:hover { border-color: var(--lens-accent); color: inherit; text-dec
 /* an answer from earlier in the session, while the fresh one is on its way */
 .lens-stale { opacity: 0.75; transition: opacity 0.2s; }
 .dv-pause-reason { margin: 8px 0; max-width: 32em; }
+.dv-pause-until { display: flex; align-items: center; gap: 10px; margin: 8px 0; max-width: 32em; }
+.dv-pause-until input { max-width: 16em; }

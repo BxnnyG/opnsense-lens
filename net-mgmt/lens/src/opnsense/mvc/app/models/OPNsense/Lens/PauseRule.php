@@ -152,6 +152,9 @@ class PauseRule
             } elseif ($existing === null) {
                 $rule = $filter->rules->rule->Add();
                 $rule->setNodes(Pause::ruleFields(Pause::firstSequence($rules), (string)$category));
+                if ($reasons !== null) {
+                    $rule->setNodes(['description' => Pause::ruleDescription($reasons)]);
+                }
                 $refused = self::refused($filter, $rule);
                 if ($refused !== null) {
                     Config::getInstance()->unlock();
@@ -160,6 +163,23 @@ class PauseRule
                 $filter->serializeToConfig(false, true);
                 Config::getInstance()->save(['description' => gettext('Lens: the rule for paused devices')]);
                 $created = true;
+            } else {
+                Config::getInstance()->unlock();
+            }
+        }
+
+        /* the rule says why too, whenever the reasons change -- found by what it
+           does, never by its description, so rewriting that is safe */
+        if ($reasons !== null) {
+            Config::getInstance()->lock();
+            $filter = new Filter();
+            $uuid = Pause::findRule(self::rules($filter));
+            $stale = $uuid !== null
+                && (string)$filter->rules->rule->$uuid->description !== Pause::ruleDescription($reasons);
+            if ($stale) {
+                $filter->rules->rule->$uuid->setNodes(['description' => Pause::ruleDescription($reasons)]);
+                $filter->serializeToConfig(false, true);
+                Config::getInstance()->save(['description' => gettext('Lens: why devices are paused')]);
             } else {
                 Config::getInstance()->unlock();
             }

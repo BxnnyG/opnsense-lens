@@ -302,9 +302,7 @@
 
         /* ------------------------------------------------ pause (§4.74) */
         let pauseMinutes = 60;
-        const clock = (at) => new Date(at * 1000).toLocaleString([], {
-            weekday: 'short', hour: '2-digit', minute: '2-digit'
-        });
+        const clock = (at) => Lens.stamp(at);
         /* the page asks; whether it may is decided on the box (§4.35), and a
            user without the privilege gets no button at all */
         const pauseState = () => ajaxGet('/api/lens/pause/device', { mac: mac }, (reply, status) => {
@@ -359,12 +357,39 @@
             event.preventDefault();
             $('#dvPauseBox').slideUp(120);
         });
+        /* until a moment the operator picks, up to the seven days a pause may last (operator, 2026-10-09) */
+        const local = (date) => {
+            const pad = n => String(n).padStart(2, '0');
+            return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate())
+                + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+        };
+        const untilPicked = () => {
+            const picked = new Date($('#dvPauseUntil').val());
+            const minutes = Math.ceil((picked - new Date()) / 60000);
+            const fits = !isNaN(minutes) && minutes >= 1 && minutes <= 7 * 24 * 60;
+            $('#dvPauseUntilNote').text(fits ? '' : '{{ lang._("Pick a time within the next seven days.") }}');
+            $('#dvPauseGo').prop('disabled', !fits);
+            return fits ? minutes : null;
+        };
         $('#dvPauseFor').on('click', '.lens-chip', function (event) {
             event.preventDefault();
             $('#dvPauseFor .lens-chip').removeClass('lens-chip-on');
             $(this).addClass('lens-chip-on');
             const wanted = $(this).data('minutes');
+            $('#dvPauseUntilBox').toggle(wanted === 'pick');
+            $('#dvPauseGo').prop('disabled', false);
+            if (wanted === 'pick') {
+                const now = new Date();
+                const later = new Date(now.getTime() + 3 * 3600 * 1000);
+                $('#dvPauseUntil').attr({ min: local(now), max: local(new Date(now.getTime() + 7 * 86400 * 1000)) })
+                    .val($('#dvPauseUntil').val() || local(later));
+                pauseMinutes = untilPicked();
+                return;
+            }
             pauseMinutes = wanted === 'morning' ? morning() : parseInt(wanted, 10);
+        });
+        $('#dvPauseUntil').on('input change', () => {
+            pauseMinutes = untilPicked();
         });
         $('#dvPauseGo').on('click', () => {
             Lens.busy($('#dvPauseGo')[0], true, '{{ lang._("Pausing") }}');
@@ -620,7 +645,12 @@
                 <a href="#" class="lens-chip lens-chip-on" data-minutes="60">{{ lang._('1 hour') }}</a>
                 <a href="#" class="lens-chip" data-minutes="120">{{ lang._('2 hours') }}</a>
                 <a href="#" class="lens-chip" data-minutes="morning">{{ lang._('until 06:00') }}</a>
+                <a href="#" class="lens-chip" data-minutes="pick">{{ lang._('until...') }}</a>
                 <a href="#" class="lens-chip" data-minutes="0">{{ lang._('until I resume it') }}</a>
+            </div>
+            <div id="dvPauseUntilBox" class="dv-pause-until" style="display: none;">
+                <input type="datetime-local" id="dvPauseUntil" class="form-control input-sm">
+                <span id="dvPauseUntilNote" class="dv-sub"></span>
             </div>
             <div class="dv-pause-reason">
                 <input type="text" id="dvPauseReason" class="form-control input-sm" maxlength="60"

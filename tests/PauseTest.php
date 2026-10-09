@@ -320,4 +320,10 @@ class PauseTest extends TestCase
         $this->assertSame(['Schlafenszeit'], Pause::reasonsAfter($open, ['aa']));
         $this->assertSame(['Hausaufgaben', 'Schlafenszeit', 'Kino'], Pause::reasonsAfter($open, ['dd'], 'Kino'));
     }
+
+    public function testTheRuleSaysWhyAsTheAliasDoes()
+    {
+        $this->assertSame('Lens: paused devices', Pause::ruleDescription([]));
+        $this->assertSame('Lens: paused devices - Hausaufgaben', Pause::ruleDescription(['Hausaufgaben', '']));
+    }
 }

@@ -246,6 +246,15 @@ data Lens already keeps; none is planned before the router round.
   category), and rule 6 lets Lens write exactly two; that needs the operator's
   word before it is built. **The operator said yes (2026-10-09): built as
   `0.38_2`, §4.85.** Pausing a group is still open.
+- **#54 — One rule per paused device, by name?** Operator, 2026-10-09: Firewall:
+  Rules shows one rule and one pool, "maybe per device, with device names,
+  then the lists would have to be dynamic". Recorded with the answer given:
+  one rule per device means a rule and an alias written, applied and later
+  removed for every pause -- more writes to core's configuration, more filter
+  reloads, and device names (the LAN's own word, edge case 6) in core's
+  configuration and its history. Lens keeps one rule and one alias, says why
+  in both descriptions (0.42_2), and lists who is paused, why and until when
+  on its own pages. Changing that is a rule-6 decision for the operator.
 - **#53 — Slow a device down instead of cutting it off.** Operator, 2026-10-09:
   "so Features wie QoS, die einfach geil sind, immer mitbedenken". A pause with
   a bandwidth instead of a block: core's traffic shaper (pipes and rules) per

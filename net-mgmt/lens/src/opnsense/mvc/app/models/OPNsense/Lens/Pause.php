@@ -220,11 +220,22 @@ class Pause
      */
     public static function aliasDescription(array $reasons): string
     {
+        return self::described(self::ALIAS_DESCRIPTION, $reasons);
+    }
+
+    /** the rule's description, the same way: Firewall: Rules shows why (operator, 2026-10-09) */
+    public static function ruleDescription(array $reasons): string
+    {
+        return self::described(self::RULE_DESCRIPTION, $reasons);
+    }
+
+    private static function described(string $what, array $reasons): string
+    {
         $reasons = array_values(array_unique(array_filter(array_map('strval', $reasons), 'strlen')));
         if ($reasons === []) {
-            return self::ALIAS_DESCRIPTION;
+            return $what;
         }
-        $text = self::ALIAS_DESCRIPTION . ' - ' . implode(', ', $reasons);
+        $text = $what . ' - ' . implode(', ', $reasons);
 
         return strlen($text) > 250 ? substr($text, 0, 247) . '...' : $text;
     }

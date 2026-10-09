@@ -28,6 +28,13 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.42_2
+
+* pause until a moment you pick, up to seven days ahead, beside the fixed
+  choices
+* the reasons also stand in the rule's description in Firewall: Rules, not
+  only in the alias's
+
 0.42_1
 
 * faster pages: a page asks the collector once instead of up to five times
