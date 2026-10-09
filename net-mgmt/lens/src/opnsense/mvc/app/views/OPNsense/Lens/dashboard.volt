@@ -74,6 +74,35 @@
 
         const link = (path) => path + '?hours=' + hours;
 
+        /* ------------------------------------------------ is everything all right (§4.84) */
+        ajaxGet('/api/lens/dashboard/health', {}, (health, status) => {
+            if (status !== 'success' || !health || !health.tiles) {
+                return;
+            }
+            const summary = health.summary;
+            const $head = $('#healthSummary').attr('class', 'health-summary health-' + summary.tone).empty()
+                .append($('<span/>').addClass('health-dot'));
+            $head.append(summary.link
+                ? $('<a/>').attr('href', summary.link).text(summary.sentence)
+                : $('<span/>').text(summary.sentence));
+
+            const $row = $('#healthTiles').empty();
+            for (const tile of health.tiles) {
+                const $tile = $(tile.link ? '<a/>' : '<div/>').addClass('content-box health-tile health-' + tile.tone);
+                if (tile.link) {
+                    $tile.attr('href', tile.link);
+                }
+                $tile.append($('<div/>').addClass('health-title')
+                        .append($('<i/>').addClass('fa fa-fw ' + tile.icon))
+                        .append(document.createTextNode(' ' + tile.title))
+                        .append($('<span/>').addClass('health-dot')))
+                    .append($('<div/>').addClass('health-sentence').text(tile.sentence))
+                    .append($('<div/>').addClass('dash-sub').text((tile.detail || []).join(' \u00b7 ')));
+                $row.append($tile);
+            }
+            $('#healthRow').show();
+        });
+
         /* ------------------------------------------------ facts and devices */
         ajaxGet('/api/lens/devices/list', { hours: hours }, (report, status) => {
             if (status !== 'success' || !report || !report.devices) {
@@ -569,6 +598,11 @@
         <div id="dashSentenceText" class="dash-sentence-text"></div>
         <div id="dashSentenceAlso" class="dash-sub"></div>
     </div>
+</div>
+
+<div id="healthRow" class="health-row" style="display: none;">
+    <div id="healthSummary" class="health-summary"></div>
+    <div id="healthTiles" class="health-tiles"></div>
 </div>
 
 <div id="dashError" class="alert alert-danger" style="display: none;">

@@ -227,6 +227,18 @@ data Lens already keeps; none is planned before the router round.
   attribution only, never into presence: a lease is not proof anyone was home.
   (§4.77)
 
+### From the front-page decision, 2026-10-09 (§4.84)
+
+- **#49 — Interfaces with their devices.** Per interface: state, addresses,
+  link speed, errors and drops, traffic, and the devices behind it — the join
+  core's interface pages cannot make. Phase 2 of §4.84.
+- **#50 — Plugin tiles, only where installed.** DynDNS against the public
+  address (§4.81), SMART, WireGuard / OpenVPN / IPsec peers as who is
+  connected, CARP. Phase 3 of §4.84.
+- **#51 — History from core's RRD.** CPU, memory, temperature and traffic
+  graphs read from what System: Health already records, never stored twice.
+  Phase 4 of §4.84.
+
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two
 rounds on both boxes, the second clean; what the first found is fixed in

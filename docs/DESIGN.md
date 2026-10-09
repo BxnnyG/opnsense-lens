@@ -226,12 +226,12 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-08 against `os-lens-0.35_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.36_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` and `0.35_1` have not been on a box.*
+PROCESS calls that "plausible". `0.34_1`, `0.35_1` and `0.36_1` have not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
@@ -241,7 +241,7 @@ PROCESS calls that "plausible". `0.34_1` and `0.35_1` have not been on a box.*
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, its click not recorded on a box |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), round clean on both boxes; restyled and seen at 390 px and in the dark theme (§4.59). Where it talks (stage 34, §4.62) opt-in; what it looked up (stage 36, §4.64) and the services it asked for (§4.78); up to four devices side by side since stage 47 (§4.73); the headline and every Who's home strip link to the device since `0.34_1` |
-| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence round clean on both boxes; the network's week read from settled hours since `0.32_2`; one stylesheet and phone layouts since stage 31 (§4.59) |
+| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence round clean on both boxes; the network's week read from settled hours since `0.32_2`; one stylesheet and phone layouts since stage 31 (§4.59); the health row on the dashboard since `0.36_1` (stage 50, §4.84) — Lens as the calm front page, reading what core measures |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; *Lens: internet* and *Lens: services in use* on core's dashboard since `0.34_1` (§4.82), not yet on a box; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), round clean. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |
@@ -2176,3 +2176,30 @@ laptop paused on HOME is also cut off when it walks into MGNT; the guard has to
 look at everywhere it goes, not only where it is.
 **Known gap, said on the button:** through a VPN Lens sees the tunnel address,
 not the LAN device behind it.
+
+### §4.84 — Lens as the calm front page, not a second widget board (2026-10-09, operator)
+**Question:** core's dashboard reads as bloated; the operator wants to do
+"everything with Lens" — interfaces, addresses, temperatures, services,
+memory, disk, gateways, certificates, DynDNS, SMART.
+**Decision:** Lens grows into the page that answers *is everything all right*,
+in Lens's own manner: a sentence first; one tile per area, good / warn / bad
+or grey, each with its reason; one click to the core page that fixes it.
+**Lens reads, core owns:** whatever core or a plugin measures is read through
+configd or config.xml, never measured again and never stored — history comes
+from core's own RRD when it is wanted. **Each source alone:** a source that
+does not answer greys its tile, not the page. **Core's privileges apply:** a
+tile is shown only to a user who may open core's own endpoint for it. **Every
+source joins the round** before it counts as done, since 26.1 and 26.7 have
+already differed twice (§4.75, §4.80). Lens still writes nothing beyond §4.74.
+**What only Lens can add,** and where the weight goes: interfaces with the
+devices behind them, and what happened at the same time — the line's latency
+next to the device that was uploading. CPU and temperature are there to say
+"fine".
+**Phases:** (1) the health row — system, temperature, updates, services,
+certificates beside internet and gateways — stage 50; (2) interfaces with
+their devices; (3) plugin tiles only where the plugin is installed — DynDNS
+against the public address (§4.81), SMART, WireGuard / OpenVPN / IPsec peers
+as who is connected, CARP; (4) graphs from core's RRD. **Not done:** replacing
+or hiding core's dashboard; Lens's own system metrics; any tile for a plugin
+that is not installed.
+

@@ -28,6 +28,19 @@ configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.36_1
+
+* is everything all right: a row at the top of Reporting: Lens: Dashboard with
+  one tile per area - internet, system (disk, memory, load), temperature where
+  there are sensors, updates, services, certificates - each good, warn, bad or
+  grey with the reason in one sentence and a link to the OPNsense page that
+  fixes it, and one line above that says "all right" only when every tile is
+* updates are read from the last check, never started; services that core
+  does not check are not counted; certificates are read from their public part
+  only, and only those in use are warned about (14 days, 3 days, expired)
+* updates, services and certificates are shown only to a user who may open
+  them in OPNsense itself; nothing is stored
+
 0.35_1
 
 * pause a device: from its page, for 30 minutes, an hour, two, until 06:00 or

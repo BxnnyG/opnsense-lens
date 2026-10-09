@@ -1,0 +1,28 @@
+[
+ {
+  "name": "unbound",
+  "description": "Unbound DNS",
+  "status": "unbound is running as pid 4211."
+ },
+ {
+  "name": "dhcpd",
+  "description": "ISC DHCPv4 server",
+  "status": "dhcpd is running as pid 3110."
+ },
+ {
+  "name": "ntpd",
+  "description": "Network Time Daemon",
+  "status": "ntpd is running as pid 2210."
+ },
+ {
+  "name": "configd",
+  "description": "System Configuration Daemon",
+  "status": "configd is running as pid 99.",
+  "locked": 1
+ },
+ {
+  "name": "flowd",
+  "description": "Insight Aggregator",
+  "status": "flowd is running as pid 5121."
+ }
+]

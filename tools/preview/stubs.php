@@ -13,6 +13,14 @@
  */
 
 namespace {
+    if (!function_exists('gettext')) {
+        /* core's PHP has the gettext extension; a laptop's may not -- the untranslated string, as in the tests */
+        function gettext($message)
+        {
+            return $message;
+        }
+    }
+
     class PreviewRequest
     {
         private $body = null;
@@ -71,6 +79,11 @@ namespace OPNsense\Base {
             $this->request = new \PreviewRequest();
             $this->response = new \PreviewResponse();
         }
+
+        public function getUserName()
+        {
+            return 'root';
+        }
     }
 
     class IndexController
@@ -79,6 +92,20 @@ namespace OPNsense\Base {
 }
 
 namespace OPNsense\Core {
+    /* the preview's user is root: every page is accessible, as on a fresh box */
+    class ACL
+    {
+        public function isPageAccessible($username, $url)
+        {
+            return true;
+        }
+
+        public function hasPrivilege($username, $reqpriv)
+        {
+            return true;
+        }
+    }
+
     class Backend
     {
         public function configdpRun($event, $params = [], $detach = false)
@@ -360,6 +387,10 @@ namespace {
                     'bytes received' => (int)($now * 2.9e6) % PHP_INT_MAX,
                     'bytes transmitted' => (int)($now * 4.1e5) % PHP_INT_MAX,
                 ]]]);
+            }
+            if (strpos($event, 'system sysctl values') === 0 && strpos($event, 'temperature') !== false) {
+                /* the sensors `system sensors` named (fixtures/system-sensors.txt) */
+                return json_encode(['dev.cpu.0.temperature' => '47.0C', 'dev.cpu.1.temperature' => '49.0C']);
             }
             if (strpos($event, 'system sysctl values') === 0) {
                 return json_encode([

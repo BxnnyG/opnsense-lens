@@ -30,8 +30,10 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Core\ACL;
 use OPNsense\Core\Config;
 use OPNsense\Lens\Bytes;
+use OPNsense\Lens\Health;
 use OPNsense\Lens\Events;
 use OPNsense\Lens\Heatmap;
 use OPNsense\Lens\Internet;
@@ -189,8 +191,12 @@ class DashboardController extends ApiControllerBase
      */
     public function systemAction()
     {
-        $backend = new Backend();
+        return self::facts(new Backend());
+    }
 
+    /** CPU, memory, disk, uptime and the WAN's counters, as the system card and the health row read them */
+    private static function facts(Backend $backend): array
+    {
         /* configdpRun, as core itself calls it -- the list is one parameter */
         $sysctl = json_decode(
             trim((string)$backend->configdpRun('system sysctl values', [implode(',', SystemFacts::SYSCTLS)])),
@@ -204,6 +210,131 @@ class DashboardController extends ApiControllerBase
             time(),
             self::wan($backend)['v4'] ?? 'wan'
         );
+    }
+
+    /**
+     * Is everything all right (§4.84, stage 50): one tile per area, each read on
+     * its own and timed, so one source that fails greys one tile, not the row.
+     *
+     * System, temperature and internet stand under Lens's own privilege, as the
+     * system card always has (§4.38). Updates, services and certificates are what
+     * core guards itself: a tile for them is shown only to a user who may open
+     * core's own endpoint -- left out, not greyed, so nothing is hinted at.
+     *
+     * @return array ['summary', 'tiles', 'timing']
+     */
+    public function healthAction()
+    {
+        $backend = new Backend();
+        $acl = new ACL();
+        $user = $this->getUserName();
+        $timing = [];
+        $read = function (string $key, callable $source) use (&$timing) {
+            $started = microtime(true);
+            try {
+                $tile = $source();
+            } catch (\Throwable $failure) {
+                $tile = ['key' => $key, 'title' => $key, 'icon' => 'fa-question', 'tone' => 'grey',
+                         'sentence' => gettext('Could not be read.'), 'detail' => [], 'link' => null];
+            }
+            $timing[$key] = (int)round((microtime(true) - $started) * 1000);
+            return $tile;
+        };
+
+        $tiles = [
+            $read('internet', function () use ($backend) {
+                return Health::internet(Internet::describe(
+                    self::decode($backend, 'interface address'),
+                    self::decode($backend, 'lens internet 24'),
+                    LineQuality::describe(self::decode($backend, 'interface gateways status'), []),
+                    self::wan($backend),
+                    time()
+                ));
+            }),
+            $read('system', function () use ($backend) {
+                return Health::system(self::facts($backend));
+            }),
+            $read('temperature', function () use ($backend) {
+                return Health::temperature(self::temperatures($backend));
+            }),
+        ];
+        if ($acl->isPageAccessible($user, '/api/core/firmware/status')) {
+            $tiles[] = $read('updates', function () use ($backend) {
+                return Health::updates(self::decodeOrNull($backend, 'firmware product'));
+            });
+        }
+        if ($acl->isPageAccessible($user, '/api/core/service/search')) {
+            $tiles[] = $read('services', function () use ($backend) {
+                return Health::services(self::decodeOrNull($backend, 'service list'));
+            });
+        }
+        if ($acl->isPageAccessible($user, '/api/trust/cert/search')) {
+            $tiles[] = $read('certificates', function () {
+                return Health::certificates(self::certificates(), time());
+            });
+        }
+        $tiles = array_values(array_filter($tiles));
+
+        return ['summary' => Health::summary($tiles), 'tiles' => $tiles, 'timing' => $timing];
+    }
+
+    /** sysctl name => "52.0C" for every sensor core knows; [] on a box without any */
+    private static function temperatures(Backend $backend): ?array
+    {
+        $sensors = array_values(array_filter(array_map('trim', explode("\n", (string)$backend->configdRun(
+            'system sensors'
+        )))));
+        if ($sensors === []) {
+            return [];
+        }
+        $values = json_decode(
+            trim((string)$backend->configdpRun('system sysctl values', [implode(',', $sensors)])),
+            true
+        );
+
+        return is_array($values) ? $values : null;
+    }
+
+    /**
+     * Every certificate's name, expiry and whether anything uses it -- from the
+     * public part only. "In use" as core's CertificatesField decides it: the
+     * refid appears in config.xml somewhere other than under cert or system.user.
+     */
+    private static function certificates(): array
+    {
+        $config = Config::getInstance()->object();
+        $out = [];
+        foreach ($config->cert as $cert) {
+            $parsed = Health::certificate((string)$cert->crt, (string)$cert->descr);
+            if ($parsed === null) {
+                continue;
+            }
+            $refid = (string)$cert->refid;
+            $parsed['in_use'] = false;
+            if (preg_match('/^[0-9a-f]{13}$/', $refid)) {
+                foreach ($config->xpath("//*[text() = '{$refid}']") as $node) {
+                    $path = [];
+                    do {
+                        $node = $node[0]->xpath('..');
+                        $path[] = $node[0]->getName();
+                    } while ($node[0]->xpath('../..') != null && count($path) < 2);
+                    if (!in_array(implode('.', array_reverse($path)), ['system.user', 'cert'], true)) {
+                        $parsed['in_use'] = true;
+                        break;
+                    }
+                }
+            }
+            $out[] = $parsed;
+        }
+
+        return $out;
+    }
+
+    private static function decodeOrNull(Backend $backend, string $command): ?array
+    {
+        $decoded = json_decode(trim((string)$backend->configdRun($command)), true);
+
+        return json_last_error() === JSON_ERROR_NONE && is_array($decoded) ? $decoded : null;
     }
 
     /**

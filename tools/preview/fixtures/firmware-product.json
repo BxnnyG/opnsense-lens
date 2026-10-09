@@ -1,0 +1,23 @@
+{
+ "product_name": "opnsense",
+ "product_version": "26.7.2",
+ "product_check": {
+  "connection": "ok",
+  "repository": "ok",
+  "needs_reboot": 0,
+  "download_size": "12.4MiB",
+  "upgrade_packages": [
+   {
+    "name": "opnsense",
+    "current_version": "26.7.2",
+    "new_version": "26.7.3",
+    "repository": "OPNsense",
+    "size": "12"
+   }
+  ],
+  "new_packages": [],
+  "reinstall_packages": [],
+  "downgrade_packages": [],
+  "remove_packages": []
+ }
+}

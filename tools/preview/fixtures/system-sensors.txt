@@ -1,0 +1,2 @@
+dev.cpu.0.temperature
+dev.cpu.1.temperature

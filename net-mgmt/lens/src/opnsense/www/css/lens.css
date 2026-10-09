@@ -870,3 +870,25 @@ tr.lens-group > td { background: var(--lens-hover); }
             border-radius: 8px; border: 1px solid var(--lens-border); color: var(--lens-muted); vertical-align: middle; }
 .net-mark-good { border-color: var(--lens-good); color: var(--lens-good); }
 .net-mark-warn { border-color: var(--lens-warn); color: var(--lens-warn); }
+
+/* ---------------------------------------------------------------- health row (§4.84) */
+.health-row { margin: 0 0 14px; }
+.health-summary { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.health-summary a { color: inherit; }
+.health-summary a:hover { color: var(--lens-accent); text-decoration: none; }
+.health-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(13em, 1fr)); gap: 10px; }
+.health-tile { display: block; margin: 0; padding: 10px 12px; color: inherit; text-decoration: none;
+               border-left: 3px solid var(--lens-border); transition: border-color 0.12s; }
+a.health-tile:hover { color: inherit; text-decoration: none; border-color: var(--lens-accent); }
+.health-title { font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.health-title .health-dot { margin-left: auto; }
+.health-sentence { margin: 4px 0 2px; line-height: 1.3; }
+.health-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--lens-muted);
+              flex: 0 0 auto; }
+.health-good .health-dot { background: var(--lens-good); }
+.health-warn .health-dot { background: var(--lens-warn); }
+.health-bad .health-dot { background: var(--lens-bad); }
+.health-tile.health-good { border-left-color: var(--lens-good); }
+.health-tile.health-warn { border-left-color: var(--lens-warn); }
+.health-tile.health-bad { border-left-color: var(--lens-bad); }
+.health-tile.health-grey { opacity: 0.8; }
