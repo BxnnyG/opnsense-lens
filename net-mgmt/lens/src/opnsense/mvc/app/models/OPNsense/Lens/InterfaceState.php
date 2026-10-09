@@ -130,8 +130,14 @@ class InterfaceState
             }
         }
 
-        $tile = ['key' => 'interfaces', 'title' => gettext('Interfaces'), 'icon' => 'fa-sitemap',
-                 'link' => '/ui/lens/segments', 'detail' => [sprintf(gettext('%d assigned'), count($links))]];
+        $tile = [
+            'key' => 'interfaces',
+            'title' => gettext('Interfaces'),
+            'icon' => 'fa-sitemap',
+            'link' => '/ui/lens/segments',
+            'core' => '/ui/interfaces/overview',
+            'detail' => [sprintf(gettext('%d assigned'), count($links))],
+        ];
         if ($down !== []) {
             return array_merge($tile, ['tone' => 'bad', 'sentence' => count($down) === 1
                 ? sprintf(gettext('%s.'), $down[0])

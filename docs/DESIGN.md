@@ -226,12 +226,12 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-09 against `os-lens-0.38_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.39_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` and `0.38_1` have not been on a box.*
+PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` and `0.38_1` passed it too; `0.38_2` and `0.39_1` have not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|

@@ -59,6 +59,8 @@ ENDPOINTS = [
     'dashboard/system',
     'dashboard/heatmap',
     'dashboard/health',
+    'system/details',
+    'system/history?hours=24',
     'dashboard/wall',
     'segments/list?hours=24',
     'dns/overview',
@@ -147,6 +149,8 @@ foreach (glob("/usr/local/opnsense/mvc/app/views/OPNsense/Lens/*.volt") as $view
 # says rather than against core's source alone (stage 51)
 section ifconfig;  configctl interface list ifconfig 2>&1 | head -c 20000
 section ifstats;   configctl interface list stats 2>&1 | head -c 20000
+# which history core keeps, so the System page's choice meets the box (stage 53)
+section rrd;       ls /var/db/rrd 2>&1 | head -60
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
@@ -382,7 +386,7 @@ def judge_ssh(report, sec, expected_version):
             report.check('page %s compiles on this box' % view, 'ok' if verdict == 'ok' else 'FAIL',
                          verdict.replace('|', '/')[:160])
 
-    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash', 'ifconfig', 'ifstats'):
+    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash', 'ifconfig', 'ifstats', 'rrd'):
         if sec.get(name):
             report.note(name, sec[name])
 

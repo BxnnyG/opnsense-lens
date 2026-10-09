@@ -163,7 +163,7 @@ class HealthTest extends TestCase
         $summary = Health::summary([$good, $warn, $grey, $bad]);
         $this->assertSame('bad', $summary['tone']);
         $this->assertSame('NTP is not running. And 1 more need a look.', $summary['sentence']);
-        $this->assertSame('/ui/core/service', $summary['link']);
+        $this->assertSame('/ui/lens/system#services', $summary['link']);
     }
 
     public function testACertificateIsUsedOnlyByWhatIsSwitchedOn()

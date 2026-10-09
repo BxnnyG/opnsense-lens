@@ -376,27 +376,8 @@ class Health
         if ($accounts === null) {
             return self::grey($tile, gettext('The DynDNS accounts could not be read.'));
         }
-        $hosts = (array)($statistics['hosts'] ?? $statistics ?? []);
         $known = array_filter([$public['v4'] ?? null, $public['v6'] ?? null]);
-
-        $names = [];
-        foreach ($accounts as $account) {
-            if (empty($account['enabled'])) {
-                continue;
-            }
-            $listed = explode(',', (string)($account['hostnames'] ?? ''));
-            $hostnames = array_values(array_filter(array_map('trim', $listed)));
-            $entry = $hosts[(string)($account['uuid'] ?? '')] ?? null;
-            foreach ($hostnames as $hostname) {
-                if (empty($entry['ip']) && !empty($hosts[$hostname]['ip'])) {
-                    $entry = $hosts[$hostname];
-                }
-            }
-            $names[] = [
-                'name' => $hostnames[0] ?? (string)($account['description'] ?? '?'),
-                'ip' => isset($entry['ip']) && $entry['ip'] !== '' ? (string)$entry['ip'] : null,
-            ];
-        }
+        $names = self::dyndnsNames($accounts, $statistics);
         if ($names === []) {
             return null;
         }
@@ -429,6 +410,38 @@ class Health
         return self::say($tile, 'good', count($names) === 1
             ? sprintf(gettext('%s points at this firewall.'), $names[0]['name'])
             : sprintf(gettext('All %d names point at this firewall.'), count($names)));
+    }
+
+    /**
+     * Every enabled DynDNS name and what it points at now, read as the plugin
+     * reads it (AccountField::addStatsFields): by the account's uuid, else by
+     * any of its hostnames.
+     *
+     * @return array [['name', 'ip' => string|null]]
+     */
+    public static function dyndnsNames(array $accounts, ?array $statistics): array
+    {
+        $hosts = (array)($statistics['hosts'] ?? $statistics ?? []);
+        $names = [];
+        foreach ($accounts as $account) {
+            if (empty($account['enabled'])) {
+                continue;
+            }
+            $listed = explode(',', (string)($account['hostnames'] ?? ''));
+            $hostnames = array_values(array_filter(array_map('trim', $listed)));
+            $entry = $hosts[(string)($account['uuid'] ?? '')] ?? null;
+            foreach ($hostnames as $hostname) {
+                if (empty($entry['ip']) && !empty($hosts[$hostname]['ip'])) {
+                    $entry = $hosts[$hostname];
+                }
+            }
+            $names[] = [
+                'name' => $hostnames[0] ?? (string)($account['description'] ?? '?'),
+                'ip' => isset($entry['ip']) && $entry['ip'] !== '' ? (string)$entry['ip'] : null,
+            ];
+        }
+
+        return $names;
     }
 
     /**
@@ -572,10 +585,17 @@ class Health
         ];
     }
 
-    private static function tile(string $key, string $title, string $icon, string $link): array
+    /**
+     * A tile opens its answer in Lens -- the System page's section for it -- and
+     * keeps core's page as `core`, shown there for when something has to be
+     * changed (operator, 2026-10-09: "bei Lens bleiben"). Internet answers on
+     * the dashboard itself.
+     */
+    private static function tile(string $key, string $title, string $icon, string $core): array
     {
         return ['key' => $key, 'title' => $title, 'icon' => $icon, 'tone' => 'grey', 'sentence' => '',
-                'detail' => [], 'link' => $link];
+                'detail' => [], 'link' => $key === 'internet' ? $core : '/ui/lens/system#' . $key,
+                'core' => $key === 'internet' ? null : $core];
     }
 
     private static function say(array $tile, string $tone, string $sentence): array

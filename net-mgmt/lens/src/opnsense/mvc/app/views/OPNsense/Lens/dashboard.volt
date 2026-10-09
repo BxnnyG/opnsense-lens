@@ -79,27 +79,7 @@
             if (status !== 'success' || !health || !health.tiles) {
                 return;
             }
-            const summary = health.summary;
-            const $head = $('#healthSummary').attr('class', 'health-summary health-' + summary.tone).empty()
-                .append($('<span/>').addClass('health-dot'));
-            $head.append(summary.link
-                ? $('<a/>').attr('href', summary.link).text(summary.sentence)
-                : $('<span/>').text(summary.sentence));
-
-            const $row = $('#healthTiles').empty();
-            for (const tile of health.tiles) {
-                const $tile = $(tile.link ? '<a/>' : '<div/>').addClass('content-box health-tile health-' + tile.tone);
-                if (tile.link) {
-                    $tile.attr('href', tile.link);
-                }
-                $tile.append($('<div/>').addClass('health-title')
-                        .append($('<i/>').addClass('fa fa-fw ' + tile.icon))
-                        .append(document.createTextNode(' ' + tile.title))
-                        .append($('<span/>').addClass('health-dot')))
-                    .append($('<div/>').addClass('health-sentence').text(tile.sentence))
-                    .append($('<div/>').addClass('dash-sub').text((tile.detail || []).join(' \u00b7 ')));
-                $row.append($tile);
-            }
+            Lens.healthRow(document.getElementById('healthSummary'), document.getElementById('healthTiles'), health);
             $('#healthRow').show();
         });
 

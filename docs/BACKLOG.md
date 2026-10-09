@@ -235,7 +235,7 @@ data Lens already keeps; none is planned before the router round.
 - **#50 — Plugin tiles, only where installed.** 🔨 DynDNS, SMART and WireGuard built 2026-10-09 as stage 52 (`0.38_1`); OpenVPN, IPsec and CARP still open. DynDNS against the public
   address (§4.81), SMART, WireGuard / OpenVPN / IPsec peers as who is
   connected, CARP. Phase 3 of §4.84.
-- **#51 — History from core's RRD.** CPU, memory, temperature and traffic
+- **#51 — History from core's RRD.** 🔨 built 2026-10-09 as stage 53 (`0.39_1`), on Reporting: Lens: System. CPU, memory, temperature and traffic
   graphs read from what System: Health already records, never stored twice.
   Phase 4 of §4.84.
 - **#52 — Pausing, grouped.** Operator, 2026-10-09, after the first pause on a

@@ -316,13 +316,13 @@ class DashboardController extends ApiControllerBase
     }
 
     /** a plugin is installed when its configd actions are */
-    private static function installed(string $plugin): bool
+    public static function installed(string $plugin): bool
     {
         return is_file('/usr/local/opnsense/service/conf/actions.d/actions_' . $plugin . '.conf');
     }
 
     /** the DynDNS accounts as config.xml holds them: uuid, description, hostnames, enabled */
-    private static function dyndnsAccounts(): array
+    public static function dyndnsAccounts(): array
     {
         $out = [];
         $accounts = Config::getInstance()->object()->xpath('//OPNsense/DynDNS/accounts/account');
@@ -339,7 +339,7 @@ class DashboardController extends ApiControllerBase
     }
 
     /** WireGuard peers' names by public key, from config.xml -- never the models, which hold private keys */
-    private static function wireguardNames(): array
+    public static function wireguardNames(): array
     {
         $names = [];
         $clients = Config::getInstance()->object()->xpath('//OPNsense/wireguard/client/clients/client');
@@ -353,7 +353,7 @@ class DashboardController extends ApiControllerBase
     }
 
     /** sysctl name => "52.0C" for every sensor core knows; [] on a box without any */
-    private static function temperatures(Backend $backend): ?array
+    public static function temperatures(Backend $backend): ?array
     {
         $sensors = array_values(array_filter(array_map('trim', explode("\n", (string)$backend->configdRun(
             'system sensors'
@@ -370,7 +370,7 @@ class DashboardController extends ApiControllerBase
     }
 
     /** every certificate's name, expiry and who uses it -- from the public part only (Health::usersOf) */
-    private static function certificates(): array
+    public static function certificates(): array
     {
         $config = Config::getInstance()->object();
         $out = [];
@@ -387,7 +387,7 @@ class DashboardController extends ApiControllerBase
         return $out;
     }
 
-    private static function decodeOrNull(Backend $backend, string $command): ?array
+    public static function decodeOrNull(Backend $backend, string $command): ?array
     {
         $decoded = json_decode(trim((string)$backend->configdRun($command)), true);
 

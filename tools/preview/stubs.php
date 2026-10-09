@@ -422,12 +422,28 @@ namespace {
             }
 
             /* core passes [null] for "every interface"; the fixture is the same either way */
+            /* `health fetch 'system-processor.rrd'`: the quotes configdpRun adds are not in the fixture's name */
+            $event = str_replace("'", '', $event);
             foreach (['interface list ifconfig', 'interface list stats'] as $all) {
                 if (strpos($event, $all) === 0) {
                     $event = $all;
                 }
             }
             $file = PREVIEW_FIXTURES . '/' . preg_replace('/[^a-z0-9]+/', '-', $event) . '.json';
+            if (strpos($event, 'health fetch') === 0 && is_file($file)) {
+                /* recorded once; moved to end now, so the preview's history never ages out */
+                $data = json_decode((string)file_get_contents($file), true);
+                $shift = ((int)$now - (int)$data['lastupdate']) * 1000;
+                foreach ($data['sets'] as &$set) {
+                    foreach ($set['ds'] as &$ds) {
+                        foreach ($ds['values'] as &$value) {
+                            $value[0] += $shift;
+                        }
+                    }
+                }
+                $data['lastupdate'] = (int)$now;
+                return json_encode($data);
+            }
             if (is_file($file)) {
                 return (string)file_get_contents($file);
             }

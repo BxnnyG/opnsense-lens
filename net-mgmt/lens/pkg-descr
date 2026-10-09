@@ -28,6 +28,19 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.39_1
+
+* Reporting: Lens: System. A tile on the health row now opens its answer in
+  Lens instead of leaving for another page: the processor and memory over
+  24 hours, 7 or 30 days from what System: Health already records, the
+  sensors, every service with its state, every certificate with its expiry
+  and what uses it, the updates waiting, the disks, the WireGuard peers, the
+  DynDNS names. Each section keeps the OPNsense page one link away, for when
+  something has to be changed there
+* the charts: one axis each, at most four lines in Lens's colours (more fold
+  into "other"), a legend with each line's latest value, and a crosshair that
+  says every value at the time pointed at
+
 0.38_2
 
 * the pause rule and its alias carry a firewall category, "Lens", so

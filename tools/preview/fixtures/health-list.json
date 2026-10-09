@@ -1,0 +1,36 @@
+{
+ "system-processor": {
+  "title": "Processor",
+  "y-axis_label": "%",
+  "field_units": {
+   "user": "%",
+   "nice": "%",
+   "system": "%",
+   "interrupt": "%"
+  },
+  "topic": "system",
+  "itemName": "processor",
+  "filename": "system-processor.rrd"
+ },
+ "system-memory": {
+  "title": "Memory",
+  "y-axis_label": "bytes",
+  "field_units": {
+   "active": "MB",
+   "inactive": "MB",
+   "wire": "MB",
+   "cache": "MB",
+   "free": "MB"
+  },
+  "topic": "system",
+  "itemName": "memory",
+  "filename": "system-memory.rrd"
+ },
+ "wan-traffic": {
+  "title": "Traffic",
+  "topic": "traffic",
+  "itemName": "wan",
+  "filename": "wan-traffic.rrd",
+  "field_units": {}
+ }
+}

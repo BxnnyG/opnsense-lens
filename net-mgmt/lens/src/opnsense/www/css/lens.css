@@ -905,3 +905,25 @@ a.health-tile:hover { color: inherit; text-decoration: none; border-color: var(-
 .seg-here { font-weight: 600; }
 .seg-errors { color: var(--lens-muted); }
 .seg-errors-warn { color: var(--lens-warn); }
+
+/* ---------------------------------------------------------------- lines over time (stage 53) */
+.lens-lines { display: block; width: 100%; height: 160px; margin: 6px 0 2px; overflow: visible; }
+.lens-lines-grid { stroke: var(--lens-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.lens-lines-path { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
+                   vector-effect: non-scaling-stroke; }
+.lens-lines-other { stroke: var(--lens-muted); }
+.lens-lines-other-key { background: var(--lens-muted); }
+.lens-lines-cross { stroke: var(--lens-muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.lens-lines-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; }
+.lens-lines-legend b { font-variant-numeric: tabular-nums; }
+.lens-lines-scale { font-size: 11px; color: var(--lens-muted); }
+/* ---------------------------------------------------------------- the System page (stage 53) */
+.lens-sys-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 30em), 1fr)); gap: 14px; }
+.lens-sys-section { margin: 0; scroll-margin-top: 70px; }
+.lens-sys-section .dv-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.lens-sys-core { font-size: 12px; font-weight: normal; text-transform: none; letter-spacing: 0; }
+.lens-sys-sentence { margin: 2px 0 8px; }
+.lens-sys-table { margin: 4px 0 0; font-size: 12px; }
+.lens-sys-table td.lens-num { text-align: right; font-variant-numeric: tabular-nums; }
+.lens-sys-chart-title { margin-top: 8px; }
+.lens-sys-target { box-shadow: 0 0 0 2px var(--lens-accent); }

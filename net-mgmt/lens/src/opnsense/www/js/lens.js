@@ -615,8 +615,166 @@
         return svg;
     };
 
+    /*
+     * The health row (§4.84): one sentence, then a tile per area. Shared by the
+     * dashboard and the System page so the two cannot say different things.
+     */
+    const healthRow = (summaryEl, tilesEl, health) => {
+        summaryEl.className = 'health-summary health-' + health.summary.tone;
+        summaryEl.textContent = '';
+        const dot = document.createElement('span');
+        dot.className = 'health-dot';
+        const said = document.createElement(health.summary.link ? 'a' : 'span');
+        if (health.summary.link) {
+            said.href = health.summary.link;
+        }
+        said.textContent = health.summary.sentence;
+        summaryEl.append(dot, said);
+
+        tilesEl.textContent = '';
+        for (const tile of health.tiles) {
+            const box = document.createElement(tile.link ? 'a' : 'div');
+            box.className = 'content-box health-tile health-' + tile.tone;
+            if (tile.link) {
+                box.href = tile.link;
+            }
+            const title = document.createElement('div');
+            title.className = 'health-title';
+            const icon = document.createElement('i');
+            icon.className = 'fa fa-fw ' + tile.icon;
+            const tileDot = document.createElement('span');
+            tileDot.className = 'health-dot';
+            title.append(icon, document.createTextNode(' ' + tile.title), tileDot);
+            const sentence = document.createElement('div');
+            sentence.className = 'health-sentence';
+            sentence.textContent = tile.sentence;
+            const detail = document.createElement('div');
+            detail.className = 'dash-sub';
+            detail.textContent = (tile.detail || []).join(' \u00b7 ');
+            box.append(title, sentence, detail);
+            tilesEl.appendChild(box);
+        }
+    };
+
+    /*
+     * A line chart over time (stage 53): one y-axis, at most four series in the
+     * Lens order (--lens-cmp-1..4; more fold into "other"), a legend with each
+     * series' latest value -- the visible label two light-theme colours need
+     * below 3:1 -- and a crosshair whose tooltip lists every series at that time.
+     *
+     * series: [{key, points: [[unix, value|null]]}], unit: shown after values
+     */
+    const lines = (container, series, unit) => {
+        const NS = 'http://www.w3.org/2000/svg';
+        const W = 600;
+        const H = 160;
+        container.textContent = '';
+        let list = (series || []).filter(s => s.points && s.points.some(p => p[1] !== null));
+        if (!list.length) {
+            const none = document.createElement('div');
+            none.className = 'dash-sub';
+            none.textContent = 'Nothing recorded in this range.';
+            container.appendChild(none);
+            return;
+        }
+        /* biggest first; past four, the rest summed as "other" */
+        const mean = s => s.points.reduce((a, p) => a + (p[1] || 0), 0) / s.points.length;
+        list.sort((a, b) => mean(b) - mean(a));
+        if (list.length > 4) {
+            const rest = list.slice(3);
+            list = list.slice(0, 3).concat([{ key: 'other', other: true,
+                points: rest[0].points.map((p, i) => [p[0], rest.reduce((a, s) => a + ((s.points[i] || [])[1] || 0), 0)]) }]);
+        }
+        const times = list[0].points.map(p => p[0]);
+        const t0 = times[0];
+        const t1 = times[times.length - 1] || t0 + 1;
+        let top = 0;
+        for (const s of list) {
+            for (const p of s.points) {
+                top = Math.max(top, p[1] || 0);
+            }
+        }
+        top = top > 0 ? top * 1.08 : 1;
+        const x = t => (t - t0) / Math.max(1, t1 - t0) * W;
+        const y = v => H - v / top * H;
+
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        svg.setAttribute('preserveAspectRatio', 'none');
+        svg.setAttribute('class', 'lens-lines');
+        for (const f of [0.5, 1]) {
+            const grid = document.createElementNS(NS, 'line');
+            grid.setAttribute('x1', 0);
+            grid.setAttribute('x2', W);
+            grid.setAttribute('y1', H - f * H / 1.08);
+            grid.setAttribute('y2', H - f * H / 1.08);
+            grid.setAttribute('class', 'lens-lines-grid');
+            svg.appendChild(grid);
+        }
+        list.forEach((s, i) => {
+            let d = '';
+            let pen = false;
+            for (const p of s.points) {
+                if (p[1] === null) {
+                    pen = false;
+                    continue;
+                }
+                d += (pen ? 'L' : 'M') + x(p[0]).toFixed(1) + ',' + y(p[1]).toFixed(1);
+                pen = true;
+            }
+            const path = document.createElementNS(NS, 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('class', 'lens-lines-path ' + (s.other ? 'lens-lines-other' : 'cmp-s' + (i + 1)));
+            svg.appendChild(path);
+        });
+        const cross = document.createElementNS(NS, 'line');
+        cross.setAttribute('y1', 0);
+        cross.setAttribute('y2', H);
+        cross.setAttribute('class', 'lens-lines-cross');
+        cross.style.display = 'none';
+        svg.appendChild(cross);
+
+        const fmt = v => v === null || v === undefined ? '\u2014'
+            : (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + (unit ? ' ' + unit : '');
+        tip(svg, (event) => {
+            const r = svg.getBoundingClientRect();
+            const at = t0 + (event.clientX - r.left) / r.width * (t1 - t0);
+            let i = 0;
+            while (i < times.length - 1 && Math.abs(times[i + 1] - at) < Math.abs(times[i] - at)) {
+                i++;
+            }
+            cross.setAttribute('x1', x(times[i]));
+            cross.setAttribute('x2', x(times[i]));
+            cross.style.display = '';
+            return [{ value: when(times[i], 60, true) }].concat(list.map((s, n) => ({
+                key: getComputedStyle(svg.querySelectorAll('path')[n]).stroke,
+                value: fmt((s.points[i] || [])[1]), label: s.key })));
+        });
+        svg.addEventListener('pointerleave', () => {
+            cross.style.display = 'none';
+        });
+
+        const legend = document.createElement('div');
+        legend.className = 'lens-lines-legend';
+        list.forEach((s, i) => {
+            const last = [...s.points].reverse().find(p => p[1] !== null);
+            const item = document.createElement('span');
+            const key = document.createElement('span');
+            key.className = 'cmp-key ' + (s.other ? 'lens-lines-other-key' : 'cmp-s' + (i + 1));
+            item.append(key, document.createTextNode(s.key + ' '));
+            const value = document.createElement('b');
+            value.textContent = fmt(last ? last[1] : null);
+            item.appendChild(value);
+            legend.appendChild(item);
+        });
+        const scale = document.createElement('div');
+        scale.className = 'lens-lines-scale';
+        scale.textContent = when(t0, 3600, true) + ' \u2013 ' + when(t1, 3600, true) + ' \u00b7 top ' + fmt(top / 1.08);
+        container.append(legend, svg, scale);
+    };
+
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
-        services: services, spark: spark
+        services: services, spark: spark, healthRow: healthRow, lines: lines
     };
 })();
