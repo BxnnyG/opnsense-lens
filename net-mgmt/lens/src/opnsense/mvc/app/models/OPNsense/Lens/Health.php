@@ -361,6 +361,158 @@ class Health
     }
 
     /**
+     * Do the DynDNS names point at this firewall (stage 52)? What each one
+     * points at is read as the plugin reads it (AccountField::addStatsFields):
+     * by the account's uuid, else by any of its hostnames. Compared with the
+     * public address Lens asks Cloudflare for (§4.81).
+     *
+     * @param array|null $accounts [['uuid', 'description', 'hostnames', 'enabled']]
+     * @param array|null $statistics `ddclient statistics` decoded
+     * @param array $public ['v4', 'v6'] as public.json holds it
+     */
+    public static function dyndns(?array $accounts, ?array $statistics, array $public): ?array
+    {
+        $tile = self::tile('dyndns', gettext('Dynamic DNS'), 'fa-tags', '/ui/dyndns/');
+        if ($accounts === null) {
+            return self::grey($tile, gettext('The DynDNS accounts could not be read.'));
+        }
+        $hosts = (array)($statistics['hosts'] ?? $statistics ?? []);
+        $known = array_filter([$public['v4'] ?? null, $public['v6'] ?? null]);
+
+        $names = [];
+        foreach ($accounts as $account) {
+            if (empty($account['enabled'])) {
+                continue;
+            }
+            $listed = explode(',', (string)($account['hostnames'] ?? ''));
+            $hostnames = array_values(array_filter(array_map('trim', $listed)));
+            $entry = $hosts[(string)($account['uuid'] ?? '')] ?? null;
+            foreach ($hostnames as $hostname) {
+                if (empty($entry['ip']) && !empty($hosts[$hostname]['ip'])) {
+                    $entry = $hosts[$hostname];
+                }
+            }
+            $names[] = [
+                'name' => $hostnames[0] ?? (string)($account['description'] ?? '?'),
+                'ip' => isset($entry['ip']) && $entry['ip'] !== '' ? (string)$entry['ip'] : null,
+            ];
+        }
+        if ($names === []) {
+            return null;
+        }
+
+        $tile['detail'] = array_map(function ($name) {
+            return $name['name'] . ' → ' . ($name['ip'] ?? '?');
+        }, $names);
+        $unset = array_values(array_filter($names, function ($name) {
+            return $name['ip'] === null;
+        }));
+        if ($known === []) {
+            return self::grey($tile, gettext('The public address is not known yet, so nothing to compare.'));
+        }
+        $astray = array_values(array_filter($names, function ($name) use ($known) {
+            return $name['ip'] !== null && !in_array($name['ip'], $known, true);
+        }));
+        /* warn, not bad: on a box with two WANs a name may point at the other one on purpose */
+        if ($astray !== []) {
+            return self::say($tile, 'warn', sprintf(
+                gettext('%s points at %s, but this firewall is %s.'),
+                $astray[0]['name'],
+                $astray[0]['ip'],
+                implode(' / ', $known)
+            ));
+        }
+        if ($unset !== []) {
+            return self::say($tile, 'warn', sprintf(gettext('%s has not been updated yet.'), $unset[0]['name']));
+        }
+
+        return self::say($tile, 'good', count($names) === 1
+            ? sprintf(gettext('%s points at this firewall.'), $names[0]['name'])
+            : sprintf(gettext('All %d names point at this firewall.'), count($names)));
+    }
+
+    /**
+     * The disks' own verdict (stage 52), as the SMART plugin's widget reads it.
+     *
+     * @param array|null $disks `smart detailed list` decoded
+     */
+    public static function smart(?array $disks): ?array
+    {
+        $tile = self::tile('smart', gettext('Disks'), 'fa-hdd-o', '/ui/smart');
+        if ($disks === null) {
+            return self::grey($tile, gettext('SMART did not answer.'));
+        }
+        $failing = [];
+        $silent = [];
+        $checked = 0;
+        foreach ($disks as $disk) {
+            $name = trim((string)($disk['device'] ?? '?') . ' ' . (string)($disk['ident'] ?? ''));
+            $passed = $disk['state']['smart_status']['passed'] ?? null;
+            if ($passed === null) {
+                $silent[] = $name;
+                continue;
+            }
+            $checked++;
+            if ($passed === false) {
+                $failing[] = $name;
+            }
+        }
+        if ($checked === 0 && $silent === []) {
+            return null;
+        }
+        $tile['detail'] = array_values(array_filter([
+            sprintf(gettext('%d checked'), $checked),
+            $silent !== [] ? sprintf(gettext('%d without SMART: %s'), count($silent), implode(', ', $silent)) : null,
+        ]));
+        if ($failing !== []) {
+            return self::say($tile, 'bad', sprintf(gettext('%s reports that it is failing.'), $failing[0]));
+        }
+        if ($checked === 0) {
+            return self::grey($tile, gettext('No disk here reports SMART.'));
+        }
+
+        return self::say($tile, 'good', $checked === 1
+            ? gettext('The disk reports healthy.')
+            : sprintf(gettext('All %d disks report healthy.'), $checked));
+    }
+
+    /**
+     * Who is connected over WireGuard now (stage 52). A peer is online within
+     * 300 s of its last handshake, as core decides it. A phone that is not
+     * connected is no fault, so the tile says who, not whether -- good unless
+     * nothing could be read.
+     *
+     * @param array|null $records `wireguard show` decoded records
+     * @param array $names public key => the name the operator gave the peer
+     */
+    public static function wireguard(?array $records, array $names, int $now): ?array
+    {
+        $tile = self::tile('wireguard', gettext('WireGuard'), 'fa-lock', '/ui/wireguard/diagnostics/');
+        if ($records === null) {
+            return self::grey($tile, gettext('WireGuard did not answer.'));
+        }
+        $peers = array_values(array_filter($records, function ($record) {
+            return ($record['type'] ?? '') === 'peer';
+        }));
+        if ($peers === []) {
+            return null;
+        }
+        $online = [];
+        foreach ($peers as $peer) {
+            $handshake = (int)($peer['latest-handshake'] ?? 0);
+            if ($handshake > 0 && $now - $handshake <= 300) {
+                $key = (string)($peer['public-key'] ?? '?');
+                $online[] = $names[$key] ?? substr($key, 0, 8);
+            }
+        }
+        $tile['detail'] = $online;
+
+        return self::say($tile, 'good', $online === []
+            ? sprintf(gettext('None of %d peers connected now.'), count($peers))
+            : sprintf(gettext('%d of %d peers connected now.'), count($online), count($peers)));
+    }
+
+    /**
      * The internet tile, from what Internet::describe() already decided.
      */
     public static function internet(?array $internet): array

@@ -1,0 +1,26 @@
+{
+ "records": [
+  {
+   "if": "wg0",
+   "type": "interface",
+   "public-key": "SRVKEY",
+   "listen-port": "51820",
+   "status": "up"
+  },
+  {
+   "if": "wg0",
+   "type": "peer",
+   "public-key": "cGhvbmVhbm5hX19fX19fX19fX19fX19fX19fX19fX18=",
+   "endpoint": "(none)",
+   "latest-handshake": 0
+  },
+  {
+   "if": "wg0",
+   "type": "peer",
+   "public-key": "bGFwdG9wX19fX19fX19fX19fX19fX19fX19fX19fX18=",
+   "endpoint": "(none)",
+   "latest-handshake": 0
+  }
+ ],
+ "status": "ok"
+}

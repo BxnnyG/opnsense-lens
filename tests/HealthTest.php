@@ -193,4 +193,61 @@ class HealthTest extends TestCase
             'users' => ['AcmeClient']]], self::NOW);
         $this->assertContains('portal used by AcmeClient', $tile['detail']);
     }
+
+    public function testDynDnsNamesAreComparedWithThePublicAddress()
+    {
+        $accounts = [
+            ['uuid' => 'u1', 'description' => 'home', 'hostnames' => 'home.example.org', 'enabled' => true],
+            ['uuid' => 'u2', 'description' => 'old', 'hostnames' => 'old.example.org', 'enabled' => false],
+        ];
+        $public = ['v4' => '93.239.95.224', 'v6' => null];
+
+        // the native backend keys by uuid
+        $good = Health::dyndns($accounts, ['hosts' => ['u1' => ['ip' => '93.239.95.224', 'mtime' => 1]]], $public);
+        $this->assertSame('good', $good['tone']);
+        $this->assertSame('home.example.org points at this firewall.', $good['sentence']);
+        // ddclient keys by hostname
+        $astray = Health::dyndns($accounts, ['hosts' => ['home.example.org' => ['ip' => '84.1.2.3']]], $public);
+        $this->assertSame('warn', $astray['tone']);
+        $this->assertSame('home.example.org points at 84.1.2.3, but this firewall is 93.239.95.224.', $astray['sentence']);
+        $this->assertSame('warn', Health::dyndns($accounts, ['hosts' => []], $public)['tone']);
+        $this->assertSame('grey', Health::dyndns($accounts, ['hosts' => []], [])['tone']);
+        // nothing enabled, nothing to say
+        $this->assertNull(Health::dyndns([$accounts[1]], [], $public));
+        $this->assertSame('grey', Health::dyndns(null, null, $public)['tone']);
+    }
+
+    public function testSmartTakesTheDisksOwnVerdict()
+    {
+        $ok = ['device' => 'ada0', 'ident' => 'S3Z', 'state' => ['smart_status' => ['passed' => true]]];
+        $bad = ['device' => 'ada1', 'ident' => 'WD1', 'state' => ['smart_status' => ['passed' => false]]];
+        $mute = ['device' => 'da0', 'ident' => 'USB', 'state' => ['smartctl' => ['exit_status' => 4]]];
+
+        $this->assertSame('All 2 disks report healthy.', Health::smart([$ok, $ok])['sentence']);
+        $failing = Health::smart([$ok, $bad, $mute]);
+        $this->assertSame('bad', $failing['tone']);
+        $this->assertSame('ada1 WD1 reports that it is failing.', $failing['sentence']);
+        $this->assertContains('1 without SMART: da0 USB', $failing['detail']);
+        $this->assertSame('grey', Health::smart([$mute])['tone']);
+        $this->assertNull(Health::smart([]));
+        $this->assertSame('grey', Health::smart(null)['tone']);
+    }
+
+    public function testWireGuardSaysWhoIsConnectedNotWhetherItIsAFault()
+    {
+        $records = [
+            ['type' => 'interface', 'if' => 'wg0'],
+            ['type' => 'peer', 'if' => 'wg0', 'public-key' => 'KEYANNA', 'latest-handshake' => self::NOW - 40],
+            ['type' => 'peer', 'if' => 'wg0', 'public-key' => 'KEYBOB', 'latest-handshake' => self::NOW - 4000],
+            ['type' => 'peer', 'if' => 'wg0', 'public-key' => 'KEYCARLXYZ', 'latest-handshake' => 0],
+        ];
+        $tile = Health::wireguard($records, ['KEYANNA' => 'Anna phone'], self::NOW);
+        $this->assertSame('good', $tile['tone']);
+        $this->assertSame('1 of 3 peers connected now.', $tile['sentence']);
+        $this->assertSame(['Anna phone'], $tile['detail']);
+        $this->assertSame('None of 1 peers connected now.',
+            Health::wireguard([$records[2]], [], self::NOW)['sentence']);
+        $this->assertNull(Health::wireguard([$records[0]], [], self::NOW));
+        $this->assertSame('grey', Health::wireguard(null, [], self::NOW)['tone']);
+    }
 }

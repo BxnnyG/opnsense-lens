@@ -232,7 +232,7 @@ data Lens already keeps; none is planned before the router round.
 - **#49 — Interfaces with their devices.** 🔨 built 2026-10-09 as stage 51 (`0.37_1`). Per interface: state, addresses,
   link speed, errors and drops, traffic, and the devices behind it — the join
   core's interface pages cannot make. Phase 2 of §4.84.
-- **#50 — Plugin tiles, only where installed.** DynDNS against the public
+- **#50 — Plugin tiles, only where installed.** 🔨 DynDNS, SMART and WireGuard built 2026-10-09 as stage 52 (`0.38_1`); OpenVPN, IPsec and CARP still open. DynDNS against the public
   address (§4.81), SMART, WireGuard / OpenVPN / IPsec peers as who is
   connected, CARP. Phase 3 of §4.84.
 - **#51 — History from core's RRD.** CPU, memory, temperature and traffic

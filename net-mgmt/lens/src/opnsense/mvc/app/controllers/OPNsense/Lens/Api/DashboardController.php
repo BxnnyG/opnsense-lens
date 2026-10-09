@@ -242,11 +242,12 @@ class DashboardController extends ApiControllerBase
             return $tile;
         };
 
+        $probes = self::decode($backend, 'lens internet 24');
         $tiles = [
-            $read('internet', function () use ($backend) {
+            $read('internet', function () use ($backend, $probes) {
                 return Health::internet(Internet::describe(
                     self::decode($backend, 'interface address'),
-                    self::decode($backend, 'lens internet 24'),
+                    $probes,
                     LineQuality::describe(self::decode($backend, 'interface gateways status'), []),
                     self::wan($backend),
                     time()
@@ -284,9 +285,71 @@ class DashboardController extends ApiControllerBase
                 return Health::certificates(self::certificates(), time());
             });
         }
+        /* what is installed, and only then (stage 52, §4.84) */
+        if (self::installed('ddclient') && $acl->isPageAccessible($user, '/api/dyndns/accounts/search_item')) {
+            $tiles[] = $read('dyndns', function () use ($backend, $probes) {
+                return Health::dyndns(
+                    self::dyndnsAccounts(),
+                    self::decodeOrNull($backend, 'ddclient statistics'),
+                    is_array($probes['public'] ?? null) ? $probes['public'] : []
+                );
+            });
+        }
+        if (self::installed('smart') && $acl->isPageAccessible($user, '/api/smart/service/list')) {
+            $tiles[] = $read('smart', function () use ($backend) {
+                return Health::smart(self::decodeOrNull($backend, 'smart detailed list'));
+            });
+        }
+        if ($acl->isPageAccessible($user, '/api/wireguard/service/show')) {
+            $tiles[] = $read('wireguard', function () use ($backend) {
+                $shown = self::decodeOrNull($backend, 'wireguard show');
+                return Health::wireguard(
+                    $shown === null ? null : (array)($shown['records'] ?? []),
+                    self::wireguardNames(),
+                    time()
+                );
+            });
+        }
         $tiles = array_values(array_filter($tiles));
 
         return ['summary' => Health::summary($tiles), 'tiles' => $tiles, 'timing' => $timing];
+    }
+
+    /** a plugin is installed when its configd actions are */
+    private static function installed(string $plugin): bool
+    {
+        return is_file('/usr/local/opnsense/service/conf/actions.d/actions_' . $plugin . '.conf');
+    }
+
+    /** the DynDNS accounts as config.xml holds them: uuid, description, hostnames, enabled */
+    private static function dyndnsAccounts(): array
+    {
+        $out = [];
+        $accounts = Config::getInstance()->object()->xpath('//OPNsense/DynDNS/accounts/account');
+        foreach ($accounts ?: [] as $account) {
+            $out[] = [
+                'uuid' => (string)$account['uuid'],
+                'description' => (string)$account->description,
+                'hostnames' => (string)$account->hostnames,
+                'enabled' => (string)$account->enabled === '1',
+            ];
+        }
+
+        return $out;
+    }
+
+    /** WireGuard peers' names by public key, from config.xml -- never the models, which hold private keys */
+    private static function wireguardNames(): array
+    {
+        $names = [];
+        $clients = Config::getInstance()->object()->xpath('//OPNsense/wireguard/client/clients/client');
+        foreach ($clients ?: [] as $client) {
+            if ((string)$client->pubkey !== '') {
+                $names[(string)$client->pubkey] = (string)$client->name;
+            }
+        }
+
+        return $names;
     }
 
     /** sysctl name => "52.0C" for every sensor core knows; [] on a box without any */

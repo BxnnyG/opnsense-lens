@@ -28,6 +28,15 @@ configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.38_1
+
+* the health row gains a tile for each of these that is installed: Dynamic
+  DNS (does every enabled name point at the public address Lens asks for),
+  SMART (do the disks report healthy), WireGuard (who is connected now, by
+  the names given to the peers)
+* each only for a user who may open the plugin's own page; WireGuard peers'
+  names are read from the configuration, never a private key
+
 0.37_2
 
 * no speed on a port without a link, and none from PPPoE, WireGuard or the
