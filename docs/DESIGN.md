@@ -226,7 +226,7 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-09 against `os-lens-0.36_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.36_2`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
@@ -241,7 +241,7 @@ PROCESS calls that "plausible". `0.34_1`, `0.35_1` and `0.36_1` have not been on
 | S3 · Preflight & setup | ✅ (stage 2) | router-tested as `0.1_3`. Wizard closed (§4.39); the fix button (§4.35) is built, its click not recorded on a box |
 | S4 · Traffic attribution | ✅ (stage 7) | router-tested as `0.4_1`, directions confirmed. Drill-down (stage 19) built. The second box's 95 GB unattributed is still unread (ROADMAP) |
 | S5 · Client profile page | 🔨 (stages 8, 24, 26, 31) | a real page per device (§4.54) and who's home (§4.52), round clean on both boxes; restyled and seen at 390 px and in the dark theme (§4.59). Where it talks (stage 34, §4.62) opt-in; what it looked up (stage 36, §4.64) and the services it asked for (§4.78); up to four devices side by side since stage 47 (§4.73); the headline and every Who's home strip link to the device since `0.34_1` |
-| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence round clean on both boxes; the network's week read from settled hours since `0.32_2`; one stylesheet and phone layouts since stage 31 (§4.59); the health row on the dashboard since `0.36_1` (stage 50, §4.84) — Lens as the calm front page, reading what core measures |
+| S6 · Reporting overview | 🔨 (stages 9, 16–19, 21, 23, 25, 31) | stage 16 router-tested; dashboard (§4.51), networks, range, drill-down, export and the one sentence round clean on both boxes; the network's week read from settled hours since `0.32_2`; one stylesheet and phone layouts since stage 31 (§4.59); the health row on the dashboard since `0.36_1` (stage 50, §4.84), round clean on both boxes — Lens as the calm front page, reading what core measures |
 | S7 · Dashboard widgets | 🔨 (stages 10, 27) | top-five widget built; *Lens: internet* and *Lens: services in use* on core's dashboard since `0.34_1` (§4.82), not yet on a box; `/metrics` for Prometheus built (§4.55), never scraped |
 | S8 · Baseline & verdicts | 🔨 (stage 12) | daily median with three guards (§4.50), settable since stage 30 (§4.58), run on the total and on uploads separately since stage 38 (§4.66), not the hour-of-week plan below. Day 21 passed on router-01 around 2026-09-20 — the first real verdicts exist and are unread |
 | S9 · Correlation timeline | 🔨 (35) | Events as one feed, derived at read time (§4.63), round clean. Still missing: one time axis with lanes, DHCP, DNS blocks; the IDS slot is left open (§4.6) |

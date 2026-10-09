@@ -72,7 +72,7 @@ class HealthTest extends TestCase
     public function testUpdatesAreReadNeverChecked()
     {
         $this->assertSame('grey', Health::updates(null)['tone']);
-        $this->assertSame('Not checked for updates yet.', Health::updates(['product_check' => null])['sentence']);
+        $this->assertSame('No check for updates on record.', Health::updates(['product_check' => null])['sentence']);
         $this->assertSame('warn', Health::updates(['product_check' => ['connection' => 'unresolved']])['tone']);
         $this->assertSame('good', Health::updates(['product_version' => '26.7.2', 'product_check' => [
             'connection' => 'ok', 'repository' => 'ok', 'upgrade_packages' => []]])['tone']);
@@ -155,7 +155,7 @@ class HealthTest extends TestCase
         $grey = Health::updates(['product_check' => null]);
         $summary = Health::summary([$good, $grey]);
         $this->assertSame('grey', $summary['tone']);
-        $this->assertSame('Nothing is wrong that Lens can see. Updates: Not checked for updates yet.',
+        $this->assertSame('Nothing is wrong that Lens can see. Updates: No check for updates on record.',
             $summary['sentence']);
 
         $warn = Health::system($this->facts(88));
@@ -164,5 +164,33 @@ class HealthTest extends TestCase
         $this->assertSame('bad', $summary['tone']);
         $this->assertSame('NTP is not running. And 1 more need a look.', $summary['sentence']);
         $this->assertSame('/ui/core/service', $summary['link']);
+    }
+
+    public function testACertificateIsUsedOnlyByWhatIsSwitchedOn()
+    {
+        $config = simplexml_load_string('<?xml version="1.0"?><opnsense>
+            <system><webgui><ssl-certref>aaaaaaaaaaaaa</ssl-certref></webgui>
+                <user><name>anna</name><cert>ccccccccccccc</cert></user></system>
+            <OPNsense><AcmeClient><certificates>
+                <certificate><enabled>1</enabled><certRefId>bbbbbbbbbbbbb</certRefId></certificate>
+                <certificate><enabled>0</enabled><certRefId>ddddddddddddd</certRefId></certificate>
+            </certificates></AcmeClient></OPNsense>
+            <cert><refid>aaaaaaaaaaaaa</refid></cert><cert><refid>bbbbbbbbbbbbb</refid></cert>
+            <cert><refid>ccccccccccccc</refid></cert><cert><refid>ddddddddddddd</refid></cert>
+        </opnsense>');
+
+        $this->assertSame(['system.webgui'], Health::usersOf($config, 'aaaaaaaaaaaaa'));
+        $this->assertSame(['AcmeClient'], Health::usersOf($config, 'bbbbbbbbbbbbb'));
+        // a user's own certificate, as core's rule says, and a disabled ACME entry, as Lens's adds
+        $this->assertSame([], Health::usersOf($config, 'ccccccccccccc'));
+        $this->assertSame([], Health::usersOf($config, 'ddddddddddddd'));
+        $this->assertSame([], Health::usersOf($config, "x' or '1'='1"));
+    }
+
+    public function testTheCertificateTileSaysWhoUsesTheFirstToExpire()
+    {
+        $tile = Health::certificates([['name' => 'portal', 'expires' => self::NOW - 1, 'in_use' => true,
+            'users' => ['AcmeClient']]], self::NOW);
+        $this->assertContains('portal used by AcmeClient', $tile['detail']);
     }
 }

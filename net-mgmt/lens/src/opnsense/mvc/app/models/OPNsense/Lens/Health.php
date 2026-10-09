@@ -177,7 +177,8 @@ class Health
 
         $check = $product['product_check'] ?? null;
         if (!is_array($check)) {
-            return self::grey($tile, gettext('Not checked for updates yet.'));
+            /* core keeps the last check in /tmp: after a reboot there is none until someone checks */
+            return self::grey($tile, gettext('No check for updates on record.'));
         }
         foreach (['connection', 'repository'] as $key) {
             if (isset($check[$key]) && $check[$key] !== 'ok') {
@@ -267,6 +268,9 @@ class Health
         $first = $used[0];
         $days = (int)floor(($first['expires'] - $now) / 86400);
         $tile['detail'] = [sprintf(gettext('%d in use'), count($used))];
+        if (!empty($first['users'])) {
+            $tile['detail'][] = sprintf(gettext('%s used by %s'), $first['name'], implode(', ', $first['users']));
+        }
         $lapsed = count(array_filter($certificates, function ($cert) use ($now) {
             return empty($cert['in_use']) && isset($cert['expires']) && $cert['expires'] < $now;
         }));
@@ -311,6 +315,49 @@ class Health
         $name = trim($descr) !== '' ? trim($descr) : (string)($parsed['subject']['CN'] ?? '?');
 
         return ['name' => $name, 'expires' => (int)$parsed['validTo_time_t']];
+    }
+
+    /**
+     * Who uses a certificate, as core's CertificatesField decides "in use": its
+     * refid appears in config.xml somewhere other than under cert or
+     * system.user. One rule more than core's: a reference from something
+     * switched off (a sibling `enabled` of 0 -- an ACME entry, a portal zone)
+     * does not count, so a certificate left behind by a disabled service is
+     * not reported as about to break something (box-2, 2026-10-09).
+     *
+     * @return string[] where it is used, by section ("AcmeClient", "system.webgui")
+     */
+    public static function usersOf(\SimpleXMLElement $config, string $refid): array
+    {
+        if (!preg_match('/^[0-9a-f]{13}$/', $refid)) {
+            return [];
+        }
+        $users = [];
+        foreach ($config->xpath("//*[text() = '{$refid}']") as $node) {
+            $path = [];
+            for ($at = $node; $at !== null && $at->getName() !== $config->getName(); $at = self::parent($at)) {
+                array_unshift($path, $at->getName());
+            }
+            $where = implode('.', array_slice($path, 0, -1));
+            if (in_array($where, ['cert', 'system.user'], true) || strpos($where, 'cert.') === 0) {
+                continue;
+            }
+            $parent = self::parent($node);
+            if ($parent !== null && isset($parent->enabled) && (string)$parent->enabled === '0') {
+                continue;
+            }
+            $section = $path[0] === 'OPNsense' && isset($path[1]) ? $path[1] : implode('.', array_slice($path, 0, 2));
+            $users[$section] = true;
+        }
+
+        return array_keys($users);
+    }
+
+    private static function parent(\SimpleXMLElement $node): ?\SimpleXMLElement
+    {
+        $up = $node->xpath('..');
+
+        return $up ? $up[0] : null;
     }
 
     /**

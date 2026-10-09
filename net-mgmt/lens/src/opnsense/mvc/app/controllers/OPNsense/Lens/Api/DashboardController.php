@@ -295,11 +295,7 @@ class DashboardController extends ApiControllerBase
         return is_array($values) ? $values : null;
     }
 
-    /**
-     * Every certificate's name, expiry and whether anything uses it -- from the
-     * public part only. "In use" as core's CertificatesField decides it: the
-     * refid appears in config.xml somewhere other than under cert or system.user.
-     */
+    /** every certificate's name, expiry and who uses it -- from the public part only (Health::usersOf) */
     private static function certificates(): array
     {
         $config = Config::getInstance()->object();
@@ -309,21 +305,8 @@ class DashboardController extends ApiControllerBase
             if ($parsed === null) {
                 continue;
             }
-            $refid = (string)$cert->refid;
-            $parsed['in_use'] = false;
-            if (preg_match('/^[0-9a-f]{13}$/', $refid)) {
-                foreach ($config->xpath("//*[text() = '{$refid}']") as $node) {
-                    $path = [];
-                    do {
-                        $node = $node[0]->xpath('..');
-                        $path[] = $node[0]->getName();
-                    } while ($node[0]->xpath('../..') != null && count($path) < 2);
-                    if (!in_array(implode('.', array_reverse($path)), ['system.user', 'cert'], true)) {
-                        $parsed['in_use'] = true;
-                        break;
-                    }
-                }
-            }
+            $parsed['users'] = Health::usersOf($config, (string)$cert->refid);
+            $parsed['in_use'] = $parsed['users'] !== [];
             $out[] = $parsed;
         }
 

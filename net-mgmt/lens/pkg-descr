@@ -28,6 +28,15 @@ configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.36_2
+
+* a certificate referenced only by something switched off (a disabled ACME
+  entry, a portal zone) is not "in use"; the tile names who uses the one it
+  warns about
+* "no check for updates on record" instead of "not checked yet": OPNsense
+  keeps the last check in /tmp, so after a reboot there is none until someone
+  checks
+
 0.36_1
 
 * is everything all right: a row at the top of Reporting: Lens: Dashboard with
