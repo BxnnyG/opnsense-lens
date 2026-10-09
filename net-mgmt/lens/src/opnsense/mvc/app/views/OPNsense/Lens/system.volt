@@ -60,6 +60,15 @@
                 .append($('<div/>').addClass('lens-sys-body'));
         };
 
+        /* NetBird and Tailscale: the same table, who is on the mesh now */
+        const mesh = ($body, peers) => {
+            $body.append(table(['', '{{ lang._("Peer") }}', '{{ lang._("Address") }}', '{{ lang._("State") }}'],
+                (peers || []).map(p => $('<tr/>')
+                    .append($('<td/>').append(dot(p.online ? 'good' : 'grey')))
+                    .append(cell(p.name)).append(cell(p.ip))
+                    .append(cell(p.state + (p.how ? ' \u00b7 ' + p.how : ''))))));
+        };
+
         const fill = {
             system: ($body) => {
                 $body.append($('<div/>').attr('id', 'sysProcessor')).append($('<div/>').attr('id', 'sysMemory'));
@@ -115,6 +124,8 @@
                         .append(cell(p.online ? '{{ lang._("connected") }}' : p.seen))
                         .append(cell(p.received, 'lens-num')).append(cell(p.sent, 'lens-num')))));
             },
+            netbird: ($body, details) => mesh($body, details.netbird),
+            tailscale: ($body, details) => mesh($body, details.tailscale),
             interfaces: ($body) => {
                 $body.append($('<a/>').attr('href', '/ui/lens/segments')
                     .text('{{ lang._("Every network with its port and the devices on it") }} ›'));

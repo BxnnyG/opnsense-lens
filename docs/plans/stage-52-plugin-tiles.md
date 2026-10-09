@@ -56,3 +56,19 @@ sleeping disk — said here, measured in the round.
 
 Tests for every tone, gates clean, the round on box-2 (which runs both
 plugins) under two seconds.
+
+## 6. Later the same day: NetBird and Tailscale (operator: "es ist aber netbird, maby da andocken, ggf. auch tailscale")
+
+- **NetBird** (`security/netbird`, the operator's own plugin): `configctl netbird
+  status-json` → `netbird status --json` (`daemonStatus`, `netbirdIp`,
+  `management.connected`, `signal.connected`, `peers.total` / `connected` /
+  `details[]` with `fqdn`, `netbirdIp`, `status`). Since 1.3_x the plugin
+  judges that output itself in `OPNsense\Netbird\StatusReport::fromArray()`
+  (`findings[]` with `severity`); where the class exists its problems are the
+  tile's verdict, else Lens reads management and signal itself. Idle peers
+  under lazy connections are healthy — counted, never judged. Privilege
+  `api/netbird/*`, page `/ui/netbird/status`.
+- **Tailscale** (`security/tailscale` 1.4): `configctl tailscale
+  tailscale-status` → `tailscale status --json` (`BackendState`, `Self.Online`,
+  `TailscaleIPs`, `Peer{}` with `HostName`, `Online`), as the plugin's widget
+  reads it. Privilege `api/tailscale/status/*`, page `/ui/tailscale/status`.

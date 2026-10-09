@@ -526,6 +526,97 @@ class Health
     }
 
     /**
+     * NetBird (stage 52b): reached its management and signal servers, and who
+     * is connected. Where the NetBird plugin brings its own StatusReport, its
+     * verdict is the verdict -- the plugin owns what is wrong with NetBird
+     * (§4.84); Lens only says it. Idle peers under lazy connections are
+     * healthy, so connected-of-total is said, never judged.
+     *
+     * @param array|null $status `netbird status-json` decoded
+     * @param array|null $report the plugin's StatusReport::fromArray(), when it has one
+     */
+    public static function netbird(?array $status, ?array $report): array
+    {
+        $tile = self::tile('netbird', gettext('NetBird'), 'fa-share-alt', '/ui/netbird/status');
+        if (empty($status)) {
+            return self::grey($tile, gettext('The NetBird daemon did not answer.'));
+        }
+        $peers = (array)($status['peers'] ?? []);
+        $connected = [];
+        foreach ((array)($peers['details'] ?? []) as $peer) {
+            if (strcasecmp((string)($peer['status'] ?? ''), 'Connected') === 0) {
+                $connected[] = preg_replace('/\..*$/', '', (string)($peer['fqdn'] ?? $peer['netbirdIp'] ?? '?'));
+            }
+        }
+        $tile['detail'] = array_values(array_filter(array_merge(
+            [isset($status['netbirdIp']) ? (string)$status['netbirdIp'] : null],
+            array_slice($connected, 0, 6)
+        )));
+        $count = sprintf(
+            gettext('%d of %d peers connected.'),
+            (int)($peers['connected'] ?? count($connected)),
+            (int)($peers['total'] ?? count((array)($peers['details'] ?? [])))
+        );
+
+        $problems = array_values(array_filter((array)($report['findings'] ?? []), function ($finding) {
+            return ($finding['severity'] ?? '') === 'problem';
+        }));
+        if ($problems !== []) {
+            return self::say($tile, 'bad', (string)$problems[0]['message']);
+        }
+        if ($report === null) {
+            $servers = [
+                'management' => gettext('NetBird cannot reach its management server.'),
+                'signal' => gettext('NetBird cannot reach its signal server.'),
+            ];
+            foreach ($servers as $part => $sentence) {
+                if (isset($status[$part]) && empty($status[$part]['connected'])) {
+                    return self::say($tile, 'bad', $sentence);
+                }
+            }
+        }
+
+        return self::say($tile, 'good', $count);
+    }
+
+    /**
+     * Tailscale (stage 52b), as the Tailscale plugin's own widget reads it:
+     * running and online, and which peers are online now.
+     *
+     * @param array|null $status `tailscale tailscale-status` decoded
+     */
+    public static function tailscale(?array $status): array
+    {
+        $tile = self::tile('tailscale', gettext('Tailscale'), 'fa-share-alt', '/ui/tailscale/status');
+        if (empty($status)) {
+            return self::grey($tile, gettext('Tailscale did not answer.'));
+        }
+        $state = (string)($status['BackendState'] ?? '');
+        $online = [];
+        $peers = (array)($status['Peer'] ?? []);
+        foreach ($peers as $peer) {
+            if (!empty($peer['Online'])) {
+                $online[] = (string)($peer['HostName'] ?? $peer['DNSName'] ?? '?');
+            }
+        }
+        $tile['detail'] = array_values(array_filter(array_merge(
+            [implode(', ', (array)($status['TailscaleIPs'] ?? []))],
+            array_slice($online, 0, 6)
+        )));
+        if ($state !== 'Running') {
+            return self::say($tile, 'bad', sprintf(
+                gettext('Tailscale is not running: %s.'),
+                $state !== '' ? $state : '?'
+            ));
+        }
+        if (isset($status['Self']['Online']) && $status['Self']['Online'] === false) {
+            return self::say($tile, 'warn', gettext('Tailscale runs, but this firewall is not online in the tailnet.'));
+        }
+
+        return self::say($tile, 'good', sprintf(gettext('%d of %d peers online.'), count($online), count($peers)));
+    }
+
+    /**
      * The internet tile, from what Internet::describe() already decided.
      */
     public static function internet(?array $internet): array

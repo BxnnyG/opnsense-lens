@@ -250,4 +250,57 @@ class HealthTest extends TestCase
         $this->assertNull(Health::wireguard([$records[0]], [], self::NOW));
         $this->assertSame('grey', Health::wireguard(null, [], self::NOW)['tone']);
     }
+
+    private function netbirdStatus(bool $management = true): array
+    {
+        return ['daemonStatus' => 'Connected', 'netbirdIp' => '100.92.0.1/16',
+                'management' => ['connected' => $management], 'signal' => ['connected' => true],
+                'peers' => ['total' => 3, 'connected' => 1, 'details' => [
+                    ['fqdn' => 'nas.netbird.cloud', 'netbirdIp' => '100.92.0.5', 'status' => 'Connected'],
+                    ['fqdn' => 'phone.netbird.cloud', 'netbirdIp' => '100.92.0.6', 'status' => 'Idle'],
+                    ['fqdn' => 'laptop.netbird.cloud', 'netbirdIp' => '100.92.0.7', 'status' => 'Idle'],
+                ]]];
+    }
+
+    public function testNetBirdSaysWhoIsConnectedAndIdleIsNoFault()
+    {
+        $tile = Health::netbird($this->netbirdStatus(), null);
+        $this->assertSame('good', $tile['tone']);
+        $this->assertSame('1 of 3 peers connected.', $tile['sentence']);
+        $this->assertSame(['100.92.0.1/16', 'nas'], $tile['detail']);
+        $this->assertSame('/ui/lens/system#netbird', $tile['link']);
+        $this->assertSame('/ui/netbird/status', $tile['core']);
+
+        $cut = Health::netbird($this->netbirdStatus(false), null);
+        $this->assertSame('bad', $cut['tone']);
+        $this->assertSame('NetBird cannot reach its management server.', $cut['sentence']);
+        $this->assertSame('grey', Health::netbird(null, null)['tone']);
+    }
+
+    public function testThePluginsOwnVerdictIsTheVerdict()
+    {
+        $report = ['findings' => [
+            ['code' => 'peer-relayed', 'severity' => 'note', 'message' => 'One peer is relayed.'],
+            ['code' => 'relay-unavailable', 'severity' => 'problem', 'message' => 'A relay is unavailable.'],
+        ]];
+        $tile = Health::netbird($this->netbirdStatus(), $report);
+        $this->assertSame('bad', $tile['tone']);
+        $this->assertSame('A relay is unavailable.', $tile['sentence']);
+        // the plugin found nothing wrong: Lens does not second-guess it
+        $this->assertSame('good', Health::netbird($this->netbirdStatus(false), ['findings' => []])['tone']);
+    }
+
+    public function testTailscaleRunningOnlineAndItsPeers()
+    {
+        $status = ['BackendState' => 'Running', 'TailscaleIPs' => ['100.101.1.1'], 'Self' => ['Online' => true],
+                   'Peer' => ['a' => ['HostName' => 'nas', 'Online' => true], 'b' => ['HostName' => 'tv', 'Online' => false]]];
+        $tile = Health::tailscale($status);
+        $this->assertSame('good', $tile['tone']);
+        $this->assertSame('1 of 2 peers online.', $tile['sentence']);
+
+        $this->assertSame('bad', Health::tailscale(['BackendState' => 'NeedsLogin'])['tone']);
+        $this->assertSame('Tailscale is not running: NeedsLogin.', Health::tailscale(['BackendState' => 'NeedsLogin'])['sentence']);
+        $this->assertSame('warn', Health::tailscale(array_merge($status, ['Self' => ['Online' => false]]))['tone']);
+        $this->assertSame('grey', Health::tailscale(null)['tone']);
+    }
 }

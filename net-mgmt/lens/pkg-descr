@@ -28,6 +28,13 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.39_2
+
+* tiles for NetBird and Tailscale where they are installed: who is connected
+  now, and whether the daemon reaches its servers. Where the NetBird plugin
+  brings its own verdict (StatusReport), that verdict is the tile's. Both
+  have their peers listed on Reporting: Lens: System
+
 0.39_1
 
 * Reporting: Lens: System. A tile on the health row now opens its answer in

@@ -157,4 +157,44 @@ class SystemDetail
 
         return $out;
     }
+
+    /** NetBird's peers as the daemon lists them: connected ones first */
+    public static function netbird(array $status): array
+    {
+        $out = [];
+        foreach ((array)($status['peers']['details'] ?? []) as $peer) {
+            $out[] = [
+                'name' => (string)($peer['fqdn'] ?? '?'),
+                'ip' => (string)($peer['netbirdIp'] ?? ''),
+                'online' => strcasecmp((string)($peer['status'] ?? ''), 'Connected') === 0,
+                'state' => (string)($peer['status'] ?? ''),
+                'how' => (string)($peer['connectionType'] ?? ''),
+            ];
+        }
+        usort($out, function ($left, $right) {
+            return [!$left['online'], $left['name']] <=> [!$right['online'], $right['name']];
+        });
+
+        return $out;
+    }
+
+    /** Tailscale's peers as `tailscale status --json` lists them: online ones first */
+    public static function tailscale(array $status): array
+    {
+        $out = [];
+        foreach ((array)($status['Peer'] ?? []) as $peer) {
+            $out[] = [
+                'name' => (string)($peer['HostName'] ?? $peer['DNSName'] ?? '?'),
+                'ip' => implode(', ', (array)($peer['TailscaleIPs'] ?? [])),
+                'online' => !empty($peer['Online']),
+                'state' => !empty($peer['Online']) ? 'online' : 'offline',
+                'how' => (string)($peer['OS'] ?? ''),
+            ];
+        }
+        usort($out, function ($left, $right) {
+            return [!$left['online'], $left['name']] <=> [!$right['online'], $right['name']];
+        });
+
+        return $out;
+    }
 }

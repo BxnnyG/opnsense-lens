@@ -123,6 +123,19 @@ class SystemController extends ApiControllerBase
             }
         }
 
+        if (DashboardController::installed('netbird') && $acl->isPageAccessible($user, '/api/netbird/status/status')) {
+            $out['netbird'] = SystemDetail::netbird(
+                (array)DashboardController::decodeOrNull($backend, 'netbird status-json')
+            );
+        }
+        $tailscale = DashboardController::installed('tailscale')
+            && $acl->isPageAccessible($user, '/api/tailscale/status/status');
+        if ($tailscale) {
+            $out['tailscale'] = SystemDetail::tailscale(
+                (array)DashboardController::decodeOrNull($backend, 'tailscale tailscale-status')
+            );
+        }
+
         return $out;
     }
 }

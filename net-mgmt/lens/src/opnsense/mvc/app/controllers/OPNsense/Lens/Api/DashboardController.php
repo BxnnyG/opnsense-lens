@@ -310,9 +310,34 @@ class DashboardController extends ApiControllerBase
                 );
             });
         }
+        if (self::installed('netbird') && $acl->isPageAccessible($user, '/api/netbird/status/status')) {
+            $tiles[] = $read('netbird', function () use ($backend) {
+                $status = self::decodeOrNull($backend, 'netbird status-json');
+                return Health::netbird($status, self::netbirdReport($status));
+            });
+        }
+        if (self::installed('tailscale') && $acl->isPageAccessible($user, '/api/tailscale/status/status')) {
+            $tiles[] = $read('tailscale', function () use ($backend) {
+                return Health::tailscale(self::decodeOrNull($backend, 'tailscale tailscale-status'));
+            });
+        }
         $tiles = array_values(array_filter($tiles));
 
         return ['summary' => Health::summary($tiles), 'tiles' => $tiles, 'timing' => $timing];
+    }
+
+    /**
+     * The NetBird plugin's own verdict, where its version brings one
+     * (StatusReport, os-netbird 1.3_x and later); null where it does not.
+     */
+    public static function netbirdReport(?array $status): ?array
+    {
+        $class = '\\OPNsense\\Netbird\\StatusReport';
+        if ($status === null || !class_exists($class) || !method_exists($class, 'fromArray')) {
+            return null;
+        }
+
+        return $class::fromArray($status);
     }
 
     /** a plugin is installed when its configd actions are */
