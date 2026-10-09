@@ -28,6 +28,12 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.40_1
+
+* Services: Lens: Settings: Times and dates. The clock in 24 or 12 hours,
+  and dates as day.month.year, month/day/year or year-month-day, on every
+  Lens page; automatic follows the browser's language as before
+
 0.39_2
 
 * tiles for NetBird and Tailscale where they are installed: who is connected

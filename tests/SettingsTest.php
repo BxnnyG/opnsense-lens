@@ -229,4 +229,16 @@ class SettingsTest extends TestCase
         $this->assertContains('these settings', $summary['keeps']);
         $this->assertNotEmpty($summary['after']);
     }
+
+    public function testTimesAndDatesAreAChoiceWithEveryOptionNamed()
+    {
+        $fields = $this->fields(Settings::form($this->raw(['clock' => '24', 'date_order' => 'ymd'])));
+
+        $this->assertSame('choice', $fields['clock']['kind']);
+        $this->assertSame('24', $fields['clock']['value']);
+        $this->assertSame(['auto', '24', '12'], array_column($fields['clock']['options'], 0));
+        $this->assertSame(['auto', 'dmy', 'mdy', 'ymd'], array_column($fields['date_order']['options'], 0));
+        $this->assertSame('auto', $fields['clock']['default']);
+        $this->assertSame(['clock' => '12'], Settings::toStore(['clock' => '12', 'nonsense' => 'x']));
+    }
 }

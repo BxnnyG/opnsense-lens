@@ -226,12 +226,12 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-09 against `os-lens-0.39_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.40_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` and `0.38_1` passed it too; `0.38_2` and `0.39_1` have not been on a box.*
+PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` and `0.38_1` passed it too; `0.38_2` to `0.40_1` have not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
@@ -2222,4 +2222,18 @@ only when nothing else in config.xml refers to it, since Lens cannot tell its
 own from one the operator made with the same name.
 **Pausing a group** (every device with a tag or an owner at once) needs no new
 object — the same alias, more MACs — and is BACKLOG #52's other half.
+
+### §4.86 — Times and dates as the operator writes them (2026-10-09, operator)
+**Request:** "so Sachen einstellbar machen, like Uhrzeit in welchem Format".
+**Decision:** two settings on Services: Lens: Settings — the clock (automatic,
+24 hours, 12 hours) and the order of a date written in numbers (automatic,
+day.month.year, month/day/year, year-month-day) — kept with the other settings
+in Lens's store, validated as a new kind, `choice`. Pages read them through
+`/api/lens/dashboard/display` under the reporting privilege (a viewer need not
+be allowed to open the settings) and keep them for the session; the first
+page of a session writes in the browser's way until the answer is there, and
+saving the settings forgets the kept copy. Every Lens page writes times
+through `Lens.time`, dates through `Lens.date`, both through `Lens.stamp`.
+Words — weekday and month names — stay in the browser's language; core's
+dashboard widgets, which do not load lens.js, stay as the browser writes.
 

@@ -69,7 +69,7 @@
         /* the clock runs on its own second, the data on its minute */
         const clock = () => {
             const now = new Date();
-            $('#wallClock').text(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            $('#wallClock').text(Lens.time(now.getTime() / 1000));
             $('#wallDate').text(now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }));
         };
 
@@ -257,7 +257,7 @@
             /* the one thing a wall display must never do is look current while
                being hours old -- nobody is there to wonder (§4.22) */
             $('#wallStale').toggleClass('wall-warn', !!data.stale).text(data.stale ? data.note : '');
-            $('#wallAt').text(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            $('#wallAt').text(Lens.time(Date.now() / 1000));
         });
 
         $('#wallFull').on('click', (event) => {

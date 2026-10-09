@@ -54,6 +54,11 @@ SPEC = {
     # Networks a pause never touches (§4.83), as interface devices. Empty means
     # the network the click comes from; the page offers only real interfaces.
     'pause_protected': ('interfaces', '', 0, 64),
+    # How Lens's pages write times and dates (operator, 2026-10-09: "Uhrzeit,
+    # in welchem Format"). "auto" is the browser's own language. For a choice
+    # the third field is the options, not a bound.
+    'clock': ('choice', 'auto', ('auto', '24', '12'), None),
+    'date_order': ('choice', 'auto', ('auto', 'dmy', 'mdy', 'ymd'), None),
 }
 
 TARGET_NAME = re.compile(r'^[A-Za-z0-9 ._-]{1,24}$')
@@ -110,8 +115,14 @@ def validate(fields):
 
 
 def bounds():
-    """:return: key to [low, high]; a count for targets, absent for switches"""
-    return {key: [spec[2], spec[3]] for key, spec in SPEC.items() if spec[2] is not None}
+    """:return: key to [low, high]; a count for targets, absent for switches and choices"""
+    return {key: [spec[2], spec[3]] for key, spec in SPEC.items()
+            if spec[2] is not None and spec[0] != 'choice'}
+
+
+def choices():
+    """:return: key to its options, for the settings page's selects"""
+    return {key: list(spec[2]) for key, spec in SPEC.items() if spec[0] == 'choice'}
 
 
 def describe(stored):
@@ -120,6 +131,7 @@ def describe(stored):
         'values': _plain(load(stored)),
         'defaults': _plain(load({})),
         'bounds': bounds(),
+        'choices': choices(),
     }
 
 
@@ -135,6 +147,9 @@ def _parse(kind, value, low, high):
         return _flag(value)
     if kind == 'interfaces':
         return _interfaces(value, high)
+    if kind == 'choice':
+        text = str(value).strip().lower()
+        return (text, None) if text in low else (None, ['not_a_choice', None])
     return _targets(value, low, high)
 
 
@@ -244,6 +259,8 @@ def _store(kind, value):
         return ','.join('%s=%s' % target for target in value)
     if kind == 'float':
         return repr(float(value))
+    if kind == 'choice':
+        return value
     return str(int(value))
 
 

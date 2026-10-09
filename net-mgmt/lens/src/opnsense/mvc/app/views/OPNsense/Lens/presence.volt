@@ -53,7 +53,7 @@
             for (; at < now; at += step) {
                 const date = new Date(at * 1000);
                 const text = step < 86400
-                    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    ? Lens.time(date.getTime() / 1000)
                     : date.toLocaleDateString([], { day: 'numeric', month: 'short' });
                 $('<span/>').addClass('who-tick')
                     .css('left', ((at - start) / span * 100) + '%').text(text)

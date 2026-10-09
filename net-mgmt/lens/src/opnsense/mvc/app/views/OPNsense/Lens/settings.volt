@@ -79,7 +79,19 @@
             return $('<div/>').addClass('lens-field-input').append($box);
         };
 
+        const choice = (field) => {
+            const $select = $('<select class="form-control input-sm"/>').attr('id', 'lensSet_' + field.key);
+            for (const [value, label] of field.options || []) {
+                $select.append($('<option/>').val(value).text(label).prop('selected', value === field.value));
+            }
+            return $('<div/>').addClass('lens-field-input').append($select);
+        };
+
         const shown = (field, value) => {
+            if (field.kind === 'choice') {
+                const option = (field.options || []).find(o => o[0] === value);
+                return option ? option[1] : value;
+            }
             if (field.kind === 'interfaces') {
                 return (value || []).length
                     ? value.map(d => (field.choices || {})[d] || d).join(', ')
@@ -106,6 +118,7 @@
 
                 for (const field of block.fields) {
                     const input = field.kind === 'flag' ? flag(field)
+                        : field.kind === 'choice' ? choice(field)
                         : field.kind === 'targets' ? targets(field)
                         : field.kind === 'interfaces' ? networks(field) : number(field);
 
@@ -186,6 +199,8 @@
                 $button.prop('disabled', false);
 
                 if (status === 'success' && reply && reply.status === 'ok') {
+                    /* the other pages pick the new formats up at once (lens.js keeps them per session) */
+                    Lens.display.forget();
                     $('#lensSaved').show();
                     load();
                     return;

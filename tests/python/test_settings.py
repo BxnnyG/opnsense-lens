@@ -343,5 +343,22 @@ class JoinTest(unittest.TestCase):
         self.assertFalse(store.settings()['probe_enabled'])
 
 
+
+class DisplayTest(unittest.TestCase):
+    """How Lens's pages write times and dates (operator, 2026-10-09)."""
+
+    def test_a_choice_is_one_of_its_options(self):
+        from lenslib import settings as settingslib
+        self.assertEqual('auto', settingslib.load({})['clock'])
+        self.assertEqual('12', settingslib.load({'clock': '12'})['clock'])
+        self.assertEqual('auto', settingslib.load({'clock': 'sundial'})['clock'])
+        self.assertEqual(({'clock': '24', 'date_order': 'ymd'}, {}),
+                         settingslib.validate({'clock': '24', 'date_order': 'YMD'}))
+        self.assertEqual({'date_order': ['not_a_choice', None]},
+                         settingslib.validate({'date_order': 'ydm'})[1])
+        self.assertNotIn('clock', settingslib.bounds())
+        self.assertEqual(['auto', 'dmy', 'mdy', 'ymd'], settingslib.describe({})['choices']['date_order'])
+
+
 if __name__ == '__main__':
     unittest.main()

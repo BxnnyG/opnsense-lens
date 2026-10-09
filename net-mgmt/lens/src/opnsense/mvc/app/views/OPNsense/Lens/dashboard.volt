@@ -428,7 +428,7 @@
                 }
                 for (const outage of uptime.outages || []) {
                     if (outage.from < to && outage.to > from) {
-                        lines.push({ label: '{{ lang._("outage") }} ' + new Date(outage.from * 1000).toLocaleString()
+                        lines.push({ label: '{{ lang._("outage") }} ' + Lens.stamp(outage.from)
                                      + ', ' + outage.for });
                     }
                 }
@@ -438,7 +438,7 @@
             const $outages = $('#netOutages').empty();
             for (const outage of uptime.outages.slice(0, 3)) {
                 $outages.append($('<div/>').text(
-                    new Date(outage.from * 1000).toLocaleString() + ' \u2014 ' + outage.for));
+                    Lens.stamp(outage.from) + ' \u2014 ' + outage.for));
             }
         });
 

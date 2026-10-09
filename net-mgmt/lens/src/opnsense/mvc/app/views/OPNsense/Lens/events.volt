@@ -73,7 +73,7 @@
             const $row = $('<div/>').addClass('ev-row ev-' + event.tone).toggleClass('ev-muted', event.muted);
             const time = event.grain === 'day'
                 ? '{{ lang._("all day") }}'
-                : new Date(event.at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                : Lens.time(event.at);
             $row.append($('<div/>').addClass('ev-time').text(time));
             $row.append($('<div/>').addClass('ev-word').text(event.word));
             const $body = $('<div/>').addClass('ev-body')

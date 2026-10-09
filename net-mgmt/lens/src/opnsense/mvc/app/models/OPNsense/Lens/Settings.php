@@ -56,6 +56,8 @@ class Settings
         'baseline_factor',
         'baseline_floor_mb',
         'pause_protected',
+        'clock',
+        'date_order',
     ];
 
     /** stored in seconds, which is what the collector compares; shown in minutes */
@@ -280,6 +282,28 @@ class Settings
                         ) + ['choices' => $networks],
                     ],
                 ],
+                [
+                    'id' => 'display',
+                    'title' => gettext('Times and dates'),
+                    'intro' => gettext(
+                        'How every Lens page writes them. Automatic follows the language your browser asks for.'
+                    ),
+                    'fields' => [
+                        /* options as ordered pairs: as keys, "24" turns into a number in PHP
+                           and jumps ahead of "auto" in a browser's object */
+                        self::field($raw, 'clock', 'choice', gettext('Clock'), '', '') + ['options' => [
+                            ['auto', gettext('automatic')],
+                            ['24', gettext('24 hours (14:30)')],
+                            ['12', gettext('12 hours (2:30 PM)')],
+                        ]],
+                        self::field($raw, 'date_order', 'choice', gettext('Dates'), '', '') + ['options' => [
+                            ['auto', gettext('automatic')],
+                            ['dmy', gettext('day.month.year (31.12.2026)')],
+                            ['mdy', gettext('month/day/year (12/31/2026)')],
+                            ['ymd', gettext('year-month-day (2026-12-31)')],
+                        ]],
+                    ],
+                ],
             ],
             'backup' => gettext(
                 'These settings live in Lens\'s own store, not in the firewall\'s configuration: a '
@@ -424,6 +448,12 @@ class Settings
             'default' => self::scaled($raw['defaults'][$key] ?? null, $scale),
         ];
 
+        /* a choice is a word, even when the word is "24": the select compares text */
+        if ($kind === 'choice') {
+            $field['value'] = (string)($raw['values'][$key] ?? 'auto');
+            $field['default'] = (string)($raw['defaults'][$key] ?? 'auto');
+        }
+
         if ($kind === 'int' || $kind === 'float') {
             $field['min'] = isset($bounds[0]) ? $bounds[0] / $scale : null;
             $field['max'] = isset($bounds[1]) ? $bounds[1] / $scale : null;
@@ -472,6 +502,8 @@ class Settings
                 return gettext('This has to be a whole number.');
             case 'not_a_flag':
                 return gettext('This is either on or off.');
+            case 'not_a_choice':
+                return gettext('Pick one of the offered formats.');
             case 'too_few':
                 return gettext('Keep at least one target. To stop probing, switch the probes off instead.');
             case 'too_many':

@@ -214,6 +214,24 @@ class DashboardController extends ApiControllerBase
     }
 
     /**
+     * How Lens's pages write times and dates (Services: Lens: Settings), for
+     * lens.js -- here, under the reporting privilege, because every page needs
+     * it and a viewer need not be allowed to open the settings.
+     *
+     * @return array ['clock' => auto|24|12, 'date_order' => auto|dmy|mdy|ymd]
+     */
+    public function displayAction()
+    {
+        $values = (array)(self::decode(new Backend(), 'lens settings')['values'] ?? []);
+
+        return [
+            'clock' => in_array($values['clock'] ?? 'auto', ['auto', '24', '12'], true) ? $values['clock'] : 'auto',
+            'date_order' => in_array($values['date_order'] ?? 'auto', ['auto', 'dmy', 'mdy', 'ymd'], true)
+                ? $values['date_order'] : 'auto',
+        ];
+    }
+
+    /**
      * Is everything all right (§4.84, stage 50): one tile per area, each read on
      * its own and timed, so one source that fails greys one tile, not the row.
      *

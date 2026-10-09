@@ -101,7 +101,7 @@
                     (details.certificates || []).map(c => $('<tr/>')
                         .append($('<td/>').append(dot(c.tone)))
                         .append(cell(c.name))
-                        .append(cell(new Date(c.expires * 1000).toLocaleDateString() + ' (' + c.days + ' {{ lang._("days") }})'))
+                        .append(cell(Lens.date(c.expires) + ' (' + c.days + ' {{ lang._("days") }})'))
                         .append(cell(c.in_use ? c.users.join(', ') : '{{ lang._("nothing") }}')))));
             },
             smart: ($body, details) => {

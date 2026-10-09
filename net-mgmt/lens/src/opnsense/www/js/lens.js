@@ -119,14 +119,85 @@
 
     /* ---------------------------------------------------------- time labels */
 
+    /*
+     * How times and dates are written, as set under Services: Lens: Settings
+     * (operator, 2026-10-09). Kept for the session so no page waits for it; the
+     * first page of a session asks and writes in the browser's own way until
+     * the answer is there. Saving the settings forgets it.
+     */
+    const display = (() => {
+        const KEY = 'lens.display';
+        let prefs = { clock: 'auto', date_order: 'auto' };
+        let kept = false;
+        try {
+            const stored = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+            if (stored) {
+                prefs = stored;
+                kept = true;
+            }
+        } catch (e) {
+            /* no storage: the browser's own way */
+        }
+        if (!kept) {
+            fetch('/api/lens/dashboard/display', { credentials: 'same-origin' })
+                .then(reply => reply.ok ? reply.json() : null)
+                .then((answer) => {
+                    if (answer && answer.clock) {
+                        prefs = { clock: answer.clock, date_order: answer.date_order };
+                        try {
+                            sessionStorage.setItem(KEY, JSON.stringify(prefs));
+                        } catch (e) {
+                            /* this page only */
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+        return {
+            get: () => prefs,
+            forget: () => {
+                try {
+                    sessionStorage.removeItem(KEY);
+                } catch (e) {
+                    /* nothing kept */
+                }
+            },
+        };
+    })();
+
     const formats = {};
     const format = (options) => {
-        const key = JSON.stringify(options);
+        const clock = display.get().clock;
+        const withClock = options.hour && clock !== 'auto'
+            ? Object.assign({}, options, { hourCycle: clock === '12' ? 'h12' : 'h23' }) : options;
+        const key = clock + JSON.stringify(withClock);
         if (!formats[key]) {
-            formats[key] = new Intl.DateTimeFormat(undefined, options);
+            formats[key] = new Intl.DateTimeFormat(undefined, withClock);
         }
         return formats[key];
     };
+
+    /* the clock time of a moment, as set */
+    const time = at => format({ hour: '2-digit', minute: '2-digit' }).format(new Date(at * 1000));
+
+    /* a date in numbers, in the order set; "auto" is the browser's own */
+    const date = (at) => {
+        const d = new Date(at * 1000);
+        const pad = n => String(n).padStart(2, '0');
+        switch (display.get().date_order) {
+            case 'dmy':
+                return pad(d.getDate()) + '.' + pad(d.getMonth() + 1) + '.' + d.getFullYear();
+            case 'mdy':
+                return pad(d.getMonth() + 1) + '/' + pad(d.getDate()) + '/' + d.getFullYear();
+            case 'ymd':
+                return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+            default:
+                return format({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+        }
+    };
+
+    /* both, for a moment that needs its day */
+    const stamp = at => date(at) + ' ' + time(at);
 
     /*
      * A slice of `step` seconds starting at `at`, labelled the way the reader's
@@ -775,6 +846,7 @@
 
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
-        services: services, spark: spark, healthRow: healthRow, lines: lines
+        services: services, spark: spark, healthRow: healthRow, lines: lines,
+        display: display, time: time, date: date, stamp: stamp
     };
 })();
