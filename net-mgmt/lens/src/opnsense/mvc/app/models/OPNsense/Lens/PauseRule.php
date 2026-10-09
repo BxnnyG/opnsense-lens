@@ -81,7 +81,7 @@ class PauseRule
      * @param string $why the configuration history's description
      * @return array ['ok' => bool, 'message' => ?string, 'created' => bool]
      */
-    public static function change(array $add, array $remove, string $why): array
+    public static function change(array $add, array $remove, string $why, ?array $reasons = null): array
     {
         $created = false;
         $backend = new Backend();
@@ -101,11 +101,20 @@ class PauseRule
         $before = $node === null ? '' : (string)$node->content;
         $after = Pause::contentWithout(Pause::contentWith($before, $add), $remove);
         $tagged = false;
+        $described = false;
         if ($node === null) {
             $node = $aliases->aliases->alias->Add();
             $node->setNodes(Pause::aliasFields($after, (string)$category));
+            if ($reasons !== null) {
+                $node->setNodes(['description' => Pause::aliasDescription($reasons)]);
+            }
             $created = true;
         } else {
+            /* why its devices are paused, in the operator's words (operator, 2026-10-09) */
+            if ($reasons !== null && (string)$node->description !== Pause::aliasDescription($reasons)) {
+                $node->setNodes(['description' => Pause::aliasDescription($reasons)]);
+                $described = true;
+            }
             if ($after !== $before) {
                 $node->setNodes(['content' => $after]);
             }
@@ -116,7 +125,7 @@ class PauseRule
             }
         }
 
-        if ($created || $tagged || $after !== $before) {
+        if ($created || $tagged || $described || $after !== $before) {
             $refused = self::refused($aliases, $node);
             if ($refused !== null) {
                 Config::getInstance()->unlock();

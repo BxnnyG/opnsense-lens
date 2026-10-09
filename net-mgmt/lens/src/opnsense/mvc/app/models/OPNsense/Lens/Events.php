@@ -384,7 +384,8 @@ class Events
                     $started,
                     'notice',
                     gettext('Paused'),
-                    sprintf(gettext('%s was paused'), $name),
+                    sprintf(gettext('%s was paused'), $name)
+                        . (!empty($pause['reason']) ? ': ' . (string)$pause['reason'] : ''),
                     $until === null
                         ? gettext('Until resumed, by the rule "Lens: paused devices".')
                         : sprintf(gettext('Until %s, by the rule "Lens: paused devices".'), date('D H:i', $until)),

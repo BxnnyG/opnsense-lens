@@ -322,7 +322,7 @@ class DashboardController extends ApiControllerBase
             $tiles[] = $read('wireguard', function () use ($backend) {
                 $shown = self::decodeOrNull($backend, 'wireguard show');
                 return Health::wireguard(
-                    $shown === null ? null : (array)($shown['records'] ?? []),
+                    $shown === null ? null : self::ownWireguard((array)($shown['records'] ?? [])),
                     self::wireguardNames(),
                     time()
                 );
@@ -379,6 +379,27 @@ class DashboardController extends ApiControllerBase
         }
 
         return $out;
+    }
+
+    /**
+     * Only the tunnels OPNsense's WireGuard runs: `wg show` also lists every
+     * other WireGuard device on the box, and NetBird is one (wt0) -- box-2's
+     * tile counted NetBird's 32 peers by their keys (2026-10-09). Core names
+     * an instance's device wg{instance} (ServerField, both branches).
+     */
+    public static function ownWireguard(array $records): array
+    {
+        $own = [];
+        $servers = Config::getInstance()->object()->xpath('//OPNsense/wireguard/server/servers/server');
+        foreach ($servers ?: [] as $server) {
+            if ((string)$server->enabled === '1' && (string)$server->instance !== '') {
+                $own['wg' . (string)$server->instance] = true;
+            }
+        }
+
+        return array_values(array_filter($records, function ($record) use ($own) {
+            return isset($own[(string)($record['if'] ?? '')]);
+        }));
     }
 
     /** WireGuard peers' names by public key, from config.xml -- never the models, which hold private keys */

@@ -22,7 +22,7 @@ SCRIPTS = os.path.join(
 sys.path.insert(0, SCRIPTS)
 
 import collect                                                  # noqa: E402
-from lenslib.store import Store, MIGRATIONS                     # noqa: E402
+from lenslib.store import SCHEMA_VERSION, Store, MIGRATIONS                     # noqa: E402
 
 DAY = 86400
 NOW = 1790000000
@@ -137,7 +137,7 @@ class PauseMigrationTest(unittest.TestCase):
             db.close()
 
             store = Store(path)
-            self.assertEqual(12, store.status()['schema_version'])
+            self.assertEqual(SCHEMA_VERSION, store.status()['schema_version'])
             self.assertEqual(1, store.status()['devices'])
             self.assertEqual([], store.open_pauses())
             store.db.close()
@@ -201,6 +201,26 @@ class PauseDutyTest(unittest.TestCase):
         answer = collect.events(store, NOW, 7)
         self.assertEqual('expired', answer['pauses'][0]['ended_how'])
 
+
+
+class PauseReasonTest(unittest.TestCase):
+    """Why a device was paused, in the operator's words (operator, 2026-10-09)."""
+
+    def test_a_reason_is_one_printable_line_and_short(self):
+        import base64
+        import collect
+        enc = lambda text: base64.urlsafe_b64encode(text.encode()).decode().rstrip('=')
+        self.assertEqual('Hausaufgaben', collect.pause_reason(enc('  Hausaufgaben  ')))
+        self.assertEqual('Schlafen gehen', collect.pause_reason(enc('Schlafen\n\tgehen')))
+        self.assertEqual(60, len(collect.pause_reason(enc('x' * 200))))
+        self.assertIsNone(collect.pause_reason('-'))
+        self.assertIsNone(collect.pause_reason('%%%'))
+
+    def test_the_store_keeps_it_with_the_pause(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = Store(os.path.join(folder, 'lens.sqlite'))
+            store.start_pause('aa:bb:cc:dd:ee:ff', ['aa:bb:cc:dd:ee:ff'], 100, None, 'Hausaufgaben')
+            self.assertEqual('Hausaufgaben', store.open_pauses()[0]['reason'])
 
 if __name__ == '__main__':
     unittest.main()

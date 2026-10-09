@@ -226,12 +226,12 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-09 against `os-lens-0.40_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.41_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` and `0.38_1` passed it too; `0.38_2` to `0.40_1` have not been on a box.*
+PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` to `0.40_1` passed it too and were clicked by the operator on box-2 (System page, tile links, the category, the time format); `0.41_1` has not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
@@ -2236,4 +2236,26 @@ saving the settings forgets the kept copy. Every Lens page writes times
 through `Lens.time`, dates through `Lens.date`, both through `Lens.stamp`.
 Words — weekday and month names — stay in the browser's language; core's
 dashboard widgets, which do not load lens.js, stay as the browser writes.
+
+### §4.87 — What the operator saw on box-2's dashboard (2026-10-09)
+**Seen:** eleven tiles in two rows of uneven height read as bloat on the
+dashboard; the WireGuard tile listed 32 peers by key — NetBird's, since
+NetBird runs on WireGuard (`wt0`) and `wg show` lists every WireGuard device;
+pausing and saving took seconds with nothing on the screen to say so.
+**Decisions.** The dashboard shows a strip: the sentence, a chip per area
+that is not good, and the rest counted, linking to the System page, which
+keeps the full tiles at one height with their text clamped. WireGuard counts
+only `wg{instance}` of OPNsense's own enabled instances (core's ServerField
+names them so on both branches). Every button that writes says what it is
+doing until the answer is there (`Lens.busy`); the dashboard and the System
+page draw the session's last answer at once and the fresh one over it
+(`Lens.remembered`), with a skeleton before the first — waiting is shown,
+never a blank.
+**A reason for a pause** (operator: "Grund für Pause und dann auch in der
+Description"): one line of the operator's own words, at most 60 characters,
+kept with the pause (schema 13), shown on the device's page and on Events,
+and joined into the alias's description — "Lens: paused devices - managed by
+Services: Lens - homework, bedtime" — reasons only: a device's name is the
+LAN's word and stays out of core's configuration (edge case 6). Resuming and
+expiry rewrite the description to the reasons still running.
 

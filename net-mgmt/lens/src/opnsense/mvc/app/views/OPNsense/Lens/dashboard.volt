@@ -75,13 +75,15 @@
         const link = (path) => path + '?hours=' + hours;
 
         /* ------------------------------------------------ is everything all right (§4.84) */
-        ajaxGet('/api/lens/dashboard/health', {}, (health, status) => {
-            if (status !== 'success' || !health || !health.tiles) {
+        /* the last answer of this session at once, then the fresh one (a skeleton before either) */
+        Lens.remembered('health', '/api/lens/dashboard/health', (health, stale) => {
+            if (!health || !health.tiles) {
                 return;
             }
-            Lens.healthRow(document.getElementById('healthSummary'), document.getElementById('healthTiles'), health);
-            $('#healthRow').show();
-        });
+            Lens.healthRow(document.getElementById('healthSummary'), document.getElementById('healthTiles'),
+                health, true);
+            $('#healthRow').toggleClass('lens-stale', stale);
+        }).catch(() => $('#healthRow').hide());
 
         /* ------------------------------------------------ facts and devices */
         ajaxGet('/api/lens/devices/list', { hours: hours }, (report, status) => {
@@ -580,9 +582,9 @@
     </div>
 </div>
 
-<div id="healthRow" class="health-row" style="display: none;">
-    <div id="healthSummary" class="health-summary"></div>
-    <div id="healthTiles" class="health-tiles"></div>
+<div id="healthRow" class="health-row">
+    <div id="healthSummary" class="health-summary"><span class="lens-skeleton" style="width: 22em;"></span></div>
+    <div id="healthTiles" class="health-chips"><span class="lens-skeleton lens-skeleton-chip"></span><span class="lens-skeleton lens-skeleton-chip"></span><span class="lens-skeleton lens-skeleton-chip"></span></div>
 </div>
 
 <div id="dashError" class="alert alert-danger" style="display: none;">

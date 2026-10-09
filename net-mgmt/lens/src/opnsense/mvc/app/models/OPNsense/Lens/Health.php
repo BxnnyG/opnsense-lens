@@ -235,7 +235,6 @@ class Health
         if ($stopped === []) {
             return self::say($tile, 'good', sprintf(gettext('All %d services are running.'), $checked));
         }
-        $tile['detail'] = array_merge($stopped, $tile['detail']);
 
         return self::say($tile, 'bad', count($stopped) === 1
             ? sprintf(gettext('%s is not running.'), $stopped[0])

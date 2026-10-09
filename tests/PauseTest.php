@@ -294,4 +294,30 @@ class PauseTest extends TestCase
         $this->assertSame('mine,cat-1', Pause::withCategory('mine', 'cat-1'));
         $this->assertSame('mine,cat-1', Pause::withCategory('mine,cat-1', 'cat-1'));
     }
+
+    public function testAReasonIsOneShortPrintableLine()
+    {
+        $this->assertSame('Hausaufgaben', Pause::reason("  Hausaufgaben \n"));
+        $this->assertSame('Schlafen gehen', Pause::reason("Schlafen\n\tgehen"));
+        $this->assertSame(Pause::REASON_MAX, mb_strlen(Pause::reason(str_repeat('ä', 200))));
+        $this->assertSame('', Pause::reason(''));
+        $this->assertSame('-', Pause::reasonParameter(''));
+        $this->assertSame('SGF1c2F1ZmdhYmVu', Pause::reasonParameter('Hausaufgaben'));
+    }
+
+    public function testTheAliasSaysWhyWithoutNamingAnyDevice()
+    {
+        $this->assertSame(Pause::ALIAS_DESCRIPTION, Pause::aliasDescription([]));
+        $this->assertSame(Pause::ALIAS_DESCRIPTION . ' - Hausaufgaben, Schlafenszeit',
+            Pause::aliasDescription(['Hausaufgaben', 'Schlafenszeit', 'Hausaufgaben', '']));
+        $this->assertLessThanOrEqual(250, strlen(Pause::aliasDescription(array_fill(0, 10, str_repeat('x', 59)))));
+    }
+
+    public function testTheReasonsLeftAfterAChange()
+    {
+        $open = [['mac' => 'aa', 'reason' => 'Hausaufgaben'], ['mac' => 'bb', 'reason' => null],
+                 ['mac' => 'cc', 'reason' => 'Schlafenszeit']];
+        $this->assertSame(['Schlafenszeit'], Pause::reasonsAfter($open, ['aa']));
+        $this->assertSame(['Hausaufgaben', 'Schlafenszeit', 'Kino'], Pause::reasonsAfter($open, ['dd'], 'Kino'));
+    }
 }

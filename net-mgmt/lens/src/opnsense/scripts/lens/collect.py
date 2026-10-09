@@ -665,10 +665,30 @@ def pause_macs(raw):
     return macs
 
 
-def pause_start(mac, macs, until):
+PAUSE_REASON_MAX = 60
+
+
+def pause_reason(encoded):
+    """
+    The operator's reason, as base64url (configd splits a parameter on spaces):
+    printable, one line, at most PAUSE_REASON_MAX characters; '-' is none.
+    """
+    if not encoded or encoded == '-':
+        return None
+    padding = '=' * (-len(encoded) % 4)
+    try:
+        text = base64.urlsafe_b64decode(encoded + padding).decode('utf-8')
+    except (ValueError, UnicodeDecodeError):
+        return None
+    text = ' '.join(''.join(c if c.isprintable() else ' ' for c in text).split())
+    return text[:PAUSE_REASON_MAX] or None
+
+
+def pause_start(mac, macs, until, reason=None):
     """
     Remember that a device was paused (§4.74). The controller has already put
-    its MACs in the alias; this is the history that says since and until when.
+    its MACs in the alias; this is the history that says since and until when,
+    and why.
     """
     key, macs = (mac or '').strip().lower(), pause_macs(macs)
     if not parse.is_mac(key) or macs is None:
@@ -677,7 +697,7 @@ def pause_start(mac, macs, until):
     now = int(time.time())
     until = int(until or 0)
     store = Store(DB_PATH)
-    store.start_pause(key, macs, now, until if until > now else None)
+    store.start_pause(key, macs, now, until if until > now else None, pause_reason(reason))
     store.commit()
     print('started')
     return 0
@@ -1446,6 +1466,7 @@ def main():
     parser.add_argument('--days', type=int, default=30, help='how far back destinations and events reach')
     parser.add_argument('--macs', help='pause-start: every MAC the alias was given for the device')
     parser.add_argument('--until', type=int, default=0, help='pause-start: when it ends, 0 for until resumed')
+    parser.add_argument('--reason', default='-', help='pause-start: why, as base64url; - for none')
     parser.add_argument('--how', default='resumed', help='pause-end: resumed, expired, outside or uninstall')
     parser.add_argument(
         '--hours', type=int, default=DEFAULT_TRAFFIC_HOURS,
@@ -1561,7 +1582,7 @@ def main():
         return run('prune', lambda store, now: '%d rows removed' % store.prune(now))
 
     if args.duty == 'pause-start':
-        return pause_start(args.mac, args.macs, args.until)
+        return pause_start(args.mac, args.macs, args.until, args.reason)
 
     if args.duty == 'pause-end':
         return pause_end(args.mac, args.how)

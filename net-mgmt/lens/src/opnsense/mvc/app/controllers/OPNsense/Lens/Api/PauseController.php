@@ -114,13 +114,17 @@ class PauseController extends ApiControllerBase
             return ['status' => 'refused', 'message' => $refused];
         }
 
+        $reason = Pause::reason((string)$this->request->getPost('reason', null, ''));
+        $open = (array)(self::decode($backend, 'lens pauses')['open'] ?? []);
         $before = PauseRule::addresses();
         $changed = PauseRule::change(
             $target['macs'],
             [],
             /* the MAC, not the name: a hostname is the device's own word, and
-               core's configuration history is no place for it (edge case 6) */
-            sprintf(gettext('Lens: paused %s'), $target['mac'])
+               core's configuration history is no place for it (edge case 6);
+               the reason is the operator's own */
+            sprintf(gettext('Lens: paused %s'), $target['mac']) . ($reason !== '' ? ': ' . $reason : ''),
+            Pause::reasonsAfter($open, [$target['mac']], $reason)
         );
         if (!$changed['ok']) {
             return ['status' => 'failed', 'message' => $changed['message']];
@@ -130,7 +134,7 @@ class PauseController extends ApiControllerBase
         $until = Pause::until($minutes, time());
         $recorded = trim((string)$backend->configdpRun(
             'lens pause.start',
-            [$target['mac'], implode(',', $target['macs']), (string)($until ?? 0)]
+            [$target['mac'], implode(',', $target['macs']), (string)($until ?? 0), Pause::reasonParameter($reason)]
         )) === 'started';
 
         return [
@@ -165,9 +169,15 @@ class PauseController extends ApiControllerBase
 
         $backend = new Backend();
         $target = self::target($backend, $macs[0], $rows, $names);
-        $resume = Pause::resumeSet($macs, $target, (array)(self::decode($backend, 'lens pauses')['open'] ?? []));
+        $open = (array)(self::decode($backend, 'lens pauses')['open'] ?? []);
+        $resume = Pause::resumeSet($macs, $target, $open);
 
-        $changed = PauseRule::change([], $resume['macs'], sprintf(gettext('Lens: resumed %s'), $macs[0]));
+        $changed = PauseRule::change(
+            [],
+            $resume['macs'],
+            sprintf(gettext('Lens: resumed %s'), $macs[0]),
+            Pause::reasonsAfter($open, $resume['keys'])
+        );
         if (!$changed['ok']) {
             return ['status' => 'failed', 'message' => $changed['message']];
         }

@@ -246,6 +246,12 @@ data Lens already keeps; none is planned before the router round.
   category), and rule 6 lets Lens write exactly two; that needs the operator's
   word before it is built. **The operator said yes (2026-10-09): built as
   `0.38_2`, §4.85.** Pausing a group is still open.
+- **#53 — Slow a device down instead of cutting it off.** Operator, 2026-10-09:
+  "so Features wie QoS, die einfach geil sind, immer mitbedenken". A pause with
+  a bandwidth instead of a block: core's traffic shaper (pipes and rules) per
+  MAC. That is a fourth kind of object Lens would write, beyond rule 6's three
+  — it needs the operator's word, and a plan that names exactly which shaper
+  objects, before anything is built.
 
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two

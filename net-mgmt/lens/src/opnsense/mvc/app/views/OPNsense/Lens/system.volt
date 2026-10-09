@@ -157,27 +157,51 @@
             one('temperature', document.getElementById('sysTemperature'));
         };
 
-        Promise.all([
-            $.getJSON('/api/lens/dashboard/health'),
-            $.getJSON('/api/lens/system/details'),
-        ]).then(([health, details]) => {
+        /* each the last answer of this session at once, then the fresh one */
+        let health = null;
+        let details = null;
+        let scrolled = false;
+        const sections = (stale) => {
+            if (!health || !details) {
+                return;
+            }
             $('#sysLoading').hide();
             Lens.healthRow(document.getElementById('healthSummary'), document.getElementById('healthTiles'), health);
-            $('#healthRow').show();
+            $('#healthRow, #sysSections').toggleClass('lens-stale', stale);
             const $sections = $('#sysSections').empty();
             for (const tile of health.tiles.filter(t => t.key !== 'internet')) {
                 const $s = section(tile);
                 (fill[tile.key] || (() => {}))($s.find('.lens-sys-body'), details, tile, health);
                 $sections.append($s);
             }
-            if (location.hash) {
+            if (location.hash && !scrolled) {
                 const target = document.getElementById(location.hash.slice(1));
                 if (target) {
                     target.scrollIntoView({ block: 'start' });
                     target.classList.add('lens-sys-target');
+                    scrolled = true;
                 }
             }
-            $.getJSON('/api/lens/system/history', { hours: hours }).then(reply => draw(reply.history || {}));
+            if (history) {
+                draw(history);
+            }
+        };
+        let history = null;
+        Promise.all([
+            Lens.remembered('health', '/api/lens/dashboard/health', (h, stale) => {
+                health = h;
+                sections(stale);
+            }),
+            Lens.remembered('system', '/api/lens/system/details', (d, stale) => {
+                details = d;
+                sections(stale);
+            }),
+        ]).then(() => {
+            sections(false);
+            $.getJSON('/api/lens/system/history', { hours: hours }).then((reply) => {
+                history = reply.history || {};
+                draw(history);
+            });
         }, () => {
             $('#sysLoading').hide();
             $('#sysError').show();
@@ -192,12 +216,15 @@
     <div class="lens-page-range"><span id="sysRange"></span></div>
 </div>
 
-<div id="sysLoading"><i class="fa fa-spinner fa-spin"></i> {{ lang._('Reading the firewall...') }}</div>
+<div id="sysLoading" class="lens-sys-sections">
+    <div class="content-box dv-card lens-sys-section"><span class="lens-skeleton" style="width: 40%;"></span><span class="lens-skeleton lens-skeleton-block"></span></div>
+    <div class="content-box dv-card lens-sys-section"><span class="lens-skeleton" style="width: 30%;"></span><span class="lens-skeleton lens-skeleton-block"></span></div>
+</div>
 <div id="sysError" class="alert alert-danger" style="display: none;">{{ lang._('The system report did not come back.') }}</div>
 
-<div id="healthRow" class="health-row" style="display: none;">
-    <div id="healthSummary" class="health-summary"></div>
-    <div id="healthTiles" class="health-tiles"></div>
+<div id="healthRow" class="health-row">
+    <div id="healthSummary" class="health-summary"><span class="lens-skeleton" style="width: 22em;"></span></div>
+    <div id="healthTiles" class="health-tiles"><span class="lens-skeleton lens-skeleton-tile"></span><span class="lens-skeleton lens-skeleton-tile"></span><span class="lens-skeleton lens-skeleton-tile"></span><span class="lens-skeleton lens-skeleton-tile"></span></div>
 </div>
 
 <div id="sysSections" class="lens-sys-sections"></div>

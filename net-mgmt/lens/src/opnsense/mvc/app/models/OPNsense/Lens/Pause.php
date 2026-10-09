@@ -188,6 +188,69 @@ class Pause
         ], $category !== '' ? ['categories' => $category] : []);
     }
 
+    public const REASON_MAX = 60;
+
+    /**
+     * The operator's reason for a pause (operator, 2026-10-09): one printable
+     * line, at most REASON_MAX characters, '' for none. The collector cleans it
+     * again; this is what the page and the alias get.
+     */
+    public static function reason(string $text): string
+    {
+        $text = preg_replace('/[^\P{C}]+/u', ' ', $text) ?? '';
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+
+        return function_exists('mb_substr')
+            ? mb_substr($text, 0, self::REASON_MAX)
+            : substr($text, 0, self::REASON_MAX);
+    }
+
+    /** a reason as the collector's --reason takes it: base64url, '-' for none */
+    public static function reasonParameter(string $reason): string
+    {
+        return $reason === '' ? '-' : rtrim(strtr(base64_encode($reason), '+/', '-_'), '=');
+    }
+
+    /**
+     * The alias's description: what it is, and why its devices are paused --
+     * the reasons only, never a device's name or MAC (a name is the LAN's
+     * word, edge case 6). Core's description field is kept under 255.
+     *
+     * @param array $reasons the reasons of every pause still running, any order
+     */
+    public static function aliasDescription(array $reasons): string
+    {
+        $reasons = array_values(array_unique(array_filter(array_map('strval', $reasons), 'strlen')));
+        if ($reasons === []) {
+            return self::ALIAS_DESCRIPTION;
+        }
+        $text = self::ALIAS_DESCRIPTION . ' - ' . implode(', ', $reasons);
+
+        return strlen($text) > 250 ? substr($text, 0, 247) . '...' : $text;
+    }
+
+    /**
+     * The reasons of the pauses still running after a change.
+     *
+     * @param array $open the store's open pauses
+     * @param array $ending device keys whose pause ends now
+     * @param string|null $adding the reason of the pause starting now
+     */
+    public static function reasonsAfter(array $open, array $ending, ?string $adding = null): array
+    {
+        $reasons = [];
+        foreach ($open as $pause) {
+            if (!in_array((string)($pause['mac'] ?? ''), $ending, true) && !empty($pause['reason'])) {
+                $reasons[] = (string)$pause['reason'];
+            }
+        }
+        if ($adding !== null && $adding !== '') {
+            $reasons[] = $adding;
+        }
+
+        return $reasons;
+    }
+
     /** the category's fields, as core's Category model holds them (§4.85) */
     public static function categoryFields(): array
     {
@@ -303,6 +366,7 @@ class Pause
                     'key' => (string)($pause['mac'] ?? $mac),
                     'by' => 'lens',
                     'since' => (int)($pause['started'] ?? 0),
+                    'reason' => isset($pause['reason']) ? (string)$pause['reason'] : null,
                     'until' => isset($pause['until']) ? (int)$pause['until'] : null,
                 ];
             }
@@ -310,7 +374,7 @@ class Pause
 
         foreach ($aliasMacs as $mac) {
             if (!isset($known[$mac])) {
-                $paused[$mac] = ['key' => $mac, 'by' => 'alias', 'since' => null, 'until' => null];
+                $paused[$mac] = ['key' => $mac, 'by' => 'alias', 'since' => null, 'until' => null, 'reason' => null];
             }
         }
 

@@ -114,7 +114,7 @@ class SystemController extends ApiControllerBase
         if ($acl->isPageAccessible($user, '/api/wireguard/service/show')) {
             $shown = DashboardController::decodeOrNull($backend, 'wireguard show');
             $peers = SystemDetail::wireguard(
-                (array)($shown['records'] ?? []),
+                DashboardController::ownWireguard((array)($shown['records'] ?? [])),
                 DashboardController::wireguardNames(),
                 $now
             );

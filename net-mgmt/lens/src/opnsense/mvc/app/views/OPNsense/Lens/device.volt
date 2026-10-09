@@ -328,7 +328,8 @@
             } else {
                 text = '{{ lang._("Paused since") }} ' + clock(pause.since) + ', '
                     + (pause.until ? '{{ lang._("until") }} ' + clock(pause.until) + '.'
-                        : '{{ lang._("until it is resumed.") }}');
+                        : '{{ lang._("until it is resumed.") }}')
+                    + (pause.reason ? ' {{ lang._("Why:") }} ' + pause.reason : '');
             }
             if (!pause.effective) {
                 text += ' ' + (reply.rule === 'disabled'
@@ -366,9 +367,10 @@
             pauseMinutes = wanted === 'morning' ? morning() : parseInt(wanted, 10);
         });
         $('#dvPauseGo').on('click', () => {
-            $('#dvPauseGo').prop('disabled', true);
-            ajaxCall('/api/lens/pause/pause', { mac: mac, minutes: String(pauseMinutes) }, (reply, status) => {
-                $('#dvPauseGo').prop('disabled', false);
+            Lens.busy($('#dvPauseGo')[0], true, '{{ lang._("Pausing") }}');
+            ajaxCall('/api/lens/pause/pause', { mac: mac, minutes: String(pauseMinutes),
+                                                reason: $('#dvPauseReason').val() || '' }, (reply, status) => {
+                Lens.busy($('#dvPauseGo')[0], false);
                 if (status !== 'success' || !reply || reply.status !== 'ok') {
                     $('#dvPauseError').text((reply && reply.message)
                         || '{{ lang._("The device was not paused.") }}').show();
@@ -382,9 +384,9 @@
             });
         });
         $('#dvResume').on('click', () => {
-            $('#dvResume').prop('disabled', true);
+            Lens.busy($('#dvResume')[0], true, '{{ lang._("Resuming") }}');
             ajaxCall('/api/lens/pause/resume', { mac: macs() }, (reply, status) => {
-                $('#dvResume').prop('disabled', false);
+                Lens.busy($('#dvResume')[0], false);
                 if (status === 'success' && reply && reply.status === 'ok') {
                     pauseState();
                 }
@@ -619,6 +621,10 @@
                 <a href="#" class="lens-chip" data-minutes="120">{{ lang._('2 hours') }}</a>
                 <a href="#" class="lens-chip" data-minutes="morning">{{ lang._('until 06:00') }}</a>
                 <a href="#" class="lens-chip" data-minutes="0">{{ lang._('until I resume it') }}</a>
+            </div>
+            <div class="dv-pause-reason">
+                <input type="text" id="dvPauseReason" class="form-control input-sm" maxlength="60"
+                       placeholder="{{ lang._('Why? (optional, e.g. homework, bedtime) - shown on Events and in the alias') }}">
             </div>
             <div id="dvPauseUnguarded" class="alert alert-info" style="display: none;">
                 {{ lang._('No network is protected yet, only the one you are clicking from. Tick your management networks under Services: Lens: Settings, Pausing a device.') }}

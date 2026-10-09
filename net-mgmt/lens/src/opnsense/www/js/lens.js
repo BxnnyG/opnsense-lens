@@ -690,7 +690,7 @@
      * The health row (§4.84): one sentence, then a tile per area. Shared by the
      * dashboard and the System page so the two cannot say different things.
      */
-    const healthRow = (summaryEl, tilesEl, health) => {
+    const healthRow = (summaryEl, tilesEl, health, compact) => {
         summaryEl.className = 'health-summary health-' + health.summary.tone;
         summaryEl.textContent = '';
         const dot = document.createElement('span');
@@ -703,6 +703,36 @@
         summaryEl.append(dot, said);
 
         tilesEl.textContent = '';
+        /* the dashboard's strip (operator, 2026-10-09: eleven tiles read as
+           bloat): only what is not all right, as chips, and the rest counted --
+           the System page has every tile */
+        if (compact) {
+            tilesEl.className = 'health-chips';
+            const troubled = health.tiles.filter(tile => tile.tone !== 'good');
+            for (const tile of troubled) {
+                const chip = document.createElement(tile.link ? 'a' : 'span');
+                chip.className = 'health-chip health-' + tile.tone;
+                if (tile.link) {
+                    chip.href = tile.link;
+                }
+                chip.title = tile.sentence;
+                const chipDot = document.createElement('span');
+                chipDot.className = 'health-dot';
+                const icon = document.createElement('i');
+                icon.className = 'fa fa-fw ' + tile.icon;
+                chip.append(chipDot, icon, document.createTextNode(' ' + tile.title));
+                tilesEl.appendChild(chip);
+            }
+            const all = document.createElement('a');
+            all.className = 'health-chip health-chip-all';
+            all.href = '/ui/lens/system';
+            const good = health.tiles.length - troubled.length;
+            all.textContent = (troubled.length ? good + ' / ' + health.tiles.length + ' all right' : 'all '
+                + health.tiles.length + ' areas all right') + ' \u00b7 System \u203a';
+            tilesEl.appendChild(all);
+            return;
+        }
+        tilesEl.className = 'health-tiles';
         for (const tile of health.tiles) {
             const box = document.createElement(tile.link ? 'a' : 'div');
             box.className = 'content-box health-tile health-' + tile.tone;
@@ -844,9 +874,70 @@
         container.append(legend, svg, scale);
     };
 
+    /*
+     * A button that is working says so (operator, 2026-10-09: a pause "dauert
+     * bissle und man hat kein Wissen, was passiert"): disabled, a spinner and
+     * what it is doing, until the answer is there; then itself again.
+     */
+    const busy = (button, on, doing) => {
+        if (!button) {
+            return;
+        }
+        if (on) {
+            if (button.dataset.lensIdle === undefined) {
+                button.dataset.lensIdle = button.innerHTML;
+            }
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.textContent = '';
+            const spin = document.createElement('i');
+            spin.className = 'fa fa-spinner fa-spin';
+            button.append(spin, document.createTextNode(' ' + (doing || '') + '\u2026'));
+        } else if (button.dataset.lensIdle !== undefined) {
+            button.innerHTML = button.dataset.lensIdle;
+            delete button.dataset.lensIdle;
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+        }
+    };
+
+    /*
+     * What a page showed last in this session, shown again at once while the
+     * fresh answer is on its way (stale, then replaced): the health row is a
+     * dozen reads on a busy box, and a blank second reads as broken.
+     */
+    const remembered = (key, url, draw) => {
+        let shown = false;
+        try {
+            const kept = JSON.parse(sessionStorage.getItem('lens.kept.' + key) || 'null');
+            if (kept) {
+                draw(kept, true);
+                shown = true;
+            }
+        } catch (e) {
+            /* nothing kept */
+        }
+        return fetch(url, { credentials: 'same-origin' })
+            .then(reply => reply.ok ? reply.json() : Promise.reject(reply.status))
+            .then((fresh) => {
+                try {
+                    sessionStorage.setItem('lens.kept.' + key, JSON.stringify(fresh));
+                } catch (e) {
+                    /* this page only */
+                }
+                draw(fresh, false);
+                return fresh;
+            })
+            .catch((failure) => {
+                if (!shown) {
+                    throw failure;
+                }
+            });
+    };
+
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
         services: services, spark: spark, healthRow: healthRow, lines: lines,
-        display: display, time: time, date: date, stamp: stamp
+        display: display, time: time, date: date, stamp: stamp, busy: busy, remembered: remembered
     };
 })();

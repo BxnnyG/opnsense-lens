@@ -14,7 +14,7 @@ import time
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 # No stored window is longer than this (§4.69). A device present for weeks is a
 # chain of day-long pieces, joined back into one stay for every reader; the cap
@@ -227,6 +227,11 @@ MIGRATIONS = {
             PRIMARY KEY (mac, started)
         )""",
         "CREATE INDEX pause_open ON pause (ended)",
+    ],
+    # Why a device was paused, in the operator's words (operator, 2026-10-09):
+    # shown on Events and the device page, and in the alias's description.
+    13: [
+        "ALTER TABLE pause ADD COLUMN reason TEXT",
     ],
 }
 
@@ -1224,7 +1229,7 @@ class Store:
         return [self._pause(row) for row in self.db.execute(
             "SELECT * FROM pause WHERE ended IS NULL OR ended >= ? ORDER BY started DESC", (since,))]
 
-    def start_pause(self, mac, macs, now, until):
+    def start_pause(self, mac, macs, now, until, reason=None):
         """
         One device paused. A device already paused is paused again from now:
         its open pause ends as resumed, so two open rows never describe one
@@ -1232,8 +1237,9 @@ class Store:
         """
         self.end_pause(mac, now, 'resumed')
         self.db.execute(
-            "INSERT OR REPLACE INTO pause(mac, macs, started, until, ended, ended_how) VALUES (?, ?, ?, ?, NULL, NULL)",
-            (mac, ','.join(macs), now, until))
+            "INSERT OR REPLACE INTO pause(mac, macs, started, until, ended, ended_how, reason)"
+            " VALUES (?, ?, ?, ?, NULL, NULL, ?)",
+            (mac, ','.join(macs), now, until, reason or None))
 
     def end_pause(self, mac, now, how):
         """:return: how many open pauses of this device ended (0 or 1)"""
@@ -1262,6 +1268,7 @@ class Store:
             'until': row['until'],
             'ended': row['ended'],
             'ended_how': row['ended_how'],
+            'reason': row['reason'] if 'reason' in row.keys() else None,
         }
 
     # what a device's windows cover, by the attribution join's overlap rule

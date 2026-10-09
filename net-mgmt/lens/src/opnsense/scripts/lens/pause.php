@@ -59,7 +59,12 @@ switch ($argv[1] ?? '') {
                 $macs = array_merge($macs, (array)$pause['macs']);
             }
         }
-        $changed = PauseRule::change([], $macs, gettext('Lens: a pause ended on time'));
+        $changed = PauseRule::change(
+            [],
+            $macs,
+            gettext('Lens: a pause ended on time'),
+            Pause::reasonsAfter($open, $due)
+        );
         if (!$changed['ok']) {
             fwrite(STDERR, (string)$changed['message'] . "\n");
             exit(1);

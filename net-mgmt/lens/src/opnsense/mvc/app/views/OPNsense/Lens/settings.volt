@@ -190,13 +190,14 @@
         });
 
         $('#lensSave').on('click', function () {
-            const $button = $(this).prop('disabled', true);
+            const $button = $(this);
+            Lens.busy(this, true, '{{ lang._("Saving") }}');
             $('.lens-field-error').hide().text('');
             $('#lensSaved').hide();
             $('#lensSaveError').hide();
 
             ajaxCall('/api/lens/settings/set', collect(), (reply, status) => {
-                $button.prop('disabled', false);
+                Lens.busy($button[0], false);
 
                 if (status === 'success' && reply && reply.status === 'ok') {
                     /* the other pages pick the new formats up at once (lens.js keeps them per session) */
