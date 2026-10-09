@@ -94,10 +94,15 @@ against observations from the operator's own network, which stage 4 produces.
 
 | # | Intent | System | Status |
 |---|---|---|---|
-| — | **Router round for everything built since 0.5_2** — stages up to 40 built on tests and the preview alone ([checklist](ROUTER-ROUND.md)) · the pages themselves can now be looked at without a box: `tools/preview` · most of the round is one command since stage 32: `tools/round/round.py` | all | ✅ ran 2026-10-07 on both boxes, twice: the first found the WAN, the disk and a 9.4 s week (§4.75, §4.76), the second was clean — 37 checks, no FAIL. What it does not cover — the Settings round trip, the fix button, purge, forget — was not recorded as done. **`0.34_1` has not been on a box** |
-| — | **Publish `0.34_1`** — the feed serves `0.31_1`, without the fixes from the round | S0 | ⏳ the operator's click: `package` with `publish: true`, or a tag |
-| — | **Round on `0.34_1`** — reverse names, the public address, the two widgets on core's dashboard, and box-2's week re-timed on settled hours | all | ⏳ |
-| — | **Round on `0.35_1`: pause** — the click, the rule in Firewall: Rules, the history entry, a ping that stops and starts, expiry, an upgrade that keeps it, an uninstall that leaves nothing ([checklist](ROUTER-ROUND.md) §5) | S1 | ⏳ |
+| — | **Router rounds** — `tools/lens-deploy.sh --round` on both boxes after every release since 2026-10-07 ([checklist](ROUTER-ROUND.md)) | all | ✅ clean on both boxes through `0.43_1` (55 checks, 2026-10-09); pause clicked by the operator on box-2 |
+| — | **First GitHub release and the feed at `0.43_1`** — a tag now builds the signed feed and a release with the package attached | S0 | 🔨 2026-10-09 (`v0.43.1`) |
+| — | **Presence of quiet devices** — servers that say nothing for a while fall out of the ARP table and showed gaps on box-2; count an hour with traffic as present too (never a lease, §4.77) | S1, S5 | ⏳ next |
+| — | **Load times, second round** — the health row's sources at once and kept a minute on the box; the Networks duty (0.94 s); the full status count | S13 | ⏳ |
+| — | **One look, the other eight pages** — DNS, Networks, Settings, Privacy, Data Sources, Weekly report, Wallboard, Compare, and the phone (§4.88) | S6 | ⏳ |
+| — | **Tiles for OpenVPN, IPsec and CARP** (BACKLOG #50) | S16 | ⏳ |
+| — | **Pause a group** — a tag or a person at once (BACKLOG #52) | S1 | ⏳ |
+| 48 | **Names for destination addresses** — two questions open for the operator ([plan](plans/stage-48-destination-names.md) §6) | S5, S12, S14 | ⏳ asked again 2026-10-09 |
+| — | **Two or three outside testers** (BACKLOG #47), once README and release say what Lens now is | — | ⏳ |
 | 0 | Run the hand-run tools, start collecting tonight | S3, S2 | ✅ 2026-08-29 |
 | 0b | Read the observation summary, decide how identity is keyed (BACKLOG #3) | S1 | ✅ 2026-08-30 · MAC-keyed (§4.17); the re-check became a continuous measurement 2026-09-10 (§4.36) |
 | 1 | Prove the chain: build → install → menu → ACL → page → gates | S0 | ✅ router-tested 2026-08-30 |

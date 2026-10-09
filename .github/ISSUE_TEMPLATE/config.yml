@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/BxnnyG/opnsense-lens/security/advisories/new
+    about: Please report vulnerabilities privately, not as an issue.
+  - name: How Lens decides things
+    url: https://github.com/BxnnyG/opnsense-lens/blob/master/docs/DESIGN.md
+    about: Every behaviour has a numbered decision; worth a look before an idea.

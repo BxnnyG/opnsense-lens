@@ -139,3 +139,46 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v4
+
+  # A tag is also a release on GitHub: the package attached, the notes from
+  # pkg-descr's section for this version -- so "0 releases" never again means
+  # "nothing was released" (operator, 2026-10-09).
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: os-lens-feed
+          path: feed
+      - name: the version, and its notes from pkg-descr
+        id: notes
+        run: |
+          version=$(sed -n 's/^PLUGIN_VERSION=[[:space:]]*//p' net-mgmt/lens/Makefile)
+          revision=$(sed -n 's/^PLUGIN_REVISION=[[:space:]]*//p' net-mgmt/lens/Makefile)
+          full="${version}${revision:+_$revision}"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          {
+            awk -v v="$full" '$0 == v { on = 1; next } on && /^[0-9]+\.[0-9]+(_[0-9]+)?$/ { exit } on' \
+              net-mgmt/lens/pkg-descr
+            echo
+            echo "**Install or update** as root on the firewall:"
+            echo
+            echo '```sh'
+            echo 'fetch -o - https://raw.githubusercontent.com/BxnnyG/opnsense-lens/master/tools/install.sh | sh'
+            echo '```'
+            echo
+            echo "The signed feed at https://bxnnyg.github.io/opnsense-lens/ serves this version; the package is attached below."
+            echo "Every version's notes: [pkg-descr](https://github.com/BxnnyG/opnsense-lens/blob/${GITHUB_REF_NAME}/net-mgmt/lens/pkg-descr)."
+          } > notes.md
+          cat notes.md
+      - name: the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" feed/All/*.pkg \
+            --title "Lens ${{ steps.notes.outputs.full }}" --notes-file notes.md

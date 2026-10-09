@@ -255,12 +255,14 @@ data Lens already keeps; none is planned before the router round.
   configuration and its history. Lens keeps one rule and one alias, says why
   in both descriptions (0.42_2), and lists who is paused, why and until when
   on its own pages. Changing that is a rule-6 decision for the operator.
-- **#53 — Slow a device down instead of cutting it off.** Operator, 2026-10-09:
-  "so Features wie QoS, die einfach geil sind, immer mitbedenken". A pause with
-  a bandwidth instead of a block: core's traffic shaper (pipes and rules) per
-  MAC. That is a fourth kind of object Lens would write, beyond rule 6's three
-  — it needs the operator's word, and a plan that names exactly which shaper
-  objects, before anything is built.
+  **Decided 2026-10-09: the operator agreed — one rule, one alias. Closed.**
+- **#53 — QoS beside the pause.** Operator, 2026-10-09: "so Features wie QoS, die
+  einfach geil sind, immer mitbedenken" — and later: the pause stays, QoS is an
+  addition ("ich würde die Sperre nicht entfernen"). Slowing a device or a group
+  down, or giving one priority: core's traffic shaper (pipes, queues, rules)
+  per MAC alias. That is a fourth kind of object Lens would write, beyond rule
+  6's three — it needs the operator's word, and a plan that names exactly which
+  shaper objects, before anything is built.
 
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two

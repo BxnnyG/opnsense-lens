@@ -1,20 +1,23 @@
 ---
 name: Bug report
 about: Something Lens shows or does is wrong
+labels: bug
 ---
 
-**What happens**
+**What happens** — the page or widget, and what it shows:
+
+**What you expected instead:**
 
 **Steps to reproduce**
 1.
 2.
 
-**Expected**
-
-**Actual**
+**Evidence** — a screenshot, or the answer of the API behind the page
+(`/api/lens/...`, from the browser's network tab). Please blank out real MACs,
+addresses and names.
 
 **Environment**
-- OPNsense version:
 - Lens version (`pkg info os-lens`):
-- Which page or widget:
-- Data sources in use (NetFlow / Unbound reporting / Kea / Dnsmasq):
+- OPNsense version (System: Firmware: Status):
+- Data sources in use (NetFlow / Unbound statistics / Kea / ISC DHCP / dnsmasq):
+- Anything in `/tmp/PHP_errors.log` naming Lens:

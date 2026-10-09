@@ -1,8 +1,43 @@
 # Lens — an OPNsense plugin
 
-**Status: in daily use on the author's firewalls, version 0.x.** Built stage by
-stage under [docs/PROCESS.md](docs/PROCESS.md); what is router-tested and what is
-built on tests alone is in [docs/ROADMAP.md](docs/ROADMAP.md).
+**The calm front page for your OPNsense firewall: who is on the network, what
+they did, and whether everything is all right.**
+
+Lens gives every device an identity that survives an address change and hangs
+everything the firewall knows off it — traffic history, DNS, presence, the
+internet line. On top of that it answers *is everything all right* in one
+sentence, area by area, from what OPNsense already measures.
+
+**Status:** version 0.x, in daily use on the author's two firewalls
+(OPNsense 26.1 and 26.7). Every release passes a scripted round on both
+([docs/ROUTER-ROUND.md](docs/ROUTER-ROUND.md)); what is proven on a box and what
+only in tests is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+![The dashboard](docs/screenshots/dashboard.png)
+
+## What it shows
+
+| Page | What it answers |
+|---|---|
+| **Dashboard** | One sentence first; the areas that need a look; the internet line with public address, round trips and an uptime strip you can hover; who is home, what moved, what was unusual |
+| **System** | Every area of the firewall — internet, system, interfaces, temperature, updates, services, certificates, and DynDNS, SMART, WireGuard, NetBird, Tailscale where installed — with its reason, its history from OPNsense's own records, and the OPNsense page that fixes it |
+| **Devices** | Every device, by the name it is known by, with its traffic, its addresses over time, presence and how sure Lens is of each |
+| **A device** | Its traffic hour by hour, its week, where it talks, what it looked up, which services it asked for; name it, tag it, pause it |
+| **Who's home** | When each device — and each person, by the phones they carry — was on the network |
+| **Networks** | Each network with its port (link, speed, errors) and the devices on it |
+| **DNS** | What was asked and blocked, by device, and which services (Netflix, Steam, WhatsApp …) the names belong to |
+| **Events, weekly report, wallboard** | What happened while you were not looking; a week on one page; a screen for the wall |
+
+Plus widgets for OPNsense's own dashboard, a Prometheus endpoint, and a search
+on every Lens page (`Ctrl K`) that finds devices, networks and OPNsense's own
+menu.
+
+| | | |
+|---|---|---|
+| ![System](docs/screenshots/system.png) | ![Devices](docs/screenshots/overview.png) | ![Who's home](docs/screenshots/presence.png) |
+| ![A device](docs/screenshots/device.png) | ![DNS](docs/screenshots/dns.png) | |
+
+*Screenshots from the preview with made-up devices, OPNsense dark theme.*
 
 ## Install, update, remove
 
@@ -12,8 +47,12 @@ As root on the firewall:
 fetch -o - https://raw.githubusercontent.com/BxnnyG/opnsense-lens/master/tools/install.sh | sh
 ```
 
-That adds the signed Lens package feed and installs `os-lens`; after that,
-updates come with System: Firmware: Updates. The same script does the rest:
+That adds the signed Lens package feed
+([bxnnyg.github.io/opnsense-lens](https://bxnnyg.github.io/opnsense-lens/), key
+in [tools/feed/lens.pub](tools/feed/lens.pub)) and installs `os-lens`; after
+that, updates come with System: Firmware: Updates. Every version is also on the
+[releases page](https://github.com/BxnnyG/opnsense-lens/releases). The same
+script does the rest:
 
 | | |
 |---|---|
@@ -26,42 +65,51 @@ updates come with System: Firmware: Updates. The same script does the rest:
 The root shell on OPNsense is csh; the script is always piped to `sh`, so that
 does not matter. What it writes and why: [tools/install.sh](tools/install.sh).
 
-## What it is meant to be
+**What it needs:** NetFlow on the networks you want traffic for (Lens offers a
+one-click switch on Services: Lens: Data Sources, never on its own), and
+Unbound with its statistics for the DNS pages. Kea, ISC DHCP and dnsmasq leases
+are read for names. Nothing else.
 
-OPNsense can tell you what traffic happened and, separately, who is on the
-network right now. It never joins the two over time — flow history is
-aggregated on the source address and nothing else, and device identity exists
-only in the present tense. So the answer to "what was that spike last Tuesday"
-is an IP address.
+## What it reads, keeps and writes
 
-Lens closes that gap: every device gets an identity that survives an address
-change, and everything the firewall knows — traffic history, DNS activity,
-leases, live throughput — hangs off it. On top of that sit a client profile
-page, a Reporting overview, dashboard widgets and a wallboard.
-
-It reads OPNsense's own data through its APIs rather than collecting its own,
-and stores only what nothing else keeps: identity over time, the operator's own
-names and tags, and computed baselines.
+- **Reads** what OPNsense already has — NetFlow, the ARP and NDP tables,
+  leases, Unbound's query store, gateways, interfaces, the firmware status,
+  services, certificates (their public part only), System: Health's records —
+  through configd and the configuration, never by measuring again.
+- **Keeps** only what nothing else does, in its own store at `/var/db/lens`:
+  identity over time, your names and tags, settled hourly traffic. Retention,
+  a disk ceiling, *forget this device* and *delete everything* are on Services:
+  Lens; what is kept is listed on Services: Lens: Privacy.
+- **Sends** three pings every five minutes to Quad9, Cloudflare and Google, and
+  once an hour one DNS question to Cloudflare for the public address — both can
+  be changed or switched off.
+- **Writes to the firewall** only when you pause a device: one floating block
+  rule, *Lens: paused devices*, one MAC alias `lens_paused` and one firewall
+  category *Lens*, through OPNsense's own models, so they show in Firewall:
+  Rules and the configuration history like anything written by hand. Removing
+  Lens removes them. Nothing else, ever ([docs/DESIGN.md §4.74, §4.85](docs/DESIGN.md)).
 
 ## Where to start reading
 
 | | |
 |---|---|
 | Why it exists, and what it deliberately is not | [docs/VISION.md](docs/VISION.md) |
-| What OPNsense already provides, and the systems being built | [docs/DESIGN.md](docs/DESIGN.md) |
+| What OPNsense already provides, the systems built, every decision | [docs/DESIGN.md](docs/DESIGN.md) |
 | How work is done here | [docs/PROCESS.md](docs/PROCESS.md) |
 | What happens next | [docs/ROADMAP.md](docs/ROADMAP.md) |
-| What is worth doing, and an honest assessment | [docs/BACKLOG.md](docs/BACKLOG.md) |
+| What is worth doing | [docs/BACKLOG.md](docs/BACKLOG.md) |
+| Every page without a firewall | [tools/preview](tools/preview/README.md) |
+| Contributing, reporting a bug or a security issue | [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) |
 
 ## Relationship to OPNsense
 
 Lens is not submitted to `opnsense/plugins` and is not expected to be —
 [docs/DESIGN.md §4.2](docs/DESIGN.md) explains why. It is distributed from this
-repository as the package `os-lens`. It does not replace Reporting → Insight,
-Health, NetFlow or Unbound DNS, and it does not replace the dashboard: it
-supplies widgets to the one OPNsense already has.
+repository as the package `os-lens`. It does not replace Reporting: Insight,
+Health, NetFlow or Unbound DNS, nor OPNsense's dashboard — it reads them, and
+links back to them wherever something has to be changed.
 
-Target release: OPNsense `stable/26.7`.
+Target releases: OPNsense `stable/26.1` and `stable/26.7`.
 
 ## Licence
 
