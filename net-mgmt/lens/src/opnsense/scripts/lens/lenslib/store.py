@@ -294,6 +294,17 @@ def stays(rows):
     return out
 
 
+def _runs(days):
+    """:return: consecutive days as (first, last) pairs, in order"""
+    out = []
+    for day in sorted(days):
+        if out and day == out[-1][1] + 1:
+            out[-1] = (out[-1][0], day)
+        else:
+            out.append((day, day))
+    return out
+
+
 class Store:
     def __init__(self, path):
         self.path = path
@@ -781,9 +792,17 @@ class Store:
             """SELECT mac, day, octets, sent FROM device_day
                WHERE day >= ? AND day IN (SELECT day FROM device_day_done)""", (first_day,))]
 
-        missing = [day for day in range(first_day, int(time.time()) // 86400 + 1) if day not in done]
-        if missing:
-            live = self._day_sums(max(int(since), missing[0] * 86400), FOREVER, bucket_seconds)
+        # Only days there can be traffic for, and only those: a day before the
+        # first bucket is never summed, and counting from it sent a month to
+        # the live join (box-2, events 30 at 3.97 s, 2026-10-09). A gap is
+        # summed live over its own days, not from it to now.
+        first_bucket = self.db.execute("SELECT min(bucket) FROM traffic_hour").fetchone()[0]
+        if first_bucket is None:
+            return []
+        start = max(first_day, int(first_bucket) // 86400)
+        missing = [day for day in range(start, int(time.time()) // 86400 + 1) if day not in done]
+        for run_start, run_end in _runs(missing):
+            live = self._day_sums(max(int(since), run_start * 86400), (run_end + 1) * 86400, bucket_seconds)
             rows.extend(row for row in live if row['day'] not in done)
 
         rows.sort(key=lambda row: (row['mac'], row['day']))
@@ -1376,7 +1395,12 @@ class Store:
     def over_ceiling(self):
         return self.size_mb() >= self.setting_int('disk_ceiling_mb')
 
-    def status(self):
+    def status(self, counts=True):
+        """
+        :param counts: False leaves out the two counts that read whole tables
+                       (traffic_rows, observations) -- 0.3 s on box-2's 2.5
+                       million rows, asked by nearly every page for its runs
+        """
         def one(sql):
             row = self.db.execute(sql).fetchone()
             return row[0] if row else None
@@ -1394,9 +1418,9 @@ class Store:
             'schema_version': one("SELECT max(version) FROM schema_version"),
             'devices': one("SELECT count(*) FROM device"),
             'devices_randomised': one("SELECT count(*) FROM device WHERE randomised = 1"),
-            'observations': one("SELECT count(*) FROM address_observation"),
+            'observations': one("SELECT count(*) FROM address_observation") if counts else None,
             'first_observation': one("SELECT min(first_seen) FROM address_observation"),
-            'traffic_rows': one("SELECT count(*) FROM traffic_hour"),
+            'traffic_rows': one("SELECT count(*) FROM traffic_hour") if counts else None,
             'first_bucket': one("SELECT min(bucket) FROM traffic_hour"),
             'last_bucket': one("SELECT max(bucket) FROM traffic_hour"),
             'size_mb': self.size_mb(),

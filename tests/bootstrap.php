@@ -57,6 +57,7 @@ require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/L
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/InterfaceState.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SystemHistory.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SystemDetail.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/LensCalls.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SystemFacts.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/BaselineReport.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/Duration.php';
@@ -77,6 +78,7 @@ require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/L
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/InterfaceState.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SystemHistory.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SystemDetail.php';
+require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/LensCalls.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/SegmentReport.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceType.php';
 require_once __DIR__ . '/../net-mgmt/lens/src/opnsense/mvc/app/models/OPNsense/Lens/DeviceDetail.php';

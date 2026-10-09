@@ -617,27 +617,44 @@ def events(store, now, days):
     since = now - days * 86400
     today = now // 86400
     conf = store.settings()
+    # what each part costs, in the answer: box-2 took 3.97 s for 30 days and
+    # the round should say which part, not leave it to a guess (stage 54)
+    took = {}
+    clock = [time.time()]
+
+    def lap(name):
+        took[name] = int((time.time() - clock[0]) * 1000)
+        clock[0] = time.time()
 
     watching_since = store.watching_since()
     new, new_from = eventlib.new_devices(
         [(row['mac'], row['first_seen']) for row in store.devices_since(since)],
         watching_since, since)
+    lap('new')
 
     # the baseline window before the first day, so that day is judged as it was
     first_day = since // 86400
     totals = [(row['mac'], row['day'], row['octets'], row['sent'])
               for row in store.daily_totals((first_day - conf['baseline_days'] - 1) * 86400)]
     floor = conf['baseline_floor_mb'] * settingslib.MB
+    lap('daily_totals')
     unusual = eventlib.unusual_days(totals, first_day, today, conf['baseline_days'],
                                     conf['baseline_factor'], floor)
+    lap('unusual')
 
     rounds = [(row['at'], row['best_loss']) for row in store.probe_rounds(since)]
     outages = [{'from': start, 'to': end, 'ongoing': end == now}
                for start, end in uptime.assess(rounds, since, now, 1)['outages']]
 
     samples = [(row['name'], row['at'], row['status'], row['loss']) for row in store.gateway_states(since)]
+    lap('line')
+    overlaps = [{'address': row['address'], 'interface': row['interface'],
+                 'macs': [row['one'], row['other']], 'at': row['at']}
+                for row in store.address_overlaps(since)]
+    lap('overlaps')
 
     return {
+        'took_ms': took,
         'days': days,
         'since': since,
         'now': now,
@@ -650,9 +667,7 @@ def events(store, now, days):
         'probing': conf['probe_enabled'],
         'gateways': eventlib.gateway_runs(samples, now),
         'sampling': conf['gateway_samples'],
-        'overlaps': [{'address': row['address'], 'interface': row['interface'],
-                      'macs': [row['one'], row['other']], 'at': row['at']}
-                     for row in store.address_overlaps(since)],
+        'overlaps': overlaps,
         'pauses': store.pauses(since),
     }
 
@@ -1447,6 +1462,87 @@ def run(duty, worker):
     return 0 if ok else 1
 
 
+# Every duty that only reads, by name: one table for the single call and for
+# the bundle, so the two cannot answer differently. Each takes (store, now, options).
+READS = {
+    'status': lambda store, now, o: store.status(),
+    # status without the counts over whole tables, for the pages that want the runs
+    'brief': lambda store, now, o: store.status(counts=False),
+    'devices': lambda store, now, o: store.devices(),
+    'traffic': lambda store, now, o: traffic(store, now, o['hours']),
+    'unexplained': lambda store, now, o: unexplained(store, now, o['hours']),
+    'device': lambda store, now, o: device(store, now, o['mac'], o['hours']),
+    'identity': lambda store, now, o: store.identity_health(now),
+    'baseline': lambda store, now, o: baseline(store, now),
+    'timeline': lambda store, now, o: timeline(store, now, o['hours']),
+    'presence': lambda store, now, o: presence(store, now, o['hours']),
+    'profile': lambda store, now, o: profile(store, now, o['mac']),
+    'heatmap': lambda store, now, o: heatmap(store, now),
+    'gateways': lambda store, now, o: gateways(store, now, o['hours']),
+    'internet': lambda store, now, o: internet(store, now, o['hours']),
+    'settings': lambda store, now, o: settingslib.describe(store.stored_settings()),
+    'destinations': lambda store, now, o: destinations(store, now, o['mac'], o['days']),
+    'segments': lambda store, now, o: segments(store, now, o['hours']),
+    'moment': lambda store, now, o: moment(store, o['mac'], o['at'], o['step']),
+    'events': lambda store, now, o: events(store, now, o['days']),
+    'dns': lambda store, now, o: dns(store, now, o['hours']),
+    'dns-device': lambda store, now, o: dns_device(store, now, o['mac'], o['hours']),
+    'pauses': lambda store, now, o: pauses(store, now),
+    'kept': lambda store, now, o: kept(store),
+}
+
+
+def kept(store):
+    """What Lens keeps, per kind, for Services: Lens: Privacy (§4.72)."""
+    report = store.kept()
+    report['retention_days'] = store.setting_int('retention_days')
+    report['destinations_on'] = bool(store.settings().get('destinations_enabled'))
+    return report
+
+BUNDLE_MAX = 12
+
+
+def bundle(encoded):
+    """
+    Several reads in one process (stage 54): every configctl call starts Python
+    afresh, 0.13 s on router-01 before any work, and a page asked for four.
+    The request is base64url JSON, a list of [duty, {hours, mac, days, ...}];
+    the answer is a list of results in the same order, null where a duty is
+    unknown or failed -- one bad read never costs the others.
+    """
+    calls = decode_fields_list(encoded)
+    if calls is None or len(calls) > BUNDLE_MAX:
+        print(json.dumps({'error': 'not a list of at most %d reads' % BUNDLE_MAX}))
+        return 0
+    store = Store(DB_PATH)
+    now = int(time.time())
+    out = []
+    for call in calls:
+        name = call[0] if isinstance(call, list) and call else None
+        given = call[1] if isinstance(call, list) and len(call) > 1 and isinstance(call[1], dict) else {}
+        options = {'hours': DEFAULT_TRAFFIC_HOURS, 'mac': None, 'days': 30, 'at': 0, 'step': 3600}
+        for key in options:
+            if key in given:
+                options[key] = given[key] if key == 'mac' else int(given[key])
+        try:
+            out.append(READS[name](store, now, options) if name in READS else None)
+        except Exception as failure:                            # noqa: BLE001 - one bad read only
+            print('bundle: %s failed: %s' % (name, failure), file=sys.stderr)
+            out.append(None)
+    print(json.dumps(out))
+    return 0
+
+
+def decode_fields_list(encoded):
+    """:return: the base64url JSON list, or None"""
+    padding = '=' * (-len(encoded or '') % 4)
+    try:
+        value = json.loads(base64.urlsafe_b64decode((encoded or '') + padding).decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return value if isinstance(value, list) else None
+
+
 def main():
     parser = argparse.ArgumentParser(description='Lens collector')
     parser.add_argument(
@@ -1456,7 +1552,7 @@ def main():
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
                  'prune', 'purge', 'forget', 'kept', 'unexplained',
-                 'pause-start', 'pause-end', 'pauses'],
+                 'pause-start', 'pause-end', 'pauses', 'brief', 'bundle'],
     )
     parser.add_argument('--mac', help='the device to label, or to forget')
     parser.add_argument('--dry', action='store_true', help='forget: count, delete nothing')
@@ -1474,8 +1570,12 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.duty == 'status':
-        print(json.dumps(Store(DB_PATH).status()))
+    if args.duty == 'bundle':
+        return bundle(args.fields)
+
+    if args.duty in READS:
+        options = {'hours': args.hours, 'mac': args.mac, 'days': args.days, 'at': args.at, 'step': args.step}
+        print(json.dumps(READS[args.duty](Store(DB_PATH), int(time.time()), options)))
         return 0
 
     if args.duty == 'moment':
@@ -1569,14 +1669,6 @@ def main():
 
     if args.duty == 'forget':
         return forget(args.mac, args.dry)
-
-    if args.duty == 'kept':
-        store = Store(DB_PATH)
-        report = store.kept()
-        report['retention_days'] = store.setting_int('retention_days')
-        report['destinations_on'] = bool(store.settings().get('destinations_enabled'))
-        print(json.dumps(report))
-        return 0
 
     if args.duty == 'prune':
         return run('prune', lambda store, now: '%d rows removed' % store.prune(now))

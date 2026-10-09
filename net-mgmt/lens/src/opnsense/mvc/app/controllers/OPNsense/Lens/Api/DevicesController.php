@@ -38,6 +38,7 @@ use OPNsense\Lens\DeviceDetail;
 use OPNsense\Lens\DeviceProfile;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Headline;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\Palette;
 use OPNsense\Lens\PresenceReport;
@@ -95,10 +96,18 @@ class DevicesController extends ApiControllerBase
      */
     public static function report(Backend $backend, int $hours, array &$calls, array &$raw = []): array
     {
-        $devices = self::decode($backend, 'lens devices', $calls);
-        $status = self::decode($backend, 'lens status', $calls);
+        /* five reads, one Python start (stage 54) */
+        $read = LensCalls::many($backend, [
+            'devices' => ['devices'],
+            'status' => ['brief'],
+            'traffic' => ['traffic', ['hours' => $hours]],
+            'baseline' => ['baseline'],
+            'internet' => ['internet', ['hours' => 24]],
+        ], $calls);
+        $devices = $read['devices'];
+        $status = $read['status'];
+        $traffic = $read['traffic'];
         $macdb = self::decode($backend, 'interface list macdb', $calls);
-        $traffic = self::decode($backend, 'lens traffic ' . $hours, $calls);
 
         $observedAt = isset($status['runs']['observe']['at'])
             ? (int)$status['runs']['observe']['at']
@@ -114,7 +123,7 @@ class DevicesController extends ApiControllerBase
             (bool)($status['fold_randomised'] ?? true)
         );
         $report['baseline'] = BaselineReport::describe(
-            self::decode($backend, 'lens baseline', $calls),
+            $read['baseline'],
             self::names($report['devices']),
             DeviceReport::mutedMacs($report['devices'])
         );
@@ -126,7 +135,7 @@ class DevicesController extends ApiControllerBase
         $raw = [
             'status' => $status,
             'gateways' => self::decode($backend, 'interface gateways status', $calls),
-            'internet' => self::decode($backend, 'lens internet 24', $calls),
+            'internet' => $read['internet'],
         ];
         $report['sentence'] = Headline::compose(
             $report['summary'],
@@ -166,9 +175,10 @@ class DevicesController extends ApiControllerBase
         $backend = new Backend();
         $calls = [];
         $hours = Window::hours($this->request->get('hours', null, 168));
-        $status = self::decode($backend, 'lens status', $calls);
+        $read = LensCalls::many($backend, ['status' => ['brief'], 'devices' => ['devices']], $calls);
+        $status = $read['status'];
         $rows = DeviceReport::describe(
-            self::decode($backend, 'lens devices', $calls),
+            $read['devices'],
             self::decode($backend, 'interface list macdb', $calls),
             [],
             isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,
@@ -227,10 +237,15 @@ class DevicesController extends ApiControllerBase
         $backend = new Backend();
         $calls = [];
 
-        $devices = self::decode($backend, 'lens devices', $calls);
-        $status = self::decode($backend, 'lens status', $calls);
+        $read = LensCalls::many($backend, [
+            'devices' => ['devices'],
+            'status' => ['brief'],
+            'traffic' => ['traffic', ['hours' => Window::DEFAULT_HOURS]],
+        ], $calls);
+        $devices = $read['devices'];
+        $status = $read['status'];
         $macdb = self::decode($backend, 'interface list macdb', $calls);
-        $traffic = self::decode($backend, 'lens traffic ' . Window::DEFAULT_HOURS, $calls);
+        $traffic = $read['traffic'];
         $observedAt = isset($status['runs']['observe']['at'])
             ? (int)$status['runs']['observe']['at']
             : null;
@@ -290,10 +305,13 @@ class DevicesController extends ApiControllerBase
         $calls = [];
         $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
-        $devices = self::decode($backend, 'lens devices', $calls);
-        $status = self::decode($backend, 'lens status', $calls);
+        $read = LensCalls::many($backend, [
+            'devices' => ['devices'], 'status' => ['brief'], 'presence' => ['presence', ['hours' => $hours]],
+        ], $calls);
+        $devices = $read['devices'];
+        $status = $read['status'];
         $macdb = self::decode($backend, 'interface list macdb', $calls);
-        $raw = self::decode($backend, 'lens presence ' . $hours, $calls);
+        $raw = $read['presence'];
 
         $observedAt = isset($status['runs']['observe']['at'])
             ? (int)$status['runs']['observe']['at']
@@ -451,11 +469,12 @@ class DevicesController extends ApiControllerBase
     {
         $backend = new Backend();
         $calls = [];
-        $status = self::decode($backend, 'lens status', $calls);
+        $read = LensCalls::many($backend, ['status' => ['brief'], 'devices' => ['devices']], $calls);
+        $status = $read['status'];
         $names = SegmentsController::names();
 
         $report = DeviceReport::describe(
-            self::decode($backend, 'lens devices', $calls),
+            $read['devices'],
             self::decode($backend, 'interface list macdb', $calls),
             [],
             isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,

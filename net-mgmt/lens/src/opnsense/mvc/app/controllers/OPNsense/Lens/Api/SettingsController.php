@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\Settings;
 
 /**
@@ -51,9 +52,11 @@ class SettingsController extends ApiControllerBase
     {
         $backend = new Backend();
 
+        $read = LensCalls::many($backend, ['settings' => ['settings'], 'status' => ['status']]);
+
         return Settings::form(
-            self::decode($backend, 'lens settings'),
-            self::decode($backend, 'lens status'),
+            $read['settings'],
+            $read['status'],
             SegmentsController::names()
         );
     }

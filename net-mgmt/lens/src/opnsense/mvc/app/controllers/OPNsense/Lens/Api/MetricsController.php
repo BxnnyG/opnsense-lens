@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\BaselineReport;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\LineQuality;
@@ -60,10 +61,14 @@ class MetricsController extends ApiControllerBase
     {
         $backend = new Backend();
 
-        $devices = self::decode($backend, 'lens devices');
-        $status = self::decode($backend, 'lens status');
+        $read = LensCalls::many($backend, [
+            'devices' => ['devices'], 'status' => ['status'], 'traffic' => ['traffic', ['hours' => 24]],
+            'baseline' => ['baseline'], 'segments' => ['segments', ['hours' => 24]],
+        ]);
+        $devices = $read['devices'];
+        $status = $read['status'];
         $macdb = self::decode($backend, 'interface list macdb');
-        $traffic = self::decode($backend, 'lens traffic 24');
+        $traffic = $read['traffic'];
 
         $observedAt = isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null;
 
@@ -82,12 +87,12 @@ class MetricsController extends ApiControllerBase
             $names[$row['mac']] = $row['name'];
         }
         $report['baseline'] = BaselineReport::describe(
-            self::decode($backend, 'lens baseline'),
+            $read['baseline'],
             $names,
             DeviceReport::mutedMacs($report['devices'])
         );
 
-        $segments = SegmentReport::describe(self::decode($backend, 'lens segments 24'), SegmentsController::names());
+        $segments = SegmentReport::describe($read['segments'], SegmentsController::names());
 
         /* the exposition format, not JSON: Prometheus reads nothing else */
         $this->response->setRawHeader('Content-Type: text/plain; version=0.0.4; charset=utf-8');

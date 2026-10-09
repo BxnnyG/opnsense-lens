@@ -226,12 +226,12 @@ next person does not have to re-discover it.
 
 ## 1b. Status overview (maintain at EVERY stage)
 
-*Brought up to date 2026-10-09 against `os-lens-0.41_1`. "Router-tested" means
+*Brought up to date 2026-10-09 against `os-lens-0.42_1`. "Router-tested" means
 the operator clicked it on a box; "round clean" means `tools/round` passed on
 both boxes on 2026-10-07 (API, page load, the views compiled with the box's own
 Volt, screenshots taken) — without the changes made on purpose, the Settings
 round trip, the fix button, purge and forget; "built" means tests only —
-PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` to `0.40_1` passed it too and were clicked by the operator on box-2 (System page, tile links, the category, the time format); `0.41_1` has not been on a box.*
+PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10-09; `0.37_2` to `0.40_1` passed it too and were clicked by the operator on box-2 (System page, tile links, the category, the time format); `0.41_1` and `0.42_1` have not been on a box.*
 
 | System | Status | Rest / note |
 |---|---|---|
@@ -248,7 +248,7 @@ PROCESS calls that "plausible". `0.34_1` to `0.37_1` passed the round on 2026-10
 | S10 · Wallboard / kiosk | 🔨 (stages 14, 45) | built (§4.40, §4.48); since stage 45 one composed call with clock, figures, a live panel and the latest events (§4.71), seen at 1920×1080, 1440 and 390 px in `tools/preview`, round clean |
 | S11 · Command palette | 🔨 (37) | one search, core's: on Lens pages core's box opens the larger search grown out of it, with core's whole menu, the devices and the networks (§4.79); seen by the operator on `0.33` |
 | S12 · DNS view | 🔨 (36, 44) | built from core's `stats.py` source (§4.64); by device and by name from Unbound's store through core's helper since stage 44 (§4.70), with a week per device; services from v2fly's domain lists laid over it since `0.33_1` (§4.78, §4.79), seen by the operator on both boxes; nothing stored; its own privilege. On a dnsmasq box it says so. Still missing: the policy behind a block |
-| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round timed a week at 9.4 s on box-2 and hours are settled once since (§4.76) — not re-timed yet. Observe waits up to a 4 s probe deadline |
+| S13 · Load budget | ⚾ rule | never "done" — see PROCESS edge case 3. Stage 54 (`0.42_1`): one Python start per page through `lens bundle`, `lens brief` without whole-table counts, events' daily totals summed only where missing. Stage 41 found pages taking seconds on a large store and fixed the join (§4.69); the round timed a week at 9.4 s on box-2 and hours are settled once since (§4.76) — not re-timed yet. Observe waits up to a 4 s probe deadline |
 | S14 · Privacy & retention | ⚾ rule | never "done" — see PROCESS edge case 5. Retention, ceiling and purge on Services: Lens: Settings (stage 30, §4.58); destinations are opt-in and inside retention and purge (§4.62); pausing observation or the harvest is BACKLOG #34; one device can be forgotten, and what is kept is on Services: Lens: Privacy since stage 46 (§4.72); past pauses are a kind of their own there, inside retention, purge and forget, while a pause still running is the firewall's state and survives purge (§4.74) |
 | S15 · Test & gate chain | ⚾ rule | never "done" |
 | S16 · Line & reachability | 🔨 (stages 28, 29, 30) | gateways from dpinger (§4.56), public resolvers probed by Lens itself (§4.57), both switchable with operator-chosen targets (§4.58); the WAN is where the default route points, per protocol, since `0.31_2` (§4.75); the public address asked of Cloudflare hourly and the strip in quarter hours since `0.34_1` (§4.81, §4.82); the rest round clean |

@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Events;
 
@@ -58,12 +59,15 @@ class EventsController extends ApiControllerBase
 
         $backend = new Backend();
         $started = microtime(true);
-        $status = self::decode($backend, 'lens status');
+        $read = LensCalls::many($backend, [
+            'status' => ['brief'], 'devices' => ['devices'], 'events' => ['events', ['days' => $days]],
+        ]);
+        $status = $read['status'];
         $observedAt = isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null;
         $names = SegmentsController::names();
 
         $devices = DeviceReport::describe(
-            self::decode($backend, 'lens devices'),
+            $read['devices'],
             self::decode($backend, 'interface list macdb'),
             [],
             $observedAt,
@@ -72,7 +76,7 @@ class EventsController extends ApiControllerBase
             (bool)($status['fold_randomised'] ?? true)
         );
 
-        $report = Events::describe(self::decode($backend, 'lens events ' . $days), $devices['devices'], $names, time());
+        $report = Events::describe($read['events'], $devices['devices'], $names, time());
         $report['timing'] = ['total_ms' => (int)round((microtime(true) - $started) * 1000)];
 
         return $report;

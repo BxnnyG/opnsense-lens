@@ -29,6 +29,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Pause;
 use OPNsense\Lens\PauseRule;
@@ -220,9 +221,10 @@ class PauseController extends ApiControllerBase
             return null;
         }
 
-        $status = self::decode($backend, 'lens status');
+        $read = LensCalls::many($backend, ['status' => ['brief'], 'devices' => ['devices']]);
+        $status = $read['status'];
         $rows = DeviceReport::describe(
-            self::decode($backend, 'lens devices'),
+            $read['devices'],
             self::decode($backend, 'interface list macdb'),
             [],
             isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,

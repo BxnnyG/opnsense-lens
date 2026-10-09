@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\IdentityHealth;
 use OPNsense\Lens\StoreReport;
 
@@ -61,11 +62,12 @@ class StoreController extends ApiControllerBase
     public function statusAction()
     {
         $backend = new Backend();
-        $status = self::decode($backend, 'lens status');
+        $read = LensCalls::many($backend, ['status' => ['status'], 'identity' => ['identity']]);
+        $status = $read['status'];
 
         $report = StoreReport::describe($status, time());
         $report['identity'] = IdentityHealth::assess(
-            self::decode($backend, 'lens identity'),
+            $read['identity'],
             time()
         );
 

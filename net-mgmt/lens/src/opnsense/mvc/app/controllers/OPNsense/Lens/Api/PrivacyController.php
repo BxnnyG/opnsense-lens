@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\Privacy;
 
@@ -50,11 +51,12 @@ class PrivacyController extends ApiControllerBase
     public function keptAction()
     {
         $backend = new Backend();
-        $status = self::decode($backend, 'lens status');
-        $report = Privacy::describe(self::decode($backend, 'lens kept'), time());
+        $read = LensCalls::many($backend, ['status' => ['brief'], 'kept' => ['kept'], 'devices' => ['devices']]);
+        $status = $read['status'];
+        $report = Privacy::describe($read['kept'], time());
 
         $rows = DeviceReport::describe(
-            self::decode($backend, 'lens devices'),
+            $read['devices'],
             self::decode($backend, 'interface list macdb'),
             [],
             isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,

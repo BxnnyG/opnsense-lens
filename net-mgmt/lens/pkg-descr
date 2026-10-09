@@ -28,6 +28,13 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.42_1
+
+* faster pages: a page asks the collector once instead of up to five times
+  (each ask started Python afresh), the collector's status no longer counts
+  every stored row for pages that only want to know when it last ran, and a
+  month of events no longer recomputes days that were summed long ago
+
 0.41_1
 
 * the dashboard's health row is a strip now: one sentence, a chip for each

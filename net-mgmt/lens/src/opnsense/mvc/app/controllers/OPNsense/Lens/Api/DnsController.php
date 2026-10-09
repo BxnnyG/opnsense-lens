@@ -30,6 +30,7 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\Lens\LensCalls;
 use OPNsense\Core\Config;
 use OPNsense\Lens\DeviceReport;
 use OPNsense\Lens\DnsDevice;
@@ -100,10 +101,11 @@ class DnsController extends ApiControllerBase
     /** every device, folded as the operator chose, so a client is named as every page names it */
     private static function rows(Backend $backend): array
     {
-        $status = self::decode($backend, 'lens status');
+        $read = LensCalls::many($backend, ['status' => ['brief'], 'devices' => ['devices']]);
+        $status = $read['status'];
 
         return DeviceReport::describe(
-            self::decode($backend, 'lens devices'),
+            $read['devices'],
             self::decode($backend, 'interface list macdb'),
             [],
             isset($status['runs']['observe']['at']) ? (int)$status['runs']['observe']['at'] : null,
