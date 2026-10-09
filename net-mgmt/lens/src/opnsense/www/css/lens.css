@@ -892,3 +892,16 @@ a.health-tile:hover { color: inherit; text-decoration: none; border-color: var(-
 .health-tile.health-warn { border-left-color: var(--lens-warn); }
 .health-tile.health-bad { border-left-color: var(--lens-bad); }
 .health-tile.health-grey { opacity: 0.8; }
+
+/* ---------------------------------------------------------------- the port (stage 51) */
+.seg-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px;
+           background: var(--lens-muted); vertical-align: middle; }
+.seg-dot.health-good { background: var(--lens-good); }
+.seg-dot.health-warn { background: var(--lens-warn); }
+.seg-dot.health-bad { background: var(--lens-bad); }
+.seg-addr { font-variant-numeric: tabular-nums; word-break: break-all; }
+.seg-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 6px;
+            font-size: 12px; }
+.seg-here { font-weight: 600; }
+.seg-errors { color: var(--lens-muted); }
+.seg-errors-warn { color: var(--lens-warn); }

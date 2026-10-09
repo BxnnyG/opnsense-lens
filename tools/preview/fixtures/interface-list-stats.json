@@ -1,0 +1,82 @@
+{
+ "pppoe0": {
+  "device": "pppoe0",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1": {
+  "device": "vtnet1",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1_vlan10": {
+  "device": "vtnet1_vlan10",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1_vlan20": {
+  "device": "vtnet1_vlan20",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1_vlan21": {
+  "device": "vtnet1_vlan21",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "2410",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1_vlan22": {
+  "device": "vtnet1_vlan22",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "vtnet1_vlan30": {
+  "device": "vtnet1_vlan30",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ },
+ "wt0": {
+  "device": "wt0",
+  "driver": "vtnet",
+  "packets received": "1840221",
+  "packets transmitted": "1622310",
+  "input errors": "0",
+  "output errors": "0",
+  "collisions": "0",
+  "line rate": "10000000000 bit/s"
+ }
+}

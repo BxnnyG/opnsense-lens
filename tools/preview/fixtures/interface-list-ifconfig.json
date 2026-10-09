@@ -1,0 +1,166 @@
+{
+ "pppoe0": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "up",
+  "media": "",
+  "macaddr": "00:0d:b9:00:00:00",
+  "ipv4": [
+   {
+    "ipaddr": "84.1.2.3",
+    "subnetbits": 32
+   }
+  ]
+ },
+ "vtnet1": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "active",
+  "media": "Ethernet autoselect (10Gbase-T <full-duplex>)",
+  "macaddr": "00:0d:b9:00:00:01",
+  "ipv4": [
+   {
+    "ipaddr": "192.168.1.1",
+    "subnetbits": 24
+   }
+  ]
+ },
+ "vtnet1_vlan10": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "active",
+  "media": "Ethernet autoselect (10Gbase-T <full-duplex>)",
+  "macaddr": "00:0d:b9:00:00:02",
+  "ipv4": [
+   {
+    "ipaddr": "10.10.10.1",
+    "subnetbits": 24
+   }
+  ],
+  "vlan": {
+   "tag": "10",
+   "parent": "vtnet1"
+  }
+ },
+ "vtnet1_vlan20": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "active",
+  "media": "Ethernet autoselect (10Gbase-T <full-duplex>)",
+  "macaddr": "00:0d:b9:00:00:03",
+  "ipv4": [
+   {
+    "ipaddr": "10.10.20.1",
+    "subnetbits": 24
+   }
+  ],
+  "vlan": {
+   "tag": "20",
+   "parent": "vtnet1"
+  }
+ },
+ "vtnet1_vlan21": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "active",
+  "media": "Ethernet autoselect (10Gbase-T <full-duplex>)",
+  "macaddr": "00:0d:b9:00:00:04",
+  "ipv4": [
+   {
+    "ipaddr": "10.10.21.1",
+    "subnetbits": 24
+   }
+  ],
+  "vlan": {
+   "tag": "21",
+   "parent": "vtnet1"
+  }
+ },
+ "vtnet1_vlan22": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "no carrier",
+  "media": "Ethernet autoselect (none)",
+  "macaddr": "00:0d:b9:00:00:05",
+  "ipv4": [
+   {
+    "ipaddr": "10.10.22.1",
+    "subnetbits": 24
+   }
+  ],
+  "vlan": {
+   "tag": "22",
+   "parent": "vtnet1"
+  }
+ },
+ "vtnet1_vlan30": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "active",
+  "media": "Ethernet autoselect (10Gbase-T <full-duplex>)",
+  "macaddr": "00:0d:b9:00:00:06",
+  "ipv4": [
+   {
+    "ipaddr": "10.10.30.1",
+    "subnetbits": 24
+   }
+  ],
+  "vlan": {
+   "tag": "30",
+   "parent": "vtnet1"
+  }
+ },
+ "wt0": {
+  "flags": [
+   "up",
+   "broadcast",
+   "running",
+   "simplex",
+   "multicast"
+  ],
+  "status": "",
+  "media": "",
+  "macaddr": "00:0d:b9:00:00:07",
+  "ipv4": [
+   {
+    "ipaddr": "100.64.0.1",
+    "subnetbits": 16
+   }
+  ]
+ }
+}

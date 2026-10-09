@@ -28,6 +28,16 @@ configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.37_1
+
+* each card on Reporting: Lens: Networks shows its port: up or not, speed and
+  duplex, VLAN, its addresses, errors since boot as a share of packets, and
+  how many devices are there now, one click from the list of them
+* an Interfaces tile in the health row: all assigned, enabled interfaces up,
+  or which are not and why ("IOT: no carrier"), or which keep losing packets
+  to errors (100 errors and 0.1% of packets)
+* read as Interfaces: Overview reads it; nothing stored
+
 0.36_2
 
 * a certificate referenced only by something switched off (a disabled ACME

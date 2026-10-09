@@ -2,14 +2,14 @@
 <!-- Shaped like the operator's box (ROADMAP, operations notes): PPPoE, five VLANs on vtnet1, NetBird. -->
 <opnsense>
   <interfaces>
-    <wan><if>pppoe0</if><descr>WAN</descr></wan>
-    <lan><if>vtnet1</if><descr>LAN</descr></lan>
-    <opt1><if>vtnet1_vlan10</if><descr>MGNT</descr></opt1>
-    <opt2><if>vtnet1_vlan20</if><descr>HOME</descr></opt2>
-    <opt3><if>vtnet1_vlan21</if><descr>IOT</descr></opt3>
-    <opt4><if>vtnet1_vlan22</if><descr>GUEST</descr></opt4>
-    <opt5><if>vtnet1_vlan30</if><descr>SERVER</descr></opt5>
-    <opt6><if>wt0</if><descr>NetBird</descr></opt6>
+    <wan><if>pppoe0</if><descr>WAN</descr><enable>1</enable></wan>
+    <lan><if>vtnet1</if><descr>LAN</descr><enable>1</enable></lan>
+    <opt1><if>vtnet1_vlan10</if><descr>MGNT</descr><enable>1</enable></opt1>
+    <opt2><if>vtnet1_vlan20</if><descr>HOME</descr><enable>1</enable></opt2>
+    <opt3><if>vtnet1_vlan21</if><descr>IOT</descr><enable>1</enable></opt3>
+    <opt4><if>vtnet1_vlan22</if><descr>GUEST</descr><enable>1</enable></opt4>
+    <opt5><if>vtnet1_vlan30</if><descr>SERVER</descr><enable>1</enable></opt5>
+    <opt6><if>wt0</if><descr>NetBird</descr><enable>1</enable></opt6>
   </interfaces>
   <OPNsense>
     <Netflow>

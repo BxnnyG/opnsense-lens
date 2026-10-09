@@ -229,7 +229,7 @@ data Lens already keeps; none is planned before the router round.
 
 ### From the front-page decision, 2026-10-09 (§4.84)
 
-- **#49 — Interfaces with their devices.** Per interface: state, addresses,
+- **#49 — Interfaces with their devices.** 🔨 built 2026-10-09 as stage 51 (`0.37_1`). Per interface: state, addresses,
   link speed, errors and drops, traffic, and the devices behind it — the join
   core's interface pages cannot make. Phase 2 of §4.84.
 - **#50 — Plugin tiles, only where installed.** DynDNS against the public
@@ -238,6 +238,13 @@ data Lens already keeps; none is planned before the router round.
 - **#51 — History from core's RRD.** CPU, memory, temperature and traffic
   graphs read from what System: Health already records, never stored twice.
   Phase 4 of §4.84.
+- **#52 — Pausing, grouped.** Operator, 2026-10-09, after the first pause on a
+  box worked: "maybe gruppieren oder taggen in den rules". Two readings, two
+  answers. *Pause a group* — every device with a tag or an owner at once — fits
+  inside §4.74 as it stands: the same alias, more MACs. *A category "Lens" on
+  the rule* in Firewall: Rules is a third object Lens would write (a firewall
+  category), and rule 6 lets Lens write exactly two; that needs the operator's
+  word before it is built.
 
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two

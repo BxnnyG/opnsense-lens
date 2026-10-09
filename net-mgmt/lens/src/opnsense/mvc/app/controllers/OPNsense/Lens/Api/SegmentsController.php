@@ -31,6 +31,7 @@ namespace OPNsense\Lens\Api;
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
+use OPNsense\Lens\InterfaceState;
 use OPNsense\Lens\SegmentReport;
 use OPNsense\Lens\Window;
 
@@ -59,7 +60,8 @@ class SegmentsController extends ApiControllerBase
 
         $report = SegmentReport::describe(
             json_last_error() === JSON_ERROR_NONE && is_array($raw) ? $raw : [],
-            self::names()
+            self::names(),
+            self::links(new Backend())
         );
         $report['window'] = Window::describe(
             $hours,
@@ -77,6 +79,48 @@ class SegmentsController extends ApiControllerBase
      *
      * @return array device name to description
      */
+    /**
+     * Every interface's link, as core's Interfaces: Overview reads it (stage 51):
+     * `interface list ifconfig` and `interface list stats`, keyed by device.
+     *
+     * @return array device => InterfaceState::describe()
+     */
+    public static function links(Backend $backend): array
+    {
+        $details = json_decode((string)$backend->configdpRun('interface list ifconfig', [null]), true);
+        $stats = json_decode((string)$backend->configdpRun('interface list stats', [null]), true);
+        $links = [];
+        foreach (is_array($details) ? $details : [] as $device => $entry) {
+            if (is_array($entry)) {
+                $links[(string)$device] = InterfaceState::describe(
+                    $entry,
+                    is_array($stats[$device] ?? null) ? $stats[$device] : []
+                );
+            }
+        }
+
+        return $links;
+    }
+
+    /**
+     * The interfaces the operator assigned and enabled, by device, with their
+     * names -- what the health row's Interfaces tile is about.
+     *
+     * @return array device => name
+     */
+    public static function enabled(): array
+    {
+        $out = [];
+        foreach (Config::getInstance()->object()->interfaces->children() as $key => $interface) {
+            $device = (string)$interface->if;
+            if ($device !== '' && !empty((string)$interface->enable)) {
+                $out[$device] = (string)$interface->descr !== '' ? (string)$interface->descr : strtoupper((string)$key);
+            }
+        }
+
+        return $out;
+    }
+
     public static function names(): array
     {
         $names = [];

@@ -34,6 +34,7 @@ use OPNsense\Core\ACL;
 use OPNsense\Core\Config;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\Health;
+use OPNsense\Lens\InterfaceState;
 use OPNsense\Lens\Events;
 use OPNsense\Lens\Heatmap;
 use OPNsense\Lens\Internet;
@@ -253,6 +254,16 @@ class DashboardController extends ApiControllerBase
             }),
             $read('system', function () use ($backend) {
                 return Health::system(self::facts($backend));
+            }),
+            $read('interfaces', function () use ($backend) {
+                $links = SegmentsController::links($backend);
+                $named = [];
+                foreach (SegmentsController::enabled() as $device => $name) {
+                    if (isset($links[$device])) {
+                        $named[$name] = $links[$device];
+                    }
+                }
+                return InterfaceState::tile($named);
             }),
             $read('temperature', function () use ($backend) {
                 return Health::temperature(self::temperatures($backend));

@@ -49,9 +49,10 @@ class SegmentReport
     /**
      * @param array $raw what `lens segments` returned
      * @param array $names device name (`lagg0_vlan24`) to the operator's name
+     * @param array $links device name to InterfaceState::describe(), [] when unread (stage 51)
      * @return array
      */
-    public static function describe(array $raw, array $names): array
+    public static function describe(array $raw, array $names, array $links = []): array
     {
         $deviceInterfaces = array_flip((array)($raw['device_interfaces'] ?? []));
 
@@ -82,6 +83,11 @@ class SegmentReport
                 'addresses' => (int)($segment['addresses'] ?? 0),
                 'series' => array_map('intval', (array)($segment['series'] ?? [])),
                 'note' => self::note($interface, $octets, $named, isset($deviceInterfaces[$interface])),
+                /* the port and who is on it now (stage 51, §4.84) */
+                'link' => $links[$interface] ?? null,
+                'here' => (int)($segment['here'] ?? 0),
+                'devices_link' => isset($deviceInterfaces[$interface])
+                    ? '/ui/lens/overview?segment=' . rawurlencode($interface) : null,
             ];
         }
 

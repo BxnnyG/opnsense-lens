@@ -1021,10 +1021,17 @@ def segments(store, now, hours):
         points = series.get(interface, {})
         entry['series'] = [points.get(at, 0) for at in slots]
 
+    # who is on each network now: what the last observation saw (stage 51)
+    observed = (store.status().get('runs', {}).get('observe') or {}).get('at')
+    here = store.here_by_interface(int(observed) - 60) if observed else {}
+    for interface, entry in rows.items():
+        entry['here'] = here.get(interface, 0)
+
     return {
         'hours': hours,
         'since': since,
         'step': step,
+        'here': here,
         'segments': sorted(rows.values(), key=lambda r: r['octets'], reverse=True),
         'device_interfaces': sorted(store.device_interfaces()),
         'first_bucket': store.status()['first_bucket'],

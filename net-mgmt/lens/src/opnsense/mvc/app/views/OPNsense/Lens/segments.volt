@@ -168,11 +168,24 @@
                     + '&segment=' + encodeURIComponent(segment.interface);
                 const $card = $('<a/>').addClass('content-box seg-card').attr('href', href);
 
+                /* the port itself, as core's Interfaces: Overview reads it (stage 51) */
+                const link = segment.link;
+                const $name = $('<div/>').addClass('seg-card-name').text(segment.name);
+                if (link) {
+                    $name.prepend($('<span/>').addClass('seg-dot health-' + link.tone)
+                        .attr('title', link.status));
+                }
                 $card.append($('<div/>').addClass('seg-card-head')
                     .append($('<div/>')
-                        .append($('<div/>').addClass('seg-card-name').text(segment.name))
-                        .append($('<div/>').addClass('seg-if').text(segment.interface)))
+                        .append($name)
+                        .append($('<div/>').addClass('seg-if').text(segment.interface
+                            + (link && link.vlan !== null ? ' \u00b7 VLAN ' + link.vlan : '')
+                            + (link && link.media ? ' \u00b7 ' + link.media : '')
+                            + (link && link.status !== 'up' ? ' \u00b7 ' + link.status : ''))))
                     .append(ring(segment.named_share)));
+                if (link && link.addresses.length) {
+                    $card.append($('<div/>').addClass('seg-if seg-addr').text(link.addresses.join('  ')));
+                }
 
                 $card.append($('<div/>').addClass('seg-card-num').text(segment.traffic));
                 $card.append($('<div/>').addClass('seg-if')
@@ -182,6 +195,11 @@
                     .append(document.createTextNode(segment.received + ' \u00b7 '
                         + segment.addresses + ' {{ lang._("addresses") }}')));
                 $card.append(sparkline(segment.series || []));
+                $card.append($('<div/>').addClass('seg-foot')
+                    .append($('<span/>').addClass('seg-here').text(segment.here
+                        + ' {{ lang._("devices here now") }} \u203a'))
+                    .append(link ? $('<span/>').addClass('seg-errors')
+                        .toggleClass('seg-errors-warn', link.tone === 'warn').text(link.error_text) : ''));
                 if (segment.note) {
                     $card.append($('<div/>').addClass('seg-note').text(segment.note));
                 }

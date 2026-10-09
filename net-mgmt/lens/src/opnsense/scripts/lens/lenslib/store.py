@@ -673,6 +673,15 @@ class Store:
 
     # ------------------------------------------------------- bookkeeping
 
+    def here_by_interface(self, since):
+        """:return: interface -> distinct MACs seen on it at or after `since` (stage 51)"""
+        return {
+            row['interface']: row['devices']
+            for row in self.db.execute(
+                """SELECT interface, count(DISTINCT mac) AS devices FROM address_observation
+                   WHERE last_seen >= ? GROUP BY interface""", (int(since),))
+        }
+
     def device_interfaces(self):
         """:return: set of interfaces on which any device has ever been observed"""
         return {

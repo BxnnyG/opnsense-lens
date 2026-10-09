@@ -143,6 +143,10 @@ foreach (glob("/usr/local/opnsense/mvc/app/views/OPNsense/Lens/*.volt") as $view
     $lines = [];
     unlink($out);
 }' 2>&1
+# the port's own data, raw, so InterfaceState is checked against what the box
+# says rather than against core's source alone (stage 51)
+section ifconfig;  configctl interface list ifconfig 2>&1 | head -c 20000
+section ifstats;   configctl interface list stats 2>&1 | head -c 20000
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
@@ -378,7 +382,7 @@ def judge_ssh(report, sec, expected_version):
             report.check('page %s compiles on this box' % view, 'ok' if verdict == 'ok' else 'FAIL',
                          verdict.replace('|', '/')[:160])
 
-    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash'):
+    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash', 'ifconfig', 'ifstats'):
         if sec.get(name):
             report.note(name, sec[name])
 

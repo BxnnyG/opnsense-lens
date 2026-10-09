@@ -406,6 +406,12 @@ namespace {
                 ]);
             }
 
+            /* core passes [null] for "every interface"; the fixture is the same either way */
+            foreach (['interface list ifconfig', 'interface list stats'] as $all) {
+                if (strpos($event, $all) === 0) {
+                    $event = $all;
+                }
+            }
             $file = PREVIEW_FIXTURES . '/' . preg_replace('/[^a-z0-9]+/', '-', $event) . '.json';
             if (is_file($file)) {
                 return (string)file_get_contents($file);
