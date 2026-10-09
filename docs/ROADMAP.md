@@ -95,7 +95,7 @@ against observations from the operator's own network, which stage 4 produces.
 | # | Intent | System | Status |
 |---|---|---|---|
 | — | **Router rounds** — `tools/lens-deploy.sh --round` on both boxes after every release since 2026-10-07 ([checklist](ROUTER-ROUND.md)) | all | ✅ clean on both boxes through `0.43_1` (55 checks, 2026-10-09); pause clicked by the operator on box-2 |
-| — | **First GitHub release and the feed at `0.43_1`** — a tag now builds the signed feed and a release with the package attached | S0 | 🔨 2026-10-09 (`v0.43.1`) |
+| — | **First GitHub release, and the feed brought up** — a tag now builds the signed feed and a release with the package attached | S0 | ✅ 2026-10-09: tag `v0.43.2` → release *Lens 0.43_2* with `os-lens-0.43_2.pkg`, feed verified serving `os-lens 0.43_2`. The `github-pages` environment allowed only `master`; a deployment policy for tags `v*` was added so a tag can publish. The feed's one-liner on a fresh box is still untested |
 | — | **Presence of quiet devices** — servers that say nothing for a while fall out of the ARP table and showed gaps on box-2; count an hour with traffic as present too (never a lease, §4.77) | S1, S5 | ⏳ next |
 | — | **Load times, second round** — the health row's sources at once and kept a minute on the box; the Networks duty (0.94 s); the full status count | S13 | ⏳ |
 | — | **One look, the other eight pages** — DNS, Networks, Settings, Privacy, Data Sources, Weekly report, Wallboard, Compare, and the phone (§4.88) | S6 | ⏳ |
