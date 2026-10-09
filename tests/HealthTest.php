@@ -303,4 +303,28 @@ class HealthTest extends TestCase
         $this->assertSame('warn', Health::tailscale(array_merge($status, ['Self' => ['Online' => false]]))['tone']);
         $this->assertSame('grey', Health::tailscale(null)['tone']);
     }
+
+    public function testSecuritySaysWhatIsKnownAndHowOldThatIs()
+    {
+        $day = 86400;
+        $this->assertSame('grey', Health::security([], self::NOW)['tone']);
+        $none = Health::security(['database' => null, 'readable' => false, 'packages' => []], self::NOW);
+        $this->assertStringContainsString('Run an audit', $none['sentence']);
+
+        $clean = Health::security(['database' => self::NOW - $day, 'readable' => true, 'packages' => []], self::NOW);
+        $this->assertSame('good', $clean['tone']);
+        $this->assertSame('/ui/lens/system#security', $clean['link']);
+        $this->assertSame('/ui/core/firmware#status', $clean['core']);
+
+        $old = Health::security(['database' => self::NOW - 20 * $day, 'readable' => true, 'packages' => []], self::NOW);
+        $this->assertSame('warn', $old['tone']);
+        $this->assertStringContainsString('20 days old', $old['sentence']);
+
+        $known = Health::security(['database' => self::NOW, 'readable' => true, 'packages' => [
+            ['name' => 'curl', 'version' => '8.4.0', 'issues' => []],
+            ['name' => 'expat', 'version' => '2.5.0', 'issues' => []],
+        ]], self::NOW);
+        $this->assertSame('warn', $known['tone']);
+        $this->assertSame('2 installed packages have known vulnerabilities: curl, expat.', $known['sentence']);
+    }
 }

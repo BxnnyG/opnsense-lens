@@ -293,6 +293,11 @@ class DashboardController extends ApiControllerBase
                 return Health::updates(self::decodeOrNull($backend, 'firmware product'));
             });
         }
+        if ($acl->isPageAccessible($user, '/api/core/firmware/status')) {
+            $tiles[] = $read('security', function () use ($backend) {
+                return Health::security(self::decodeOrNull($backend, 'lens audit'), time());
+            });
+        }
         if ($acl->isPageAccessible($user, '/api/core/service/search')) {
             $tiles[] = $read('services', function () use ($backend) {
                 return Health::services(self::decodeOrNull($backend, 'service list'));

@@ -2300,3 +2300,23 @@ what it is, "reverse DNS says", never as a name the device asked for. Both are
 until switched on, inside retention, purge and forget (rule 9). `dump_cache`
 is measured on box-2 before the stage is called done (rule 7).
 
+### §4.90 — A quiet device is still there when its address answers (2026-10-09)
+**Seen** on box-2's Who's home after the strip of §4.88: servers that never go
+away at 18–20 of 24 hours, in a regular comb of gaps — they fall out of the ARP
+table when they say nothing for a while. **Decision** (stage 56): a gap between
+two windows of the same device on the same address is bridged hour by hour
+where NetFlow saw that address move traffic, clipped to the gap, up to 24
+hours, and never when another device held the address in between (§4.36).
+Traffic is evidence someone answered there; a lease is still not (§4.77). The
+page says, on the hours figure, how much of it only traffic proves.
+
+### §4.91 — Security: what is known, never a zero-day (2026-10-09, operator)
+**Asked:** "wenn Zero-Day, dann auch so ein Wissen mit reinbringen."
+**Decision** (stage 57): a *Security* tile from `pkg audit` against the
+vulnerability database already on the box, run by the collector only when the
+database or the packages changed, kept in a file; Lens never fetches the
+database — that stays OPNsense's own *Run an audit*. The tile says what is
+known and how old that knowledge is; SECURITY.md says how a vulnerability in
+Lens itself is handled (private report, tagged fix through feed and release,
+advisory, CVE).
+

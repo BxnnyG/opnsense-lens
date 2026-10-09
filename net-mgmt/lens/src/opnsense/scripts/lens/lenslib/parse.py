@@ -417,3 +417,35 @@ def public_answer(text):
                 continue
     return None
 
+
+def audit_packages(text):
+    """
+    `pkg audit -R json-compact` (FreeBSD pkg, src/audit.c): {"pkg_count": n,
+    "packages": {name: {"version", "issue_count", "issues": [{"description",
+    "cve": [...], "url"}]}}}.
+
+    :return: [{'name', 'version', 'issues': [{'description', 'cves', 'url'}]}],
+             or None when the answer is not that document
+    """
+    import json
+    try:
+        top = json.loads(text or '')
+    except ValueError:
+        return None
+    if not isinstance(top, dict):
+        return None
+    out = []
+    for name, entry in sorted((top.get('packages') or {}).items()):
+        if not isinstance(entry, dict):
+            continue
+        issues = []
+        for issue in entry.get('issues') or []:
+            if isinstance(issue, dict):
+                issues.append({
+                    'description': str(issue.get('description') or ''),
+                    'cves': [str(c) for c in (issue.get('cve') or []) if c],
+                    'url': str(issue.get('url') or ''),
+                })
+        out.append({'name': str(name), 'version': str(entry.get('version') or ''), 'issues': issues})
+    return out
+

@@ -151,6 +151,9 @@ section ifconfig;  configctl interface list ifconfig 2>&1 | head -c 20000
 section ifstats;   configctl interface list stats 2>&1 | head -c 20000
 # which history core keeps, so the System page's choice meets the box (stage 53)
 section rrd;       ls /var/db/rrd 2>&1 | head -60
+# what pkg audit says against the database already on the box (stage 57):
+# never -F, Lens does not fetch; the raw shape checks the parser
+section audit;     ls -la /var/db/pkg/vuln.xml 2>&1; /usr/local/sbin/pkg audit -R json-compact 2>&1 | head -c 4000
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
@@ -386,7 +389,7 @@ def judge_ssh(report, sec, expected_version):
             report.check('page %s compiles on this box' % view, 'ok' if verdict == 'ok' else 'FAIL',
                          verdict.replace('|', '/')[:160])
 
-    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash', 'ifconfig', 'ifstats', 'rrd'):
+    for name in ('python', 'cpu', 'uptime', 'segments', 'settings', 'php_errors', 'crash', 'ifconfig', 'ifstats', 'rrd', 'audit'):
         if sec.get(name):
             report.note(name, sec[name])
 

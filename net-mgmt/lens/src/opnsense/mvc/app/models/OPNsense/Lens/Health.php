@@ -411,6 +411,57 @@ class Health
             : sprintf(gettext('All %d names point at this firewall.'), count($names)));
     }
 
+    public const AUDIT_OLD_DAYS = 7;
+
+    /**
+     * Known vulnerabilities in the installed packages (stage 57): what FreeBSD's
+     * database on this box names -- read by the collector with `pkg audit`,
+     * never fetched by Lens. A zero-day is in no database; the tile says what
+     * is known, and how old that knowledge is.
+     *
+     * @param array|null $audit the collector's audit.json, [] before its first run
+     */
+    public static function security(?array $audit, int $now): ?array
+    {
+        $tile = self::tile('security', gettext('Security'), 'fa-shield', '/ui/core/firmware#status');
+        if ($audit === null || $audit === []) {
+            return self::grey($tile, gettext('Not audited yet: the collector checks within half an hour.'));
+        }
+        if (empty($audit['database'])) {
+            return self::grey($tile, gettext(
+                'No vulnerability database on this box yet: System: Firmware: Status, Run an audit.'
+            ));
+        }
+        if (empty($audit['readable'])) {
+            return self::grey($tile, gettext('The vulnerability audit did not answer.'));
+        }
+        $days = (int)floor(($now - (int)$audit['database']) / 86400);
+        $age = Duration::span(max(0, $now - (int)$audit['database']));
+        $tile['detail'] = [sprintf(gettext('database %s old'), $age)];
+        $packages = array_values((array)($audit['packages'] ?? []));
+        if ($packages !== []) {
+            $names = array_map(function ($package) {
+                return (string)$package['name'];
+            }, $packages);
+            $sentence = count($names) === 1
+                ? sprintf(gettext('%s has a known vulnerability.'), $names[0])
+                : sprintf(
+                    gettext('%d installed packages have known vulnerabilities: %s.'),
+                    count($names),
+                    implode(', ', array_slice($names, 0, 4))
+                );
+            return self::say($tile, 'warn', $sentence);
+        }
+        if ($days > self::AUDIT_OLD_DAYS) {
+            return self::say($tile, 'warn', sprintf(
+                gettext('Nothing known, but the database is %d days old: run an audit to know more.'),
+                $days
+            ));
+        }
+
+        return self::say($tile, 'good', gettext('No installed package has a known vulnerability.'));
+    }
+
     /**
      * Every enabled DynDNS name and what it points at now, read as the plugin
      * reads it (AccountField::addStatsFields): by the account's uuid, else by

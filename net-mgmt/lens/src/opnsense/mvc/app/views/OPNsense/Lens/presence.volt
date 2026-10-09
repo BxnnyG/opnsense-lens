@@ -90,7 +90,10 @@
             return $('<div/>').addClass('who-row').toggleClass('here', entry.here)
                 .append($name)
                 .append($track)
-                .append($('<div/>').addClass('who-meta').text(entry.present));
+                .append($('<div/>').addClass('who-meta').text(entry.present)
+                    .attr('title', entry.by_traffic
+                        ? entry.by_traffic + ' {{ lang._("of it from traffic alone: quiet in the ARP table, answering on the wire") }}'
+                        : ''));
         };
 
         let report = null;

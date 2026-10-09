@@ -997,6 +997,32 @@ class Store:
         row = self.db.execute("SELECT min(first_seen) AS at FROM address_observation").fetchone()
         return row['at'] if row else None
 
+    def presence_windows_held(self, since):
+        """:return: (mac, address, first_seen, last_seen) of every window still open at or after `since`"""
+        return self.db.execute(
+            """SELECT mac, address, first_seen, last_seen FROM address_observation
+               WHERE last_seen >= ?""",
+            (since,),
+        )
+
+    def traffic_hours(self, addresses, since):
+        """:return: address -> hours at or after `since` in which it moved traffic (stage 56)"""
+        found = {}
+        addresses = list(addresses)
+        for at in range(0, len(addresses), 500):
+            chunk = addresses[at:at + 500]
+            marks = ','.join('?' * len(chunk))
+            for row in self.db.execute(
+                    """SELECT address, bucket FROM traffic_hour
+                       WHERE address IN (%s) AND bucket >= ? AND octets > 0
+                       GROUP BY address, bucket""" % marks, chunk + [int(since) - int(since) % 3600]):
+                found.setdefault(row['address'], []).append(row['bucket'])
+        return found
+
+    def first_observation(self):
+        row = self.db.execute("SELECT min(first_seen) FROM address_observation").fetchone()
+        return row[0] if row else None
+
     def presence_windows(self, since):
         """:return: every address window that was still open at or after `since`"""
         return self.db.execute(

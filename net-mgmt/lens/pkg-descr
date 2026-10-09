@@ -31,6 +31,19 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.44_1
+
+* quiet devices are home again: a server that says nothing for a while drops
+  out of the ARP table, and Who's home showed gaps it never had. An hour in
+  which its address moved traffic now counts -- only between two sightings of
+  the same device on the same address, never when another device held it, and
+  the hours figure says how much of it only traffic proves
+* a Security tile: which installed packages FreeBSD's vulnerability database
+  on this box names, and how old that database is -- checked by the collector
+  when the database or the packages change, never fetched by Lens (that stays
+  System: Firmware: Status, Run an audit). A zero-day is in no database; the
+  tile says what is known
+
 0.43_2
 
 * the first GitHub release, and the signed feed brought up from 0.31_1: every

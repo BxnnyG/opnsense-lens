@@ -337,6 +337,60 @@ def public_address(now, every=PUBLIC_EVERY):
     return '; public address %s' % (found['v4'] or found['v6'] or 'unknown')
 
 
+AUDIT_FILE = os.path.join(os.path.dirname(DB_PATH), 'audit.json')
+VULNXML = '/var/db/pkg/vuln.xml'
+PKGDB = '/var/db/pkg/local.sqlite'
+
+
+def security_audit(now):
+    """
+    Which installed packages FreeBSD's vulnerability database names (stage 57):
+    `pkg audit` against the vuln.xml already on the box -- never fetched by
+    Lens; that is OPNsense's own button, System: Firmware: Status. Parsing the
+    database costs a second or two, so it runs on the harvest, and only when
+    the database or the installed packages changed since the last run. The
+    answer is a small file beside the store; the health row reads that.
+    """
+    if not sys.platform.startswith('freebsd'):
+        return ''
+    def mtime(path):
+        try:
+            return int(os.path.getmtime(path))
+        except OSError:
+            return None
+    key = [mtime(VULNXML), mtime(PKGDB)]
+    known = audit_known() or {}
+    if known.get('key') == key:
+        return ''
+
+    found = {'at': now, 'key': key, 'database': key[0], 'packages': [], 'readable': key[0] is not None}
+    if key[0] is not None:
+        try:
+            done = subprocess.run(['/usr/local/sbin/pkg', 'audit', '-R', 'json-compact'],
+                                  capture_output=True, text=True, timeout=120)
+            found['packages'] = parse.audit_packages(done.stdout)
+            found['readable'] = found['packages'] is not None
+            found['packages'] = found['packages'] or []
+        except (OSError, subprocess.SubprocessError):
+            found['readable'] = False
+    try:
+        with open(AUDIT_FILE + '.tmp', 'w') as handle:
+            json.dump(found, handle)
+        os.replace(AUDIT_FILE + '.tmp', AUDIT_FILE)
+    except OSError:
+        return '; audit not kept'
+    return '; audit: %d vulnerable packages' % len(found['packages'])
+
+
+def audit_known():
+    try:
+        with open(AUDIT_FILE) as handle:
+            known = json.load(handle)
+        return known if isinstance(known, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
 def public_known():
     try:
         with open(PUBLIC_FILE) as handle:
@@ -532,24 +586,35 @@ def heatmap(store, now):
 
 
 def presence(store, now, hours):
-    """Every device's presence across the window, merged and clipped."""
+    """
+    Every device's presence across the window, merged and clipped -- from the
+    ARP and NDP windows, and, where a quiet device fell out of them, from the
+    hours its address moved traffic (stage 56).
+    """
     since = now - hours * 3600
 
     # the chart cannot start before Lens did; otherwise every device looks
-    # absent for the part of the window nobody was watching
-    watching = store.status()['first_observation']
+    # absent for the part of the window nobody was watching (min over an
+    # index, not the full status with its whole-table counts)
+    watching = store.first_observation()
     start = max(since, watching) if watching else since
 
-    windows = [(r['mac'], r['first_seen'], r['last_seen'])
-               for r in store.presence_windows(start)]
-    found = presencelib.spans(windows, start, now)
+    held = [(r['mac'], r['address'], r['first_seen'], r['last_seen'])
+            for r in store.presence_windows_held(start)]
+    traffic = store.traffic_hours({row[1] for row in held}, start)
+    bridged = presencelib.bridges(held, traffic)
+
+    seen = presencelib.spans([(mac, first, last) for mac, _, first, last in held], start, now)
+    found = presencelib.spans([(mac, first, last) for mac, _, first, last in held] + bridged, start, now)
 
     return {
         'since': since,
         'start': start,
         'now': now,
         'hours': hours,
-        'devices': {mac: {'spans': s, 'seconds': presencelib.seconds(s)}
+        'devices': {mac: {'spans': s, 'seconds': presencelib.seconds(s),
+                          # how much of it only traffic says: the page may say so
+                          'by_traffic': presencelib.seconds(s) - presencelib.seconds(seen.get(mac, []))}
                     for mac, s in found.items()},
     }
 
@@ -1374,6 +1439,7 @@ def harvest(store, now):
         said += '; %d days summed' % summed
     if settled:
         said += '; %d hours settled' % settled
+    said += security_audit(now)
     return said
 
 
@@ -1489,6 +1555,7 @@ READS = {
     'dns-device': lambda store, now, o: dns_device(store, now, o['mac'], o['hours']),
     'pauses': lambda store, now, o: pauses(store, now),
     'kept': lambda store, now, o: kept(store),
+    'audit': lambda store, now, o: audit_known() or {},
 }
 
 
@@ -1552,7 +1619,7 @@ def main():
                  'gateways', 'internet', 'settings', 'configure', 'destinations',
                  'segments', 'moment', 'label', 'events', 'dns', 'dns-device',
                  'prune', 'purge', 'forget', 'kept', 'unexplained',
-                 'pause-start', 'pause-end', 'pauses', 'brief', 'bundle'],
+                 'pause-start', 'pause-end', 'pauses', 'brief', 'bundle', 'audit'],
     )
     parser.add_argument('--mac', help='the device to label, or to forget')
     parser.add_argument('--dry', action='store_true', help='forget: count, delete nothing')

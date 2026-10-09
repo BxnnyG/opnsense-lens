@@ -90,6 +90,10 @@ class SystemController extends ApiControllerBase
         if ($acl->isPageAccessible($user, '/api/core/firmware/status')) {
             $out['updates'] = SystemDetail::updates(DashboardController::decodeOrNull($backend, 'firmware product'));
         }
+        if ($acl->isPageAccessible($user, '/api/core/firmware/status')) {
+            $audit = (array)DashboardController::decodeOrNull($backend, 'lens audit');
+            $out['security'] = ['packages' => array_values((array)($audit['packages'] ?? []))];
+        }
         if ($acl->isPageAccessible($user, '/api/core/service/search')) {
             $out['services'] = SystemDetail::services(
                 (array)DashboardController::decodeOrNull($backend, 'service list')

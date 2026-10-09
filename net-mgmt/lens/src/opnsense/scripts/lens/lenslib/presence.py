@@ -35,6 +35,46 @@ def spans(windows, since, now):
     return {mac: _merge(intervals) for mac, intervals in per_mac.items()}
 
 
+# a silence longer than this is a device that went away, not a quiet one
+BRIDGE_MAX = 86400
+HOUR = 3600
+
+
+def bridges(windows, traffic, max_gap=BRIDGE_MAX):
+    """
+    The hours a quiet device was there although the ARP table had let it go
+    (stage 56): a gap between two windows of the same device on the same
+    address, bridged hour by hour where that address moved traffic, clipped to
+    the gap -- and only when no other device held the address in between.
+
+    :param windows: (mac, address, first_seen, last_seen)
+    :param traffic: address -> iterable of hour starts in which it moved traffic
+    :return: list of (mac, start, end)
+    """
+    by_address = {}
+    for mac, address, first_seen, last_seen in windows:
+        by_address.setdefault(address, []).append((mac, int(first_seen), int(last_seen)))
+
+    found = []
+    for address, held in by_address.items():
+        hours = sorted(set(int(h) for h in traffic.get(address, ())))
+        if not hours:
+            continue
+        for mac in {entry[0] for entry in held}:
+            own = sorted((first, last) for who, first, last in held if who == mac)
+            others = [(first, last) for who, first, last in held if who != mac]
+            for (_, gap_start), (gap_end, _) in zip(own, own[1:]):
+                if gap_end <= gap_start or gap_end - gap_start > max_gap:
+                    continue
+                if any(first < gap_end and last > gap_start for first, last in others):
+                    continue
+                for hour in hours:
+                    start, end = max(hour, gap_start), min(hour + HOUR, gap_end)
+                    if start < end:
+                        found.append((mac, start, end))
+    return found
+
+
 def seconds(intervals):
     """:return: how long the device was present, in total"""
     return sum(end - start for start, end in intervals)

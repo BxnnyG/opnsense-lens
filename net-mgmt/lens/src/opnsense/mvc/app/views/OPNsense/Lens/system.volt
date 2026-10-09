@@ -126,6 +126,26 @@
             },
             netbird: ($body, details) => mesh($body, details.netbird),
             tailscale: ($body, details) => mesh($body, details.tailscale),
+            security: ($body, details) => {
+                const packages = (details.security || {}).packages || [];
+                if (!packages.length) {
+                    $body.append($('<div/>').addClass('dv-sub').text(
+                        '{{ lang._("A zero-day is in no database: this is what is known, read on the box, never fetched by Lens.") }}'));
+                    return;
+                }
+                const known = (issue) => {
+                    const $line = $('<div/>').text(issue.description + ' ');
+                    for (const cve of issue.cves) {
+                        $line.append($('<a/>').attr({ href: issue.url || '#', target: '_blank', rel: 'noopener' })
+                            .text(cve + ' '));
+                    }
+                    return $line;
+                };
+                const rows = packages.map(p => $('<tr/>')
+                    .append(cell(p.name + ' ' + p.version))
+                    .append($('<td/>').append(p.issues.map(known))));
+                $body.append(table(['{{ lang._("Package") }}', '{{ lang._("What is known") }}'], rows));
+            },
             interfaces: ($body) => {
                 $body.append($('<a/>').attr('href', '/ui/lens/segments')
                     .text('{{ lang._("Every network with its port and the devices on it") }} ›'));

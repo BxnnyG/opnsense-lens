@@ -147,9 +147,11 @@ class PresenceReport
                never overlap, so the seconds simply add */
             $spans = [];
             $seconds = 0;
+            $byTraffic = 0;
             foreach ((array)($row['macs'] ?? [$row['mac']]) as $mac) {
                 $spans = array_merge($spans, (array)($found[$mac]['spans'] ?? []));
                 $seconds += (int)($found[$mac]['seconds'] ?? 0);
+                $byTraffic += (int)($found[$mac]['by_traffic'] ?? 0);
             }
             usort($spans, function ($left, $right) {
                 return ((int)$left[0]) <=> ((int)$right[0]);
@@ -187,6 +189,8 @@ class PresenceReport
                     return [(int)$span[0], (int)$span[1]];
                 }, $spans),
                 'present' => Duration::span($seconds),
+                /* the part only traffic proves: quiet in ARP, answering on the wire (stage 56) */
+                'by_traffic' => $byTraffic >= 60 ? Duration::span($byTraffic) : null,
                 'coverage' => (int)round($coverage * 100),
                 'last' => (int)end($spans)[1],
             ];
