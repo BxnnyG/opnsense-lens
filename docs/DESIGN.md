@@ -2203,3 +2203,23 @@ as who is connected, CARP; (4) graphs from core's RRD. **Not done:** replacing
 or hiding core's dashboard; Lens's own system metrics; any tile for a plugin
 that is not installed.
 
+### §4.85 — The pause rule carries a category, "Lens" (2026-10-09, operator)
+**Question:** after the first pause worked on a box, the operator asked for
+the rule to be grouped or tagged in Firewall: Rules. A firewall category is a
+third object Lens would write, and rule 6 named exactly two; asked, the
+operator answered "JA!".
+**Decision:** one firewall category, **"Lens"**, created through core's own
+`OPNsense\Firewall\Category` model the first time Lens writes the alias or the
+rule, and set on both — so Firewall: Rules and Firewall: Aliases can filter
+and colour them like anything the operator groups. An existing category of
+that name is used, not duplicated. **Order matters:** a `ModelRelationField`
+validates against what is saved, so the category is saved before the alias,
+the alias before the rule (stage 49 §2). **On upgrade:** a rule and alias made
+before this version get the category once, when Lens creates it; after that
+Lens never re-tags — an operator who takes the category off keeps it off.
+**On uninstall:** after the rule and the alias, the category goes too — but
+only when nothing else in config.xml refers to it, since Lens cannot tell its
+own from one the operator made with the same name.
+**Pausing a group** (every device with a tag or an owner at once) needs no new
+object — the same alias, more MACs — and is BACKLOG #52's other half.
+

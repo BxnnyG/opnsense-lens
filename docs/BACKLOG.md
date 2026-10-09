@@ -244,7 +244,8 @@ data Lens already keeps; none is planned before the router round.
   inside §4.74 as it stands: the same alias, more MACs. *A category "Lens" on
   the rule* in Firewall: Rules is a third object Lens would write (a firewall
   category), and rule 6 lets Lens write exactly two; that needs the operator's
-  word before it is built.
+  word before it is built. **The operator said yes (2026-10-09): built as
+  `0.38_2`, §4.85.** Pausing a group is still open.
 
 **Rule for now, restated because it was broken:** nothing new starts until
 `tools/round` has run on both boxes and its findings are fixed. **Met 2026-10-07:** two

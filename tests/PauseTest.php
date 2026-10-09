@@ -278,4 +278,20 @@ class PauseTest extends TestCase
         $this->assertSame(['a'], Pause::due($open, 1000));
         $this->assertSame(['a', 'b'], Pause::due($open, 5000));
     }
+
+    public function testTheAliasAndTheRuleCarryTheCategoryLens()
+    {
+        $this->assertSame('cat-1', Pause::aliasFields('a4:77:33:00:00:03', 'cat-1')['categories']);
+        $this->assertSame('cat-1', Pause::ruleFields(7, 'cat-1')['categories']);
+        // without a category (core refused it) the pause still goes ahead, unlabelled
+        $this->assertArrayNotHasKey('categories', Pause::ruleFields(7));
+        $this->assertSame(['name' => 'Lens', 'color' => 'd94f00', 'auto' => '0'], Pause::categoryFields());
+    }
+
+    public function testACategoryIsAddedOnceAndOthersAreKept()
+    {
+        $this->assertSame('cat-1', Pause::withCategory('', 'cat-1'));
+        $this->assertSame('mine,cat-1', Pause::withCategory('mine', 'cat-1'));
+        $this->assertSame('mine,cat-1', Pause::withCategory('mine,cat-1', 'cat-1'));
+    }
 }

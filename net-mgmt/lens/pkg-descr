@@ -22,11 +22,19 @@ echoes each - about 2,600 small packets a day - to tell whether the internet is
 there; the pings and their targets can be changed or switched off under
 Services: Lens: Settings. And when the operator pauses a device, it writes one
 floating block rule, "Lens: paused devices", and one MAC alias, lens_paused,
-through OPNsense's own models, so both show in Firewall: Rules and the
-configuration history; removing Lens removes them.
+through OPNsense's own models, in a firewall category "Lens", so all show in
+Firewall: Rules and the configuration history; removing Lens removes them.
 
 Plugin Changelog
 ================
+
+0.38_2
+
+* the pause rule and its alias carry a firewall category, "Lens", so
+  Firewall: Rules and Firewall: Aliases can filter and colour them. An
+  existing category of that name is used; a rule and alias made by an
+  earlier version get it once; taken off by hand, it stays off. Removing
+  Lens removes the category too, unless something else uses it
 
 0.38_1
 

@@ -284,6 +284,21 @@ namespace OPNsense\Firewall {
         }
     }
 
+    /* §4.85: the category "Lens" that groups the alias and the rule */
+    class Category extends PreviewModel
+    {
+        const KEY = 'categories';
+        public $categories;
+
+        public function __construct()
+        {
+            parent::__construct();
+            $this->data['categories'] = $this->data['categories'] ?? [];
+            $this->categories = new \stdClass();
+            $this->categories->category = new PreviewItems($this->data['categories'], 'categories.category');
+        }
+    }
+
     class Filter extends PreviewModel
     {
         const KEY = 'rules';

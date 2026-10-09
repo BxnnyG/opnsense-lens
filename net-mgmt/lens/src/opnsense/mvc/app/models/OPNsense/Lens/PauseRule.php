@@ -30,6 +30,7 @@ namespace OPNsense\Lens;
 use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
 use OPNsense\Firewall\Alias;
+use OPNsense\Firewall\Category;
 use OPNsense\Firewall\Filter;
 
 /**
@@ -85,6 +86,10 @@ class PauseRule
         $created = false;
         $backend = new Backend();
 
+        /* the category first: alias and rule name it, and core validates a
+           relation against what is saved (§4.85) */
+        [$category, $newCategory] = $add !== [] ? self::category() : [self::findCategory(new Category()), false];
+
         Config::getInstance()->lock();
         $aliases = new Alias();
         $node = self::alias($aliases);
@@ -95,15 +100,23 @@ class PauseRule
 
         $before = $node === null ? '' : (string)$node->content;
         $after = Pause::contentWithout(Pause::contentWith($before, $add), $remove);
+        $tagged = false;
         if ($node === null) {
             $node = $aliases->aliases->alias->Add();
-            $node->setNodes(Pause::aliasFields($after));
+            $node->setNodes(Pause::aliasFields($after, (string)$category));
             $created = true;
-        } elseif ($after !== $before) {
-            $node->setNodes(['content' => $after]);
+        } else {
+            if ($after !== $before) {
+                $node->setNodes(['content' => $after]);
+            }
+            /* made before §4.85: tagged once, when Lens creates the category, never again */
+            if ($newCategory && $category !== null) {
+                $node->setNodes(['categories' => Pause::withCategory((string)$node->categories, $category)]);
+                $tagged = true;
+            }
         }
 
-        if ($created || $after !== $before) {
+        if ($created || $tagged || $after !== $before) {
             $refused = self::refused($aliases, $node);
             if ($refused !== null) {
                 Config::getInstance()->unlock();
@@ -119,9 +132,17 @@ class PauseRule
             Config::getInstance()->lock();
             $filter = new Filter();
             $rules = self::rules($filter);
-            if (Pause::findRule($rules) === null) {
+            $existing = Pause::findRule($rules);
+            if ($existing !== null && $newCategory && $category !== null) {
+                $rule = $filter->rules->rule->$existing;
+                $rule->setNodes(['categories' => Pause::withCategory((string)$rule->categories, $category)]);
+                $filter->serializeToConfig(false, true);
+                Config::getInstance()->save([
+                    'description' => gettext('Lens: the rule for paused devices, in category Lens'),
+                ]);
+            } elseif ($existing === null) {
                 $rule = $filter->rules->rule->Add();
-                $rule->setNodes(Pause::ruleFields(Pause::firstSequence($rules)));
+                $rule->setNodes(Pause::ruleFields(Pause::firstSequence($rules), (string)$category));
                 $refused = self::refused($filter, $rule);
                 if ($refused !== null) {
                     Config::getInstance()->unlock();
@@ -181,6 +202,20 @@ class PauseRule
             Config::getInstance()->unlock();
         }
 
+        /* the category last, and only when nothing else refers to it: an
+           operator's own category of the same name is theirs (§4.85) */
+        Config::getInstance()->lock();
+        $categories = new Category();
+        $category = self::findCategory($categories);
+        $config = Config::getInstance()->object();
+        if ($category !== null && !$config->xpath("//*[contains(text(), '{$category}')]")) {
+            $categories->categories->category->del($category);
+            $categories->serializeToConfig(false, true);
+            Config::getInstance()->save(['description' => gettext('Lens removed: the category Lens')]);
+        } else {
+            Config::getInstance()->unlock();
+        }
+
         if ($found) {
             $backend = new Backend();
             $backend->configdRun('filter reload');
@@ -216,6 +251,44 @@ class PauseRule
         }
 
         return count($addresses);
+    }
+
+    /**
+     * The category "Lens", created when there is none.
+     *
+     * @return array [uuid or null, whether it was created just now]
+     */
+    private static function category(): array
+    {
+        Config::getInstance()->lock();
+        $model = new Category();
+        $uuid = self::findCategory($model);
+        if ($uuid !== null) {
+            Config::getInstance()->unlock();
+            return [$uuid, false];
+        }
+        $node = $model->categories->category->Add();
+        $node->setNodes(Pause::categoryFields());
+        if (self::refused($model, $node) !== null) {
+            /* the pause matters more than its label: go on without one */
+            Config::getInstance()->unlock();
+            return [null, false];
+        }
+        $model->serializeToConfig(false, true);
+        Config::getInstance()->save(['description' => gettext('Lens: the category Lens')]);
+
+        return [$node->getAttribute('uuid'), true];
+    }
+
+    private static function findCategory(Category $model): ?string
+    {
+        foreach ($model->categories->category->iterateItems() as $uuid => $node) {
+            if ((string)$node->name === Pause::CATEGORY) {
+                return (string)$uuid;
+            }
+        }
+
+        return null;
     }
 
     private static function alias(Alias $model)

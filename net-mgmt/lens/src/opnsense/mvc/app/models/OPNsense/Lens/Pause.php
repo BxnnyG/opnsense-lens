@@ -46,6 +46,9 @@ class Pause
     public const ALIAS = 'lens_paused';
     public const RULE_DESCRIPTION = 'Lens: paused devices';
     public const ALIAS_DESCRIPTION = 'Lens: paused devices - managed by Services: Lens';
+    /* the firewall category that groups the two (§4.85); Lens's accent colour */
+    public const CATEGORY = 'Lens';
+    public const CATEGORY_COLOR = 'd94f00';
 
     /* a week: longer than that is not a pause, it is a block, and a block is
        a rule the operator writes in Firewall: Rules where it can be read */
@@ -174,15 +177,34 @@ class Pause
     /**
      * The alias, as core's Alias model fields.
      */
-    public static function aliasFields(string $content): array
+    public static function aliasFields(string $content, string $category = ''): array
     {
-        return [
+        return array_merge([
             'enabled' => '1',
             'name' => self::ALIAS,
             'type' => 'mac',
             'content' => $content,
             'description' => self::ALIAS_DESCRIPTION,
-        ];
+        ], $category !== '' ? ['categories' => $category] : []);
+    }
+
+    /** the category's fields, as core's Category model holds them (§4.85) */
+    public static function categoryFields(): array
+    {
+        return ['name' => self::CATEGORY, 'color' => self::CATEGORY_COLOR, 'auto' => '0'];
+    }
+
+    /**
+     * A comma list of category uuids with one more in it, once.
+     */
+    public static function withCategory(string $categories, string $uuid): string
+    {
+        $list = array_values(array_filter(array_map('trim', explode(',', $categories)), 'strlen'));
+        if (!in_array($uuid, $list, true)) {
+            $list[] = $uuid;
+        }
+
+        return implode(',', $list);
     }
 
     /**
@@ -190,9 +212,9 @@ class Pause
      * inbound, both address families, any protocol, logged so a paused
      * device's attempts show in the live log under the rule's own name.
      */
-    public static function ruleFields(int $sequence): array
+    public static function ruleFields(int $sequence, string $category = ''): array
     {
-        return [
+        return array_merge([
             'enabled' => '1',
             'action' => 'block',
             'quick' => '1',
@@ -207,7 +229,7 @@ class Pause
             'log' => '1',
             'sequence' => (string)$sequence,
             'description' => self::RULE_DESCRIPTION,
-        ];
+        ], $category !== '' ? ['categories' => $category] : []);
     }
 
     /**

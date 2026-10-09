@@ -31,8 +31,10 @@ It lives in its own repository and is not going upstream (§4.1, §4.2).
    for pausing a device (§4.74, operator's decision 2026-10-07):** one floating
    block rule named "Lens: paused devices" and one MAC alias `lens_paused`, both
    created through core's own API so they show in the GUI and the config
-   history, only ever on the operator's click, removed on uninstall. Nothing
-   else in this line moves.
+   history, only ever on the operator's click, removed on uninstall — **and one
+   firewall category "Lens" that groups the two (§4.85, operator 2026-10-09)**,
+   removed on uninstall when nothing else uses it. Nothing else in this line
+   moves.
 7. **The box must stay a firewall.** State the load cost of every new query
    (§4.8), measure it on real hardware, and check after every install that the
    web interface is still responsive and the collector is not running hot. A
