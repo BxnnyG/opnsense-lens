@@ -28,6 +28,12 @@ configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.37_2
+
+* no speed on a port without a link, and none from PPPoE, WireGuard or the
+  loopback, whose line rate means nothing; one error in millions reads
+  "under 0.001%", not "0%" -- what both boxes showed on 2026-10-09
+
 0.37_1
 
 * each card on Reporting: Lens: Networks shows its port: up or not, speed and

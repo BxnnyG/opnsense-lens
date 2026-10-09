@@ -86,7 +86,9 @@ class InterfaceStateTest extends TestCase
         $this->assertSame('100 Mbit/s, half duplex', InterfaceState::describe(
             $this->details(['media' => 'Ethernet 100baseTX <half-duplex>']), [])['media']);
         $this->assertSame('2.5 Gbit/s', InterfaceState::describe(
-            $this->details(['media' => 'Ethernet autoselect']), ['line rate' => '2500000000 bit/s'])['media']);
+            $this->details(['media' => 'Ethernet autoselect', 'is_physical' => true]),
+            ['line rate' => '2500000000 bit/s']
+        )['media']);
         $this->assertNull(InterfaceState::describe($this->details(['media' => '']), [])['media']);
     }
 
@@ -102,5 +104,25 @@ class InterfaceStateTest extends TestCase
         $this->assertSame('bad', $bad['tone']);
         $this->assertSame('IOT: no carrier.', $bad['sentence']);
         $this->assertSame('warn', InterfaceState::tile(['LAN' => $noisy])['tone']);
+    }
+
+    public function testWhatTheBoxesShowedOn20261009()
+    {
+        // router-01's pppoe0: a line rate with no wire behind it
+        $pppoe = InterfaceState::describe(['flags' => ['up', 'running'], 'status' => '', 'media' => '',
+            'is_physical' => false], ['line rate' => '64000 bit/s']);
+        $this->assertNull($pppoe['media']);
+        // box-2's GPON on ix0: no carrier, and ifinfo still says 10 Gbit/s
+        $dark = InterfaceState::describe(['flags' => ['up'], 'status' => 'no carrier', 'media' => 'Ethernet autoselect',
+            'is_physical' => true], ['line rate' => '10000000000 bit/s']);
+        $this->assertNull($dark['media']);
+        // a VLAN on a lagg: the parent's rate, as core shows it
+        $vlan = InterfaceState::describe(['flags' => ['up'], 'status' => 'active', 'media' => 'Ethernet autoselect',
+            'vlan' => ['tag' => '24']], ['line rate' => '10000000000 bit/s']);
+        $this->assertSame('10 Gbit/s', $vlan['media']);
+        // one error in millions is not "0%"
+        $one = InterfaceState::describe(['flags' => ['up'], 'status' => 'active'],
+            ['packets received' => '48000000', 'input errors' => '1']);
+        $this->assertSame('1 error since boot (under 0.001% of packets)', $one['error_text']);
     }
 }

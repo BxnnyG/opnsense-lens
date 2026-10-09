@@ -77,18 +77,34 @@ class InterfaceState
         $share = $packets > 0 ? $errors / $packets : 0.0;
         $erring = $errors >= self::ERROR_FLOOR && $share >= self::ERROR_SHARE;
 
+        $wired = !empty($details['is_physical']) || isset($details['vlan']['tag']);
+        $errorText = gettext('no errors since boot');
+        if ($errors > 0) {
+            $shareText = $share < 0.00001
+                ? gettext('under 0.001%')
+                : rtrim(rtrim(number_format($share * 100, 3), '0'), '.') . '%';
+            $errorText = sprintf(
+                $errors === 1 ? gettext('%s error since boot (%s of packets)')
+                              : gettext('%s errors since boot (%s of packets)'),
+                number_format($errors),
+                $shareText
+            );
+        }
+
         return [
             'status' => $status,
             'tone' => $status === 'up' ? ($erring ? 'warn' : 'good') : 'bad',
-            'media' => self::media((string)($details['media'] ?? ''), (string)($stats['line rate'] ?? '')),
+            /* no speed on a link that is not up; and a line rate only where there is a
+               wire behind it -- PPPoE, WireGuard and lo0 report one that means nothing
+               (router-01's pppoe0 read "0.1 Mbit/s", box-2's dark GPON "10 Gbit/s") */
+            'media' => $status !== 'up' ? null : self::media(
+                (string)($details['media'] ?? ''),
+                $wired ? (string)($stats['line rate'] ?? '') : ''
+            ),
             'addresses' => $addresses,
             'vlan' => isset($details['vlan']['tag']) ? (int)$details['vlan']['tag'] : null,
             'errors' => $errors,
-            'error_text' => $errors === 0 ? gettext('no errors since boot') : sprintf(
-                gettext('%s errors since boot (%s of packets)'),
-                number_format($errors),
-                rtrim(rtrim(number_format($share * 100, 3), '0'), '.') . '%'
-            ),
+            'error_text' => $errorText,
             'mac' => isset($details['macaddr']) ? (string)$details['macaddr'] : null,
         ];
     }
