@@ -42,7 +42,9 @@ namespace OPNsense\Lens;
  *   - they announce the same hostname, and it is not one a thousand devices
  *     share
  *   - they held an address on at least one common segment
- *   - no two of them ever held an address at the same time
+ *   - no two of them held an address at the same time for longer than a
+ *     handover (HANDOVER): when a phone rotates, the old MAC's ARP entry
+ *     lingers while the new one is already answering
  *   - the operator has not given two of them different names
  *
  * @package OPNsense\Lens
@@ -54,6 +56,15 @@ class IdentityFold
      * every iPhone whose owner never named it; "android" and "*" are what a
      * device announces when it announces nothing.
      */
+    /**
+     * How long two MACs of one phone may both be seen: FreeBSD keeps an ARP
+     * entry 1200 s after it was last used (net.link.ether.inet.max_age), so
+     * the MAC a phone just left is still listed beside the one it moved to.
+     * router-01, 2026-10-10: one Pixel shown as two, split by a 300 s overlap
+     * at a rotation and by two windows that touched to the second.
+     */
+    public const HANDOVER = 1200;
+
     public const GENERIC = [
         '', '*', 'iphone', 'ipad', 'android', 'localhost', 'wlan0', 'unknown', 'espressif', 'esp32',
     ];
@@ -153,15 +164,18 @@ class IdentityFold
         return $shared;
     }
 
-    /** two MACs held an address at the same time: two devices, whatever they are called */
+    /**
+     * Two MACs held an address at the same time for longer than a handover:
+     * two devices, whatever they are called. Touching -- one window ending
+     * where the next begins -- is a handover, not a meeting.
+     */
     private static function overlap(array $left, array $right): bool
     {
         foreach ((array)($left['addresses'] ?? []) as $a) {
             foreach ((array)($right['addresses'] ?? []) as $b) {
-                if (
-                    (int)($a['first_seen'] ?? 0) <= (int)($b['last_seen'] ?? 0)
-                    && (int)($b['first_seen'] ?? 0) <= (int)($a['last_seen'] ?? 0)
-                ) {
+                $shared = min((int)($a['last_seen'] ?? 0), (int)($b['last_seen'] ?? 0))
+                    - max((int)($a['first_seen'] ?? 0), (int)($b['first_seen'] ?? 0));
+                if ($shared > self::HANDOVER) {
                     return true;
                 }
             }

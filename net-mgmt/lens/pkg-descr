@@ -31,6 +31,13 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.45_2
+
+* a phone that rotates its private MAC is one row again when the old MAC is
+  still listed for a few minutes beside the new one: FreeBSD keeps an ARP
+  entry up to 20 minutes, and a 5-minute overlap at a rotation -- or two
+  windows touching to the second -- split one Pixel into two rows
+
 0.45_1
 
 * the health row, the System page and Networks ask their sources at once

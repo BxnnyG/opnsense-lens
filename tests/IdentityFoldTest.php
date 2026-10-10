@@ -211,4 +211,41 @@ class IdentityFoldTest extends TestCase
         $this->assertNull(DeviceReport::macList(''));
         $this->assertNull(DeviceReport::macList(implode(',', array_fill(0, 17, 'e6:00:00:00:00:01'))));
     }
+
+    /** one MAC's window, in seconds before NOW, on a made-up address */
+    private function held(string $mac, int $from, int $to): array
+    {
+        return $this->phone($mac, 0, 0, [
+            'first_seen' => self::NOW - $from,
+            'last_seen' => self::NOW - $to,
+            'addresses' => [['address' => '10.10.20.' . hexdec(substr($mac, -2)), 'interface' => 'vtnet1_vlan20',
+                             'first_seen' => self::NOW - $from, 'last_seen' => self::NOW - $to]],
+        ]);
+    }
+
+    public function testARotationSeenFromBothSidesForAFewMinutesIsStillOnePhone()
+    {
+        /* router-01, 2026-10-10, made-up MACs, its real gaps: the next MAC
+           seen 300 s before the old one's ARP entry went, and later one window
+           ending in the very second the next began */
+        $groups = IdentityFold::groups([
+            $this->held('6e:00:00:00:00:01', 200000, 158100),
+            $this->held('46:00:00:00:00:02', 158400, 82500),    // 300 s with the one before
+            $this->held('6e:00:00:00:00:03', 82000, 13500),
+            $this->held('46:00:00:00:00:04', 13500, 0),         // starts the second the last ended
+        ]);
+
+        $this->assertCount(1, $groups);
+        $this->assertCount(4, $groups[0]['macs']);
+    }
+
+    public function testTwoPhonesTogetherForLongerThanAHandoverStayTwo()
+    {
+        $groups = IdentityFold::groups([
+            $this->held('6e:00:00:00:00:01', 10000, 0),
+            $this->held('46:00:00:00:00:02', 10000 + IdentityFold::HANDOVER * 2, 5000),
+        ]);
+
+        $this->assertSame([], $groups);
+    }
 }

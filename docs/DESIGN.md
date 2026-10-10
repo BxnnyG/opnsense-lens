@@ -2320,3 +2320,16 @@ known and how old that knowledge is; SECURITY.md says how a vulnerability in
 Lens itself is handled (private report, tagged fix through feed and release,
 advisory, CVE).
 
+### §4.92 — A rotation is seen from both sides for a while (2026-10-10, operator)
+**Seen** on router-01: one Pixel as two rows, 11 and 2 private MACs, both
+"one device" by §4.61. The rule "no two of them ever held an address at the
+same time" split them where the next MAC appeared 300 s before the old one's
+window closed, and where one window ended in the very second the next began.
+When a phone rotates, the MAC it left stays in the ARP table until the entry
+expires — FreeBSD keeps it up to 1200 s (`net.link.ether.inet.max_age`).
+**Decision:** two MACs are kept apart only when they shared time for longer
+than that handover (`IdentityFold::HANDOVER`, 1200 s); touching is a handover.
+Two phones of one model at home together share hours, not minutes, and stay
+two. Checked against router-01's own windows (13 MACs, one group), kept as a
+test with made-up MACs and the real gaps.
+
