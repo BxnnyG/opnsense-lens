@@ -116,6 +116,16 @@ namespace OPNsense\Core {
             return $this->configdRun($event);
         }
 
+        /* as core's: a stream that delivers the answer and configd's end marker (stage 58) */
+        public function configdStream($event, $detach = false, $connect_timeout = 10, $poll_timeout = 2)
+        {
+            /* a temp stream, not a socket pair: a large answer (an RRD) would block a socket's buffer */
+            $stream = fopen('php://temp', 'w+');
+            fwrite($stream, (string)$this->configdRun($event) . "\0\0\0");
+            rewind($stream);
+            return $stream;
+        }
+
         public function configdRun($event, $detach = false)
         {
             $words = \PreviewConfigd::split($event);

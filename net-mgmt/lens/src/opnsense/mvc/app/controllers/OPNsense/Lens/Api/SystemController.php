@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\ACL;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\Health;
+use OPNsense\Lens\PrefetchedBackend;
 use OPNsense\Lens\SystemDetail;
 use OPNsense\Lens\SystemHistory;
 use OPNsense\Lens\Window;
@@ -73,9 +74,17 @@ class SystemController extends ApiControllerBase
      */
     public function detailsAction()
     {
-        $backend = new Backend();
+        $backend = new PrefetchedBackend();
         $acl = new ACL();
         $user = $this->getUserName();
+        /* the sources below, asked at once (stage 58); one not shown costs nothing */
+        $backend->prefetch(array_merge(
+            ['system sensors', 'firmware product', 'lens audit', 'service list', 'wireguard show'],
+            DashboardController::installed('smart') ? ['smart detailed list'] : [],
+            DashboardController::installed('ddclient') ? ['ddclient statistics'] : [],
+            DashboardController::installed('netbird') ? ['netbird status-json'] : [],
+            DashboardController::installed('tailscale') ? ['tailscale tailscale-status'] : []
+        ));
         $now = time();
         $out = [];
 

@@ -14,7 +14,7 @@ import time
 
 from lenslib import settings as settingslib
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 # No stored window is longer than this (§4.69). A device present for weeks is a
 # chain of day-long pieces, joined back into one stay for every reader; the cap
@@ -232,6 +232,23 @@ MIGRATIONS = {
     # shown on Events and the device page, and in the alias's description.
     13: [
         "ALTER TABLE pause ADD COLUMN reason TEXT",
+    ],
+    # Stage 58: each settled hour per interface too, so the Networks page sums
+    # instead of joining (1.16 s on box-2). Every hour settles again once, so
+    # no settled hour lacks its interface sums; until it has, it is read live.
+    14: [
+        """CREATE TABLE interface_hour (
+            bucket INTEGER NOT NULL,
+            interface TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            octets INTEGER NOT NULL,
+            packets INTEGER NOT NULL,
+            named INTEGER NOT NULL,
+            PRIMARY KEY (bucket, interface, direction)
+        )""",
+        "DELETE FROM hour_done",
+        "DELETE FROM device_hour",
+        "DELETE FROM unattributed_hour",
     ],
 }
 
@@ -853,9 +870,20 @@ class Store:
         watching = self.db.execute("SELECT min(first_seen) FROM address_observation").fetchone()[0]
 
         for bucket in buckets:
-            per_mac, unattributed, _ = attribute.classify(
-                self.traffic_rows(bucket, until=bucket + 3600), interfaces, watching)
+            rows = [tuple(row) for row in self.traffic_rows(bucket, until=bucket + 3600)]
+            per_mac, unattributed, _ = attribute.classify(rows, interfaces, watching)
             self._forget_hour(bucket)
+            # per interface, with what a device can be named for (stage 58)
+            sides = {}
+            for _, interface, _, direction, octets, packets, macs, _ in rows:
+                entry = sides.setdefault((interface, direction), [0, 0, 0])
+                entry[0] += octets
+                entry[1] += packets
+                entry[2] += octets if macs == 1 else 0
+            self.db.executemany(
+                "INSERT INTO interface_hour (bucket, interface, direction, octets, packets, named)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [(bucket, interface, direction, e[0], e[1], e[2]) for (interface, direction), e in sides.items()])
             self.db.executemany(
                 """INSERT INTO device_hour (bucket, mac, sent, sent_packets, received, received_packets)
                    VALUES (?, ?, ?, ?, ?, ?)""",
@@ -869,7 +897,7 @@ class Store:
         return len(buckets)
 
     def _forget_hour(self, bucket):
-        for table in ('device_hour', 'unattributed_hour', 'hour_done'):
+        for table in ('device_hour', 'unattributed_hour', 'interface_hour', 'hour_done'):
             self.db.execute("DELETE FROM %s WHERE bucket = ?" % table, (bucket,))
 
     def done_hours(self, since, until):
@@ -1218,18 +1246,43 @@ class Store:
         whose devices are not on it -- traffic routed through rather than from
         machines attached -- and that distinction is invisible in a plain total.
 
-        Built on the same attribution query as everything else (§4.32).
+        Settled hours are summed from interface_hour (stage 58); the rest is the
+        same attribution query as everything else (§4.32), over its gaps only.
+        `hours` and `addresses` come from traffic_hour itself, which needs no join.
+
+        :return: list of {interface, direction, octets, packets, named, hours, addresses}
         """
-        return self.db.execute(
-            """SELECT interface, direction,
-                      sum(octets) AS octets, sum(packets) AS packets,
-                      sum(CASE WHEN macs = 1 THEN octets ELSE 0 END) AS named,
-                      count(DISTINCT bucket) AS hours,
-                      count(DISTINCT address) AS addresses
-               FROM (%s)
-               GROUP BY interface, direction""" % ATTRIBUTION_SQL,
-            (bucket_seconds, since, FOREVER),
-        )
+        since = int(since) - int(since) % bucket_seconds
+        done = self.done_hours(since, FOREVER)
+        totals = {}
+
+        def add(interface, direction, octets, packets, named):
+            entry = totals.setdefault((interface, direction), {
+                'interface': interface, 'direction': direction,
+                'octets': 0, 'packets': 0, 'named': 0, 'hours': 0, 'addresses': 0})
+            entry['octets'] += octets or 0
+            entry['packets'] += packets or 0
+            entry['named'] += named or 0
+
+        if done:
+            for row in self.db.execute(
+                    """SELECT interface, direction, sum(octets), sum(packets), sum(named)
+                       FROM interface_hour WHERE bucket >= ? GROUP BY interface, direction""", (since,)):
+                add(*row)
+        for start, end in self._gaps(since, done):
+            for row in self.db.execute(
+                    """SELECT interface, direction, sum(octets), sum(packets),
+                              sum(CASE WHEN macs = 1 THEN octets ELSE 0 END)
+                       FROM (%s) GROUP BY interface, direction""" % ATTRIBUTION_SQL,
+                    (bucket_seconds, start, end)):
+                add(*row)
+        for interface, direction, hours, addresses in self.db.execute(
+                """SELECT interface, direction, count(DISTINCT bucket), count(DISTINCT address)
+                   FROM traffic_hour WHERE bucket >= ? GROUP BY interface, direction""", (since,)):
+            if (interface, direction) in totals:
+                totals[(interface, direction)]['hours'] = hours
+                totals[(interface, direction)]['addresses'] = addresses
+        return sorted(totals.values(), key=lambda e: (e['interface'], e['direction']))
 
     def log_run(self, duty, at, ok, took_ms, detail):
         self.db.execute(
@@ -1256,7 +1309,7 @@ class Store:
         self.db.execute("DELETE FROM destination_day WHERE day < ?", (cutoff,))
         self.db.execute("DELETE FROM device_day WHERE day < ?", (cutoff // 86400,))
         self.db.execute("DELETE FROM device_day_done WHERE day < ?", (cutoff // 86400,))
-        for table in ('device_hour', 'unattributed_hour', 'hour_done'):
+        for table in ('device_hour', 'unattributed_hour', 'interface_hour', 'hour_done'):
             self.db.execute("DELETE FROM %s WHERE bucket < ?" % table, (cutoff,))
         # an open pause is the firewall's state, not history: only ended ones age
         self.db.execute("DELETE FROM pause WHERE ended IS NOT NULL AND ended < ?", (cutoff,))
@@ -1403,7 +1456,8 @@ class Store:
         """Everything, deliberately. This is the S14 promise, so it has to work."""
         for table in ('traffic_hour', 'address_observation', 'device',
                       'device_label', 'gateway_sample', 'probe_sample', 'destination_day', 'harvest_state',
-                      'device_day', 'device_day_done', 'device_hour', 'unattributed_hour', 'hour_done',
+                      'device_day', 'device_day_done', 'device_hour', 'unattributed_hour', 'interface_hour',
+                      'hour_done',
                       'run_log'):
             self.db.execute("DELETE FROM %s" % table)
         # A pause still running stays: the device is in the firewall's alias

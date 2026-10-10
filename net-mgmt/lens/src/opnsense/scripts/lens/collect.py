@@ -350,6 +350,10 @@ def security_audit(now):
     database costs a second or two, so it runs on the harvest, and only when
     the database or the installed packages changed since the last run. The
     answer is a small file beside the store; the health row reads that.
+
+    `--raw=json-compact`, never `-R json-compact`: -R takes its format only
+    attached, and the separate word became a package pattern -- box-2 answered
+    `pkg_count = 0;` in UCL for a package that does not exist (2026-10-10).
     """
     if not sys.platform.startswith('freebsd'):
         return ''
@@ -358,7 +362,8 @@ def security_audit(now):
             return int(os.path.getmtime(path))
         except OSError:
             return None
-    key = [mtime(VULNXML), mtime(PKGDB)]
+    # the third part retires answers from the -R mistake, so the next harvest audits again
+    key = [mtime(VULNXML), mtime(PKGDB), 'raw=json-compact']
     known = audit_known() or {}
     if known.get('key') == key:
         return ''
@@ -366,7 +371,7 @@ def security_audit(now):
     found = {'at': now, 'key': key, 'database': key[0], 'packages': [], 'readable': key[0] is not None}
     if key[0] is not None:
         try:
-            done = subprocess.run(['/usr/local/sbin/pkg', 'audit', '-R', 'json-compact'],
+            done = subprocess.run(['/usr/local/sbin/pkg', 'audit', '--raw=json-compact'],
                                   capture_output=True, text=True, timeout=120)
             found['packages'] = parse.audit_packages(done.stdout)
             found['readable'] = found['packages'] is not None

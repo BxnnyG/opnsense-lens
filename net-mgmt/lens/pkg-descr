@@ -31,6 +31,16 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.45_1
+
+* the health row, the System page and Networks ask their sources at once
+  instead of one after another
+* Networks sums settled hours per interface instead of joining every time
+  (schema 14: after the upgrade every hour settles once more, 240 per harvest)
+* the Security tile now really reads the audit: `pkg audit -R json-compact`
+  took "json-compact" for a package name and answered for nothing; it is
+  --raw=json-compact, and the round showed it
+
 0.44_1
 
 * quiet devices are home again: a server that says nothing for a while drops

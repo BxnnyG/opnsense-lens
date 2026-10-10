@@ -32,6 +32,7 @@ use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
 use OPNsense\Core\Config;
 use OPNsense\Lens\InterfaceState;
+use OPNsense\Lens\PrefetchedBackend;
 use OPNsense\Lens\SegmentReport;
 use OPNsense\Lens\Window;
 
@@ -56,12 +57,19 @@ class SegmentsController extends ApiControllerBase
         $hours = Window::hours($this->request->get('hours', null, Window::DEFAULT_HOURS));
 
         $started = microtime(true);
-        $raw = json_decode(trim((string)(new Backend())->configdRun('lens segments ' . $hours)), true);
+        /* the store's segments and core's interface state at once (stage 58) */
+        $backend = new PrefetchedBackend();
+        $backend->prefetch([
+            'lens segments ' . $hours,
+            PrefetchedBackend::event('interface list ifconfig', [null]),
+            PrefetchedBackend::event('interface list stats', [null]),
+        ]);
+        $raw = json_decode(trim((string)$backend->configdRun('lens segments ' . $hours)), true);
 
         $report = SegmentReport::describe(
             json_last_error() === JSON_ERROR_NONE && is_array($raw) ? $raw : [],
             self::names(),
-            self::links(new Backend())
+            self::links($backend)
         );
         $report['window'] = Window::describe(
             $hours,

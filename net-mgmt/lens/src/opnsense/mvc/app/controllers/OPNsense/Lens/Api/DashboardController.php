@@ -34,6 +34,7 @@ use OPNsense\Core\ACL;
 use OPNsense\Core\Config;
 use OPNsense\Lens\Bytes;
 use OPNsense\Lens\Health;
+use OPNsense\Lens\PrefetchedBackend;
 use OPNsense\Lens\InterfaceState;
 use OPNsense\Lens\Events;
 use OPNsense\Lens\Heatmap;
@@ -244,9 +245,44 @@ class DashboardController extends ApiControllerBase
      */
     public function healthAction()
     {
-        $backend = new Backend();
+        $backend = new PrefetchedBackend();
         $acl = new ACL();
         $user = $this->getUserName();
+
+        /* every source the tiles below will ask, asked at once (stage 58): the
+           answers are waiting when each tile reads, instead of twelve configd
+           round trips one after another */
+        $firmware = $acl->isPageAccessible($user, '/api/core/firmware/status');
+        $events = [
+            'interface address', 'lens internet 24', 'interface gateways status',
+            'interface routes list -n json', 'system diag disk', 'interface show traffic', 'system sensors',
+            PrefetchedBackend::event('system sysctl values', [implode(',', SystemFacts::SYSCTLS)]),
+            PrefetchedBackend::event('interface list ifconfig', [null]),
+            PrefetchedBackend::event('interface list stats', [null]),
+        ];
+        if ($firmware) {
+            array_push($events, 'firmware product', 'lens audit');
+        }
+        if ($acl->isPageAccessible($user, '/api/core/service/search')) {
+            $events[] = 'service list';
+        }
+        $plugins = [
+            ['ddclient', '/api/dyndns/accounts/search_item', 'ddclient statistics'],
+            ['smart', '/api/smart/service/list', 'smart detailed list'],
+            ['netbird', '/api/netbird/status/status', 'netbird status-json'],
+            ['tailscale', '/api/tailscale/status/status', 'tailscale tailscale-status'],
+        ];
+        foreach ($plugins as [$plugin, $url, $event]) {
+            if (self::installed($plugin) && $acl->isPageAccessible($user, $url)) {
+                $events[] = $event;
+            }
+        }
+        if ($acl->isPageAccessible($user, '/api/wireguard/service/show')) {
+            $events[] = 'wireguard show';
+        }
+        $started = microtime(true);
+        $backend->prefetch($events);
+        $prefetched = (int)round((microtime(true) - $started) * 1000);
         $timing = [];
         $read = function (string $key, callable $source) use (&$timing) {
             $started = microtime(true);
@@ -345,6 +381,8 @@ class DashboardController extends ApiControllerBase
             });
         }
         $tiles = array_values(array_filter($tiles));
+
+        $timing['prefetch (parallel)'] = $prefetched;
 
         return ['summary' => Health::summary($tiles), 'tiles' => $tiles, 'timing' => $timing];
     }

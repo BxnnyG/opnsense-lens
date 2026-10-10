@@ -153,7 +153,7 @@ section ifstats;   configctl interface list stats 2>&1 | head -c 20000
 section rrd;       ls /var/db/rrd 2>&1 | head -60
 # what pkg audit says against the database already on the box (stage 57):
 # never -F, Lens does not fetch; the raw shape checks the parser
-section audit;     ls -la /var/db/pkg/vuln.xml 2>&1; /usr/local/sbin/pkg audit -R json-compact 2>&1 | head -c 4000
+section audit;     ls -la /var/db/pkg/vuln.xml 2>&1; /usr/local/sbin/pkg audit --raw=json-compact 2>&1 | head -c 4000
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''
