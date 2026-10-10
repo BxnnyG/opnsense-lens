@@ -130,4 +130,20 @@ class PrivacyTest extends TestCase
         $this->assertTrue($empty['ok']);
         $this->assertFalse(Privacy::forgotten([])['ok']);
     }
+
+    public function testEverythingLensKeepsIsListedWithTheNewestKinds()
+    {
+        $report = \OPNsense\Lens\Privacy::describe([
+            'retention_days' => 365,
+            'settled_hours' => ['rows' => 120, 'oldest' => 1789000000],
+            'firewall_facts' => ['rows' => 2, 'oldest' => 1789990000],
+        ], 1790000000);
+        $keys = array_column($report['kinds'], 'key');
+        $this->assertContains('settled_hours', $keys);
+        $this->assertContains('firewall_facts', $keys);
+        $facts = $report['kinds'][array_search('firewall_facts', $keys)];
+        $this->assertSame('until the next answer replaces it', $facts['kept_for']);
+        $pauses = $report['kinds'][array_search('pauses', $keys)];
+        $this->assertStringContainsString('the reason you gave', $pauses['holds']);
+    }
 }

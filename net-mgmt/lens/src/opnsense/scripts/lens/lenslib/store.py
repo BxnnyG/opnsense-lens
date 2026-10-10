@@ -1446,6 +1446,10 @@ class Store:
             'destination_days': row("SELECT count(*), min(day) FROM destination_day"),
             'labels': row("SELECT count(*), min(updated) FROM device_label"),
             'pauses': row("SELECT count(*), min(started) FROM pause"),
+            # what a week reads instead of the join: per device, per network, and the rest (§4.76, stage 58)
+            'settled_hours': row(
+                "SELECT (SELECT count(*) FROM device_hour) + (SELECT count(*) FROM interface_hour)"
+                " + (SELECT count(*) FROM unattributed_hour), (SELECT min(bucket) FROM hour_done)"),
             'owners': row("SELECT count(DISTINCT owner), NULL FROM device_label WHERE owner <> ''"),
             'line_samples': row(
                 "SELECT (SELECT count(*) FROM gateway_sample) + (SELECT count(*) FROM probe_sample),"

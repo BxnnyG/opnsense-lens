@@ -828,8 +828,9 @@ tr.lens-group > td { background: var(--lens-hover); }
 .cmp-table a { color: inherit; }
 @media (max-width: 767px) {
     /* stacked on a phone, each figure says what it is */
-    .cmp-table > tbody > tr > td[data-label] { display: flex; justify-content: space-between; text-align: left; }
-    .cmp-table > tbody > tr > td[data-label]::before { content: attr(data-label); color: var(--lens-muted); }
+    /* any table: a figure stacked under its row says what it is (stage 55, one look) */
+    table > tbody > tr > td[data-label] { display: flex; justify-content: space-between; gap: 12px; text-align: left; }
+    table > tbody > tr > td[data-label]::before { content: attr(data-label); color: var(--lens-muted); }
 }
 
 /* ---------------------------------------------------------------- services (#44) */
@@ -1007,3 +1008,40 @@ a.health-chip:hover { border-color: var(--lens-accent); color: inherit; text-dec
 .lens-sys-sections > #system { column-span: all; }
 /* "unusual" is a notice like every other (stage 55) */
 #lensBaselineBox { border-left: 4px solid var(--lens-warn); }
+
+/* Settings in three columns that line up (stage 55, one look): the label, the
+   control, the help -- the help began wherever its control happened to end.
+   On a phone they stack, and nothing is wider than the screen. */
+.lens-field { display: grid; grid-template-columns: 16em 24em minmax(0, 1fr); gap: 6px 16px; align-items: start; }
+.lens-field-label { grid-column: 1; }
+.lens-field-input { grid-column: 2; flex-wrap: wrap; min-width: 0; }
+.lens-field-help { grid-column: 3; }
+.lens-field-error { grid-column: 1 / -1; }
+.lens-target input { width: 0; flex: 1 1 0; min-width: 6em; }
+.lens-field-input select { max-width: 100%; }
+@media (max-width: 1100px) {
+    .lens-field { grid-template-columns: 16em minmax(0, 1fr); }
+    .lens-field-help { grid-column: 2; }
+}
+@media (max-width: 767px) {
+    .lens-field { grid-template-columns: minmax(0, 1fr); }
+    .lens-field-label, .lens-field-input, .lens-field-help { grid-column: 1; }
+    .lens-target { flex-wrap: wrap; }
+}
+
+/* a data source's verdict is a state, so a pill (stage 55, one look) */
+.lens-verdict {
+    display: inline-flex; align-items: center; gap: 6px; padding: 1px 9px; border-radius: 12px;
+    border: 1px solid var(--lens-border); font-size: 12px; line-height: 1.6; font-weight: 500; color: inherit;
+}
+.lens-verdict::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--lens-muted); }
+.lens-verdict.lens-ready { border-color: var(--lens-good); color: inherit; }
+.lens-verdict.lens-ready::before { background: var(--lens-good); }
+.lens-verdict.lens-degraded { border-color: var(--lens-warn); color: inherit; }
+.lens-verdict.lens-degraded::before { background: var(--lens-warn); }
+.lens-verdict.lens-absent { color: var(--lens-muted); }
+
+/* a device's name is a link everywhere, and looks like a name everywhere:
+   white, underlined on hover -- the DNS page drew them in the link orange */
+a.lens-name:hover, a.lens-name:focus { text-decoration: underline; color: inherit; }
+.dns-name a.lens-name { font-weight: 500; }

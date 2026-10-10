@@ -1569,6 +1569,10 @@ def kept(store):
     report = store.kept()
     report['retention_days'] = store.setting_int('retention_days')
     report['destinations_on'] = bool(store.settings().get('destinations_enabled'))
+    # the firewall's own facts, in files beside the store (§4.81, §4.91)
+    facts = [known for known in (public_known(), audit_known()) if known]
+    report['firewall_facts'] = {'rows': len(facts),
+                                'oldest': min((int(k.get('at') or 0) for k in facts), default=None)}
     return report
 
 BUNDLE_MAX = 12
@@ -1736,6 +1740,12 @@ def main():
 
     if args.duty == 'purge':
         Store(DB_PATH).purge()
+        # everything means the two files beside the store too
+        for path in (PUBLIC_FILE, AUDIT_FILE):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
         print('purged')
         return 0
 

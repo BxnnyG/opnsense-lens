@@ -62,6 +62,9 @@ class Privacy
             ['summed_days', gettext('Summed days'),
                 gettext('Each device\'s bytes per complete day, summed from the hours above.'),
                 gettext('the baseline and Events, without re-reading every hour')],
+            ['settled_hours', gettext('Settled hours'),
+                gettext('Each finished hour\'s bytes per device and per network, summed once from the hours above.'),
+                gettext('a week or a month that answers in a second, without re-reading every hour')],
             ['destination_days', gettext('Destinations per day'),
                 gettext('Which outside address and port each address talked to, per day.'),
                 gettext('"where it talks" on a device\'s page')],
@@ -69,11 +72,14 @@ class Privacy
                 gettext('Names, types, tags, notes, mutes and owners you gave devices.'),
                 gettext('what you wrote, shown back to you')],
             ['pauses', gettext('Pauses'),
-                gettext('Which device you paused, from when, until when, and how it ended.'),
+                gettext('Which device you paused, from when, until when, how it ended, and the reason you gave.'),
                 gettext('the pause on a device\'s page, and Events')],
             ['line_samples', gettext('Line samples'),
                 gettext('Gateway quality and round trips to public resolvers.'),
                 gettext('the internet panel; describes the line, not a person')],
+            ['firewall_facts', gettext('The firewall\'s own facts'),
+                gettext('Its public address, asked hourly, and the last vulnerability audit of its packages.'),
+                gettext('the internet panel and the Security tile; describes the firewall, not a person')],
         ];
 
         $rows = [];
@@ -91,8 +97,10 @@ class Privacy
                 'oldest' => $count > 0 && $oldest !== null ? Duration::ago($now - $oldest) : '',
                 /* a note stays until it is cleared or its device goes (§4.58) */
                 'kept_for' => $key === 'labels' ? gettext('until you clear it, or its device goes')
+                    /* replaced by the next answer, never a history */
+                    : ($key === 'firewall_facts' ? gettext('until the next answer replaces it')
                     /* a pause still running is the firewall's state, not history (§4.74) */
-                    : ($key === 'pauses' ? sprintf(gettext('%s after it ends'), $keptFor) : $keptFor),
+                    : ($key === 'pauses' ? sprintf(gettext('%s after it ends'), $keptFor) : $keptFor)),
                 'state' => $off ? ($count > 0 ? gettext('switched off; what was kept ages out')
                     : gettext('switched off')) : '',
             ];

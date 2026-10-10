@@ -194,8 +194,9 @@ class Settings
                             '',
                             gettext(
                                 'Phones rotate their private MAC address. On: addresses that announce the same '
-                                . 'name, share a network and were never here at the same time are shown as one '
-                                . 'device, and say so. Off: every address is its own row, as the collector saw it.'
+                                . 'name, share a network and were never here together for longer than a rotation '
+                                . 'takes (20 minutes) are shown as one device, and say so. Off: every address is '
+                                . 'its own row, as the collector saw it.'
                             )
                         ),
                     ],

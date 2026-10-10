@@ -46,9 +46,10 @@
                         .append($('<b/>').text(kind.what))
                         .append($('<div/>').addClass('text-muted').text(kind.holds)))
                     .append($('<td/>').addClass('text-muted').text(kind.why))
-                    .append($('<td/>').addClass('lens-num').text(kind.rows.toLocaleString()))
-                    .append($('<td/>').text(kind.oldest || '–'))
-                    .append($('<td/>').text(kind.state || kind.kept_for)));
+                    .append($('<td/>').addClass('lens-num').attr('data-label', '{{ lang._("Rows") }}')
+                        .text(kind.rows.toLocaleString()))
+                    .append($('<td/>').attr('data-label', '{{ lang._("Oldest") }}').text(kind.oldest || '–'))
+                    .append($('<td/>').attr('data-label', '{{ lang._("Kept for") }}').text(kind.state || kind.kept_for)));
             }
 
             const $else = $('#privElsewhere').empty();
@@ -59,7 +60,7 @@
                 $else.append($('<tr/>')
                     .append($('<td/>').append($('<b/>').text(entry.what)))
                     .append($('<td/>').text(entry.where))
-                    .append($('<td/>').append($clear)));
+                    .append($('<td/>').attr('data-label', '{{ lang._("Cleared on") }}').append($clear)));
             }
         };
 

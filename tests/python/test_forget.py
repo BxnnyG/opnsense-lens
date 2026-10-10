@@ -122,6 +122,10 @@ class ForgetTest(unittest.TestCase):
         self.assertEqual(18, kept['traffic_hours']['rows'])
         self.assertEqual(1, kept['owners']['rows'])
         self.assertEqual(NOW - 6 * 3600, kept['windows']['oldest'])
+        # settled hours are a kind of their own, counted even before any hour settled
+        self.assertIn('settled_hours', kept)
+        self.store.fill_hours(NOW)
+        self.assertGreater(self.store.kept()['settled_hours']['rows'], 0)
 
 
 if __name__ == '__main__':

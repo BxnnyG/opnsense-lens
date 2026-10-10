@@ -498,8 +498,8 @@ class DeviceReport
         $row['folded'] = sprintf(
             gettext(
                 'One device, %d private MAC addresses since %s: each announced "%s" and none was here '
-                . 'at the same time as another. Two phones of the same model that were never home '
-                . 'together would look the same. Settings can switch this off.'
+                . 'together with another for longer than a rotation takes. Two phones of the same model '
+                . 'that were never home together would look the same. Settings can switch this off.'
             ),
             count($members),
             date('j M', $row['first_seen'] ?: $now),

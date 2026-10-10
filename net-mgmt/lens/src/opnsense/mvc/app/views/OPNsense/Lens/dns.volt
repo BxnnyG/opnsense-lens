@@ -32,7 +32,7 @@
         /* one row of a ranked list: a name, what it is, a bar, a figure */
         const ranked = (name, sub, bar, figure, options = {}) => {
             const $name = options.link
-                ? $('<a/>').attr('href', options.link).text(name)
+                ? $('<a/>').addClass('lens-name').attr('href', options.link).text(name)
                 : $('<span/>').text(name);
             const $label = $('<div/>').addClass('dns-name').append($name);
             if (sub) {
