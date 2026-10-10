@@ -438,6 +438,93 @@ class Pause
     }
 
     /**
+     * A group to pause at once (BACKLOG #52, §4.94): every device with a tag,
+     * or every device of one owner -- worked out here from the rows, never
+     * from a list the browser sent (§4.35). Each member is judged as if it
+     * were clicked alone: one refused stays out with its reason (the phone in
+     * your hand is in your own group), the rest are paused; one already
+     * paused keeps its own pause.
+     *
+     * @param string $kind 'tag' or 'owner'
+     * @param string $name the tag or the owner, as the operator wrote it
+     * @return array|null null when the kind is not one; else
+     *   ['members' => n, 'pause' => [row, ...], 'already' => [name, ...], 'refused' => [[name, why], ...]]
+     */
+    public static function group(
+        string $kind,
+        string $name,
+        array $rows,
+        array $status,
+        string $client,
+        array $protected,
+        array $names = []
+    ): ?array {
+        $members = self::members($kind, $name, $rows);
+        if ($members === null) {
+            return null;
+        }
+        $out = ['members' => count($members), 'pause' => [], 'already' => [], 'refused' => []];
+        foreach ($members as $row) {
+            $label = (string)($row['name'] ?? $row['mac'] ?? '?');
+            if (self::ofDevice($row, $status) !== null) {
+                $out['already'][] = $label;
+                continue;
+            }
+            $why = self::refuse($row, $rows, $client, $protected, $names);
+            if ($why !== null) {
+                $out['refused'][] = [$label, $why];
+                continue;
+            }
+            $out['pause'][] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * The rows with a tag, or of an owner -- either compared without case, as
+     * the operator may type it differently on two devices.
+     *
+     * @return array|null null when the kind is not one
+     */
+    public static function members(string $kind, string $name, array $rows): ?array
+    {
+        $name = mb_strtolower(trim($name));
+        if (!in_array($kind, ['tag', 'owner'], true) || $name === '') {
+            return null;
+        }
+
+        return array_values(array_filter($rows, function ($row) use ($kind, $name) {
+            return $kind === 'tag'
+                ? in_array($name, array_map('mb_strtolower', (array)($row['tags'] ?? [])), true)
+                : mb_strtolower(trim((string)($row['owner'] ?? ''))) === $name;
+        }));
+    }
+
+    /**
+     * What resuming a group takes out: every member's resumeSet(), merged,
+     * so the alias is written once.
+     *
+     * @param array $members the group's rows
+     * @return array ['macs' => to remove, 'keys' => open pauses to close]
+     */
+    public static function resumeGroup(array $members, array $open): array
+    {
+        $macs = [];
+        $keys = [];
+        foreach ($members as $row) {
+            $set = self::resumeSet(self::macsOf($row), $row, $open);
+            if ($set['keys'] === []) {
+                continue;
+            }
+            $macs = array_merge($macs, $set['macs']);
+            $keys = array_merge($keys, $set['keys']);
+        }
+
+        return ['macs' => self::macsIn(implode("\n", $macs)), 'keys' => array_values(array_unique($keys))];
+    }
+
+    /**
      * The open pauses whose time has come.
      *
      * @return array their keys

@@ -31,6 +31,14 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 Plugin Changelog
 ================
 
+0.47_1
+
+* pause a group: every device with a tag (Devices, with that tag chosen) or
+  of one person (Who's home) at once. Each is judged as if clicked alone --
+  the device in your hand and protected networks stay out, with the reason,
+  shown before the click -- and the rest go into the alias in one write;
+  each still ends on its own time and can be resumed alone
+
 0.46_1
 
 * tiles for OpenVPN, IPsec and CARP, each only where configured and only

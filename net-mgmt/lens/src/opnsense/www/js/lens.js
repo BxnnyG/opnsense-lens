@@ -963,10 +963,143 @@
         return el;
     };
 
+    /*
+     * Pausing a group (BACKLOG #52, §4.94): a card that first asks the box whom
+     * it would pause and who stays out and why, then pauses -- or resumes --
+     * them all at once. Whom is decided on the box from the tag or owner, never
+     * from a list sent from here (§4.35). The words come from the page, which
+     * translates them.
+     */
+    const groupPause = (host, kind, name, words, done) => {
+        const make = (tag, className, text) => {
+            const el = document.createElement(tag);
+            if (className) {
+                el.className = className;
+            }
+            if (text !== undefined) {
+                el.textContent = text;
+            }
+            return el;
+        };
+        host.textContent = '';
+        const card = make('div', 'content-box dv-card lens-group-pause');
+        card.append(make('div', 'dv-sub', words.title));
+        const who = make('div', 'lens-group-who', words.asking);
+        const form = make('div', 'lens-group-form');
+        const chips = make('div', 'dv-pause-for');
+        let minutes = 60;
+        const morning = () => {
+            const next = new Date();
+            next.setHours(6, 0, 0, 0);
+            if (next <= new Date()) {
+                next.setDate(next.getDate() + 1);
+            }
+            return Math.ceil((next - new Date()) / 60000);
+        };
+        for (const [value, label] of words.durations) {
+            const chip = make('a', 'lens-chip' + (value === 60 ? ' lens-chip-on' : ''), label);
+            chip.href = '#';
+            chip.addEventListener('click', (event) => {
+                event.preventDefault();
+                chips.querySelectorAll('.lens-chip').forEach(c => c.classList.remove('lens-chip-on'));
+                chip.classList.add('lens-chip-on');
+                minutes = value === 'morning' ? morning() : value;
+            });
+            chips.append(chip);
+        }
+        const reason = make('input', 'form-control input-sm');
+        reason.type = 'text';
+        reason.maxLength = 60;
+        reason.placeholder = words.reason;
+        const reasonBox = make('div', 'dv-pause-reason');
+        reasonBox.append(reason);
+        const error = make('div', 'alert alert-danger');
+        error.style.display = 'none';
+        const go = make('button', 'btn btn-primary btn-sm');
+        go.disabled = true;
+        const resume = make('button', 'btn btn-default btn-sm');
+        resume.style.display = 'none';
+        resume.style.marginLeft = '8px';
+        const cancel = make('a', '', words.cancel);
+        cancel.href = '#';
+        cancel.style.marginLeft = '10px';
+        cancel.addEventListener('click', (event) => {
+            event.preventDefault();
+            host.textContent = '';
+        });
+        form.append(chips, reasonBox, error, go, resume, cancel);
+        card.append(who, form);
+        host.append(card);
+
+        const line = (label, items) => {
+            const row = make('div', 'lens-group-line');
+            row.append(make('b', '', label + ' '), document.createTextNode(items));
+            return row;
+        };
+        const ask = () => ajaxGet('/api/lens/pause/group', { kind: kind, name: name }, (reply, status) => {
+            who.textContent = '';
+            if (status !== 'success' || !reply || reply.status !== 'ok') {
+                who.textContent = (reply && reply.message) || words.failed;
+                return;
+            }
+            if (reply.pause.length) {
+                who.append(line(words.pauses, reply.pause.join(', ')));
+            }
+            /* one line per reason: "cannot tell your network" is said once, not per device */
+            const byWhy = new Map();
+            for (const [device, why] of reply.refused) {
+                byWhy.set(why, (byWhy.get(why) || []).concat(device));
+            }
+            for (const [why, devices] of byWhy) {
+                who.append(line(words.out, devices.join(', ') + ' – ' + why));
+            }
+            if (reply.already.length) {
+                who.append(line(words.already, reply.already.join(', ')));
+            }
+            if (!reply.members) {
+                who.textContent = words.none;
+            }
+            /* nothing to pause: no durations and no button that does nothing */
+            for (const part of [chips, reasonBox, go]) {
+                part.style.display = reply.pause.length ? '' : 'none';
+            }
+            resume.style.marginLeft = reply.pause.length ? '8px' : '0';
+            go.disabled = !reply.pause.length;
+            go.innerHTML = '';
+            go.append(make('i', 'fa fa-pause'), document.createTextNode(' ' + words.go.replace('%d', reply.pause.length)));
+            resume.textContent = words.resume.replace('%d', reply.already.length);
+            resume.style.display = reply.already.length ? '' : 'none';
+        });
+        const after = (button, url, data, doing) => {
+            busy(button, true, doing);
+            error.style.display = 'none';
+            ajaxCall(url, Object.assign({ kind: kind, name: name }, data), (reply, status) => {
+                busy(button, false);
+                if (status !== 'success' || !reply || reply.status !== 'ok') {
+                    error.textContent = (reply && reply.message) || words.failed;
+                    error.style.display = '';
+                    return;
+                }
+                if (reply.message) {
+                    error.textContent = reply.message;
+                    error.style.display = '';
+                }
+                ask();
+                if (done) {
+                    done(reply);
+                }
+            });
+        };
+        go.addEventListener('click', () => after(go, '/api/lens/pause/pause_group',
+            { minutes: String(minutes), reason: reason.value || '' }, words.pausing));
+        resume.addEventListener('click', () => after(resume, '/api/lens/pause/resume_group', {}, words.resuming));
+        ask();
+    };
+
     window.Lens = {
         theme: theme, tip: tip, hideTip: hide, when: when, axis: axis, filter: filter, palette: palette,
         services: services, spark: spark, healthRow: healthRow, lines: lines,
         display: display, time: time, date: date, stamp: stamp, busy: busy, remembered: remembered,
-        strip: strip
+        strip: strip, groupPause: groupPause
     };
 })();

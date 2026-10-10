@@ -1045,3 +1045,11 @@ a.health-chip:hover { border-color: var(--lens-accent); color: inherit; text-dec
    white, underlined on hover -- the DNS page drew them in the link orange */
 a.lens-name:hover, a.lens-name:focus { text-decoration: underline; color: inherit; }
 .dns-name a.lens-name { font-weight: 500; }
+
+/* pausing a group (BACKLOG #52, §4.94) */
+.lens-group-open { display: inline-block; font-size: 12px; font-weight: 400; margin-left: 10px; color: var(--lens-muted); }
+.lens-group-open:hover, .lens-group-open:focus { color: inherit; text-decoration: underline; }
+.who-name .lens-group-open { display: block; margin: 2px 0 0 0; }
+.lens-group-pause { margin: 10px 0 14px 0; }
+.lens-group-who { margin: 6px 0 10px 0; }
+.lens-group-line { margin: 2px 0; }

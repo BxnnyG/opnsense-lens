@@ -34,8 +34,10 @@ git -C ../opnsense-core sparse-checkout set src/opnsense/www
 
 python3 tools/preview/seed.py /tmp/lens-preview.sqlite
 
+# opcache off: where php.ini does not revalidate, an edited controller is
+# otherwise served stale until the server restarts
 LENS_PREVIEW_DB=/tmp/lens-preview.sqlite OPNSENSE_CORE=../opnsense-core \
-    php -S 127.0.0.1:8088 tools/preview/router.php
+    php -d opcache.enable=0 -S 127.0.0.1:8088 tools/preview/router.php
 
 # http://127.0.0.1:8088/ui/lens/dashboard            light
 # http://127.0.0.1:8088/ui/lens/dashboard?theme=opnsense-dark

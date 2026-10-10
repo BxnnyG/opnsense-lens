@@ -108,7 +108,53 @@
         let editing = null;
         let opened = new Set();
 
+        /* the group pause card's words (lens.js draws it, the page translates) */
+        const PAUSE_WORDS = {
+            asking: '{{ lang._("Asking the firewall which of them can be paused...") }}',
+            durations: [[30, '{{ lang._("30 minutes") }}'], [60, '{{ lang._("1 hour") }}'],
+                        [120, '{{ lang._("2 hours") }}'], ['morning', '{{ lang._("until 06:00") }}'],
+                        [0, '{{ lang._("until I resume them") }}']],
+            reason: '{{ lang._("Why? (optional, e.g. homework, bedtime) - shown on Events and in the alias") }}',
+            pauses: '{{ lang._("Pauses:") }}',
+            out: '{{ lang._("Stays out:") }}',
+            already: '{{ lang._("Already paused:") }}',
+            none: '{{ lang._("No device has this yet.") }}',
+            go: '{{ lang._("Pause these %d") }}',
+            resume: '{{ lang._("Resume the %d paused") }}',
+            cancel: '{{ lang._("Close") }}',
+            pausing: '{{ lang._("Pausing") }}',
+            resuming: '{{ lang._("Resuming") }}',
+            failed: '{{ lang._("The firewall did not answer.") }}'
+        };
+        /* pausing a group (BACKLOG #52): offered when exactly one tag is
+           chosen, and only to a user who may pause at all */
+        let mayPause = false;
+        ajaxGet('/api/lens/pause/status', {}, (reply, status) => {
+            mayPause = status === 'success' && !!reply && reply.status === 'ok';
+            offerGroup();
+        });
+        const groupTag = () => {
+            const tags = [...Lens.filter.values('tag')];
+            return tags.length === 1 ? tags[0] : null;
+        };
+        const offerGroup = () => {
+            const tag = groupTag();
+            $('#lensGroupPauseOpen').toggle(mayPause && tag !== null)
+                .find('span').text('{{ lang._("Pause every device tagged") }} ' + (tag || '') + '\u2026');
+            if (tag === null) {
+                $('#lensGroupPause').empty();
+            }
+        };
+        $('#lensGroupPauseOpen').on('click', (event) => {
+            event.preventDefault();
+            const tag = groupTag();
+            Lens.groupPause($('#lensGroupPause')[0], 'tag', tag, Object.assign({
+                title: '{{ lang._("Pause every device tagged") }} ' + tag
+            }, PAUSE_WORDS), load);
+        });
+
         const render = () => {
+            offerGroup();
             const needle = ($('#lensSearch').val() || '').toLowerCase().trim();
             const onlyBusy = $('#lensOnlyTraffic').is(':checked');
 
@@ -707,8 +753,12 @@
         <div id="lensTagWrap" class="lens-filters" style="display: none;">
             <span class="lens-chip-label">{{ lang._('your tags') }}</span>
             <span id="lensTags"></span>
+            <a href="#" id="lensGroupPauseOpen" class="lens-group-open" style="display: none;">
+                <i class="fa fa-pause"></i> <span></span>
+            </a>
         </div>
     </div>
+    <div id="lensGroupPause"></div>
 
     <div id="lensEmpty" class="alert alert-info" style="display: none;">
         {{ lang._('No device matches. Clear the search, or switch the segment filters off.') }}

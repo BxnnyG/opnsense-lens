@@ -96,6 +96,33 @@
                         : ''));
         };
 
+        /* the group pause card's words (lens.js draws it, the page translates) */
+        const PAUSE_WORDS = {
+            asking: '{{ lang._("Asking the firewall which of them can be paused...") }}',
+            durations: [[30, '{{ lang._("30 minutes") }}'], [60, '{{ lang._("1 hour") }}'],
+                        [120, '{{ lang._("2 hours") }}'], ['morning', '{{ lang._("until 06:00") }}'],
+                        [0, '{{ lang._("until I resume them") }}']],
+            reason: '{{ lang._("Why? (optional, e.g. homework, bedtime) - shown on Events and in the alias") }}',
+            pauses: '{{ lang._("Pauses:") }}',
+            out: '{{ lang._("Stays out:") }}',
+            already: '{{ lang._("Already paused:") }}',
+            none: '{{ lang._("No device has this yet.") }}',
+            go: '{{ lang._("Pause these %d") }}',
+            resume: '{{ lang._("Resume the %d paused") }}',
+            cancel: '{{ lang._("Close") }}',
+            pausing: '{{ lang._("Pausing") }}',
+            resuming: '{{ lang._("Resuming") }}',
+            failed: '{{ lang._("The firewall did not answer.") }}'
+        };
+        /* a person's devices paused at once (BACKLOG #52), for a user who may pause */
+        let mayPause = false;
+        ajaxGet('/api/lens/pause/status', {}, (reply, status) => {
+            mayPause = status === 'success' && !!reply && reply.status === 'ok';
+            if (report) {
+                draw();
+            }
+        });
+
         let report = null;
 
         /* one strip per person, from the devices they carry (§4.67) */
@@ -110,6 +137,17 @@
             });
             $row.find('.who-name').append($('<div/>').addClass('who-basis').text(entry.basis)).append($devices)
                 .attr('title', entry.devices.map(d => d.name).join(', '));
+            if (mayPause) {
+                $row.find('.who-name').append($('<a/>').attr('href', '#').addClass('lens-group-open')
+                    .append($('<i/>').addClass('fa fa-pause')).append(' {{ lang._("Pause their devices") }}\u2026')
+                    .on('click', (event) => {
+                        event.preventDefault();
+                        Lens.groupPause($('#whoGroupPause')[0], 'owner', entry.name, Object.assign({
+                            title: '{{ lang._("Pause every device of") }} ' + entry.name
+                        }, PAUSE_WORDS));
+                        $('#whoGroupPause')[0].scrollIntoView({ block: 'nearest' });
+                    }));
+            }
             return $row;
         };
 
@@ -187,6 +225,7 @@
     <div id="whoPeopleBox" class="content-box who-box" style="display: none;">
         <div class="who-title">{{ lang._('By person') }}</div>
         <div id="whoPeople"></div>
+        <div id="whoGroupPause"></div>
     </div>
     <div id="whoPeopleHint" class="lens-note-under" style="display: none; margin: 0 0 10px 0;">
         {{ lang._('Say whose a device is - Belongs to, when you name it - and this page draws one strip per person, from the phones they carry.') }}

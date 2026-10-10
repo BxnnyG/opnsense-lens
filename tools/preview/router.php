@@ -42,7 +42,7 @@ if (preg_match('#^/ui/((?:css|js|themes|assets)/.+)$#', $path, $m)) {
     return true;
 }
 
-if (preg_match('#^/api/lens/([a-z]+)/([a-zA-Z]+)$#', $path, $m)) {
+if (preg_match('#^/api/lens/([a-z]+)/([a-zA-Z_]+)$#', $path, $m)) {
     require __DIR__ . '/stubs.php';
     spl_autoload_register(function ($class) {
         $parts = explode('\\', $class);
@@ -58,7 +58,8 @@ if (preg_match('#^/api/lens/([a-z]+)/([a-zA-Z]+)$#', $path, $m)) {
     });
 
     $class = 'OPNsense\\Lens\\Api\\' . ucfirst($m[1]) . 'Controller';
-    $method = $m[2] . 'Action';
+    /* as core: pause_group is pauseGroupAction */
+    $method = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $m[2])))) . 'Action';
     if (!class_exists($class) || !method_exists($class, $method)) {
         http_response_code(404);
         return true;

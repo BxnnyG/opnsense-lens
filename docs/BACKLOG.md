@@ -245,7 +245,8 @@ data Lens already keeps; none is planned before the router round.
   the rule* in Firewall: Rules is a third object Lens would write (a firewall
   category), and rule 6 lets Lens write exactly two; that needs the operator's
   word before it is built. **The operator said yes (2026-10-09): built as
-  `0.38_2`, §4.85.** Pausing a group is still open.
+  `0.38_2`, §4.85.** Pausing a group built 2026-10-10 (`0.47_1`, §4.94):
+  a tag from the device list, a person from Who's home.
 - **#54 — One rule per paused device, by name?** Operator, 2026-10-09: Firewall:
   Rules shows one rule and one pool, "maybe per device, with device names,
   then the lists would have to be dynamic". Recorded with the answer given:

@@ -2347,3 +2347,19 @@ since a split is rarely meant. Everything else is counted and listed, never
 toned. The System page lists the very rows the tile was judged on, so the two
 cannot disagree.
 
+### §4.94 — A group is paused device by device, in one write (2026-10-10, BACKLOG #52)
+**Asked** by the operator on 2026-10-09: pausing grouped, every device with a
+tag or of one person at once.
+**Decision:** a group is a tag or an owner, worked out on the box from the
+device rows, never a list the browser sends (§4.35). Each member is judged as
+if it were clicked alone (§4.83): the device the click comes from, the
+firewall and anything that has been on a protected network stay out, each
+with its reason, shown before the click; one already paused keeps its own
+pause. The rest go into the alias in **one** change — one write to core's
+configuration, one filter reload — but each gets its own record in the store,
+so each ends on its own time and can be resumed alone. Resuming the group
+takes out every member that is paused, again in one write. Core's
+configuration history says how many devices and the tag, never a device's or
+a person's name (edge case 6). No new object: the same alias, rule and
+category as §4.74 and §4.85.
+

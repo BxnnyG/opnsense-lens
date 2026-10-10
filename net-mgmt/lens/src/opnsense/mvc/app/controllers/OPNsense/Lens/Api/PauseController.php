@@ -190,6 +190,166 @@ class PauseController extends ApiControllerBase
     }
 
     /**
+     * Who pausing a group would pause, and who it leaves out and why -- shown
+     * before the click, as everything Lens writes is (§4.5, §4.94).
+     *
+     * @return array
+     */
+    public function groupAction()
+    {
+        $backend = new Backend();
+        $rows = self::rows($backend, $names);
+        $group = Pause::group(
+            (string)$this->request->get('kind', null, ''),
+            (string)$this->request->get('name', null, ''),
+            $rows,
+            self::status($backend),
+            $this->clientAddress(),
+            self::protectedNetworks($backend),
+            $names
+        );
+        if ($group === null) {
+            return ['status' => 'failed', 'message' => gettext('A group is a tag or an owner.')];
+        }
+
+        return ['status' => 'ok', 'members' => $group['members'],
+                'pause' => array_column($group['pause'], 'name'),
+                'already' => $group['already'], 'refused' => $group['refused']];
+    }
+
+    /**
+     * Every device of a tag or an owner at once: one change to the alias, one
+     * reload, and one record per device -- so each ends on its own time and
+     * can be resumed alone (BACKLOG #52, §4.94).
+     *
+     * @return array
+     */
+    public function pauseGroupAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'message' => gettext('POST only')];
+        }
+        $minutes = Pause::minutes($this->request->getPost('minutes', null, ''));
+        if ($minutes === null) {
+            return ['status' => 'failed', 'message' => sprintf(
+                gettext('A pause lasts from 1 minute to %d, or until resumed.'),
+                Pause::MAX_MINUTES
+            )];
+        }
+        $kind = (string)$this->request->getPost('kind', null, '');
+        $backend = new Backend();
+        $rows = self::rows($backend, $names);
+        $group = Pause::group(
+            $kind,
+            (string)$this->request->getPost('name', null, ''),
+            $rows,
+            self::status($backend),
+            $this->clientAddress(),
+            self::protectedNetworks($backend),
+            $names
+        );
+        if ($group === null) {
+            return ['status' => 'failed', 'message' => gettext('A group is a tag or an owner.')];
+        }
+        if ($group['pause'] === []) {
+            return ['status' => 'refused', 'message' => gettext('No device of this group can be paused from here.'),
+                    'already' => $group['already'], 'refused' => $group['refused']];
+        }
+
+        $reason = Pause::reason((string)$this->request->getPost('reason', null, ''));
+        $open = (array)(self::decode($backend, 'lens pauses')['open'] ?? []);
+        $macs = [];
+        foreach ($group['pause'] as $row) {
+            $macs = array_merge($macs, (array)$row['macs']);
+        }
+        $before = PauseRule::addresses();
+        $changed = PauseRule::change(
+            $macs,
+            [],
+            /* a count and the kind, never a device's or a person's name, in
+               core's configuration history (edge case 6); a tag is the
+               operator's own word, as the reason is */
+            ($kind === 'tag'
+                ? sprintf(gettext('Lens: paused %d devices tagged %s'), count($group['pause']), trim(
+                    (string)$this->request->getPost('name', null, '')
+                ))
+                : sprintf(gettext('Lens: paused %d devices of one owner'), count($group['pause'])))
+            . ($reason !== '' ? ': ' . $reason : ''),
+            Pause::reasonsAfter($open, [], $reason)
+        );
+        if (!$changed['ok']) {
+            return ['status' => 'failed', 'message' => $changed['message']];
+        }
+        $dropped = PauseRule::dropStates(array_values(array_diff(PauseRule::addresses(), $before)));
+
+        $until = Pause::until($minutes, time());
+        $unrecorded = [];
+        foreach ($group['pause'] as $row) {
+            $recorded = trim((string)$backend->configdpRun(
+                'lens pause.start',
+                [$row['mac'], implode(',', $row['macs']), (string)($until ?? 0), Pause::reasonParameter($reason)]
+            )) === 'started';
+            if (!$recorded) {
+                $unrecorded[] = (string)$row['name'];
+            }
+        }
+
+        return [
+            'status' => 'ok',
+            'until' => $until,
+            'paused' => array_column($group['pause'], 'name'),
+            'already' => $group['already'],
+            'refused' => $group['refused'],
+            'created' => $changed['created'],
+            'dropped' => $dropped,
+            'message' => $unrecorded === [] ? null : sprintf(
+                gettext('Paused, but Lens could not note it for %s: those will not end on their own.'),
+                implode(', ', $unrecorded)
+            ),
+        ];
+    }
+
+    /**
+     * Every paused device of a group back at once; resuming is always allowed.
+     *
+     * @return array
+     */
+    public function resumeGroupAction()
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'message' => gettext('POST only')];
+        }
+        $backend = new Backend();
+        $members = Pause::members(
+            (string)$this->request->getPost('kind', null, ''),
+            (string)$this->request->getPost('name', null, ''),
+            self::rows($backend, $names)
+        );
+        if ($members === null) {
+            return ['status' => 'failed', 'message' => gettext('A group is a tag or an owner.')];
+        }
+        $open = (array)(self::decode($backend, 'lens pauses')['open'] ?? []);
+        $resume = Pause::resumeGroup($members, $open);
+        if ($resume['keys'] === []) {
+            return ['status' => 'ok', 'resumed' => 0];
+        }
+        $changed = PauseRule::change(
+            [],
+            $resume['macs'],
+            sprintf(gettext('Lens: resumed %d devices'), count($resume['keys'])),
+            Pause::reasonsAfter($open, $resume['keys'])
+        );
+        if (!$changed['ok']) {
+            return ['status' => 'failed', 'message' => $changed['message']];
+        }
+        foreach ($resume['keys'] as $key) {
+            $backend->configdpRun('lens pause.end', [$key, 'resumed']);
+        }
+
+        return ['status' => 'ok', 'resumed' => count($resume['keys'])];
+    }
+
+    /**
      * The alias and the store together; an open pause whose MACs left the
      * alias outside Lens is closed here, so the store does not say "paused"
      * about a device that is not.
@@ -215,15 +375,32 @@ class PauseController extends ApiControllerBase
     private static function target(Backend $backend, string $raw, &$rows, &$names): ?array
     {
         $rows = [];
-        $names = SegmentsController::names();
+        $names = [];
         $macs = DeviceReport::macs($raw);
         if ($macs === null) {
             return null;
         }
 
+        $rows = self::rows($backend, $names);
+        foreach ($rows as $row) {
+            if (in_array($macs[0], $row['macs'], true)) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Every device row, folded as every page folds it (§4.61).
+     */
+    private static function rows(Backend $backend, &$names): array
+    {
+        $names = SegmentsController::names();
         $read = LensCalls::many($backend, ['status' => ['brief'], 'devices' => ['devices']]);
         $status = $read['status'];
-        $rows = DeviceReport::describe(
+
+        return DeviceReport::describe(
             $read['devices'],
             self::decode($backend, 'interface list macdb'),
             [],
@@ -232,14 +409,6 @@ class PauseController extends ApiControllerBase
             $names,
             (bool)($status['fold_randomised'] ?? true)
         )['devices'];
-
-        foreach ($rows as $row) {
-            if (in_array($macs[0], $row['macs'], true)) {
-                return $row;
-            }
-        }
-
-        return null;
     }
 
     private static function protectedNetworks(Backend $backend): array

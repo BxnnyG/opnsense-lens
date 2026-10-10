@@ -326,4 +326,64 @@ class PauseTest extends TestCase
         $this->assertSame('Lens: paused devices', Pause::ruleDescription([]));
         $this->assertSame('Lens: paused devices - Hausaufgaben', Pause::ruleDescription(['Hausaufgaben', '']));
     }
+
+    /* BACKLOG #52, §4.94: a group is judged device by device */
+    private function family(): array
+    {
+        $rows = $this->household();
+        $rows['laptop'] += ['name' => 'Laptop', 'owner' => 'Anna', 'tags' => ['kids']];
+        $rows['tv'] += ['name' => 'TV', 'owner' => null, 'tags' => ['Kids', 'media']];
+        $rows['phone'] += ['name' => 'Phone', 'owner' => 'anna ', 'tags' => []];
+        $rows['admin'] += ['name' => 'Admin', 'owner' => null, 'tags' => ['kids']];
+        $rows['firewall'] += ['name' => 'Firewall', 'owner' => null, 'tags' => []];
+
+        return array_values($rows);
+    }
+
+    public function testATagGroupPausesWhoMayBeAndSaysWhyNotForTheRest()
+    {
+        $status = Pause::status([], [], 'ok');
+        $group = Pause::group('tag', 'KIDS', $this->family(), $status, '10.0.20.77', ['vlan0.10'], self::NAMES);
+        $this->assertSame(3, $group['members']);
+        $this->assertSame(['Laptop', 'TV'], array_column($group['pause'], 'name'));
+        $this->assertSame('Admin', $group['refused'][0][0]);
+        $this->assertStringContainsString('MGNT', $group['refused'][0][1]);
+    }
+
+    public function testTheDeviceInYourHandStaysOutOfYourOwnGroup()
+    {
+        $status = Pause::status([], [], 'ok');
+        $group = Pause::group('owner', 'Anna', $this->family(), $status, '10.0.20.77', ['vlan0.10'], self::NAMES);
+        $this->assertSame(['Laptop'], array_column($group['pause'], 'name'));
+        $this->assertSame([['Phone', 'This is the device you are using right now.']], $group['refused']);
+    }
+
+    public function testOneAlreadyPausedKeepsItsOwnPause()
+    {
+        $status = Pause::status(['3c:22:fb:00:00:02'], [
+            ['mac' => '3c:22:fb:00:00:02', 'macs' => ['3c:22:fb:00:00:02'], 'started' => 1, 'until' => 99],
+        ], 'ok');
+        $group = Pause::group('tag', 'kids', $this->family(), $status, '10.0.20.77', ['vlan0.10'], self::NAMES);
+        $this->assertSame(['Laptop'], $group['already']);
+        $this->assertSame(['TV'], array_column($group['pause'], 'name'));
+    }
+
+    public function testAGroupIsATagOrAnOwnerAndNothingElse()
+    {
+        $this->assertNull(Pause::group('segment', 'HOME', $this->family(), [], '', []));
+        $this->assertNull(Pause::group('tag', '  ', $this->family(), [], '', []));
+        $this->assertSame([], Pause::members('tag', 'nobody', $this->family()));
+    }
+
+    public function testResumingAGroupTakesOutEveryMemberPausedAndNoOneElse()
+    {
+        $open = [
+            ['mac' => '3c:22:fb:00:00:02', 'macs' => ['3c:22:fb:00:00:02']],
+            ['mac' => '9a:11:22:00:00:04', 'macs' => ['9a:11:22:00:00:04', 'de:ad:be:00:00:05']],
+            ['mac' => 'a4:77:33:00:00:03', 'macs' => ['a4:77:33:00:00:03']],
+        ];
+        $resume = Pause::resumeGroup(Pause::members('owner', 'Anna', $this->family()), $open);
+        $this->assertSame(['3c:22:fb:00:00:02', '9a:11:22:00:00:04'], $resume['keys']);
+        $this->assertSame(['3c:22:fb:00:00:02', '9a:11:22:00:00:04', 'de:ad:be:00:00:05'], $resume['macs']);
+    }
 }
