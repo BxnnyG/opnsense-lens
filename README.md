@@ -20,7 +20,7 @@ only in tests is in [docs/ROADMAP.md](docs/ROADMAP.md).
 | Page | What it answers |
 |---|---|
 | **Dashboard** | One sentence first; the areas that need a look; the internet line with public address, round trips and an uptime strip you can hover; who is home, what moved, what was unusual |
-| **System** | Every area of the firewall — internet, system, interfaces, temperature, updates, security (known vulnerabilities in installed packages), services, certificates, and DynDNS, SMART, WireGuard, NetBird, Tailscale where installed — with its reason, its history from OPNsense's own records, and the OPNsense page that fixes it |
+| **System** | Every area of the firewall — internet, system, interfaces, temperature, updates, security (known vulnerabilities in installed packages), services, certificates, and DynDNS, SMART, WireGuard, NetBird, Tailscale, OpenVPN, IPsec, CARP where configured — with its reason, its history from OPNsense's own records, and the OPNsense page that fixes it |
 | **Devices** | Every device, by the name it is known by, with its traffic, its addresses over time, presence and how sure Lens is of each |
 | **A device** | Its traffic hour by hour, its week, where it talks, what it looked up, which services it asked for; name it, tag it, pause it |
 | **Who's home** | When each device — and each person, by the phones they carry — was on the network |

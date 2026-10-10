@@ -17,7 +17,16 @@
       <collect><enable>1</enable></collect>
     </Netflow>
     <unboundplus><general><stats>0</stats></general></unboundplus>
+    <!-- stage 59: one road-warrior server; names only, the preview carries no key -->
+    <OpenVPN><Instances>
+      <Instance uuid="0e0e0e0e-0000-4000-8000-000000000059"><vpnid>1</vpnid><enabled>1</enabled><role>server</role><description>Road warriors</description></Instance>
+    </Instances></OpenVPN>
   </OPNsense>
+  <!-- stage 59: HOME and SERVER shared with a second firewall, this one master -->
+  <virtualip>
+    <vip uuid="0f0f0f0f-0000-4000-8000-000000000001"><mode>carp</mode><vhid>20</vhid><subnet>10.10.20.254</subnet><interface>opt2</interface></vip>
+    <vip uuid="0f0f0f0f-0000-4000-8000-000000000002"><mode>carp</mode><vhid>30</vhid><subnet>10.10.30.254</subnet><interface>opt5</interface></vip>
+  </virtualip>
   <!-- stage 50: the web GUI's certificate, in use; public part only, no key -->
   <system>
     <webgui>

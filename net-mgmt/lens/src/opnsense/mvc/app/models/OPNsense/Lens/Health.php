@@ -667,6 +667,111 @@ class Health
     }
 
     /**
+     * OpenVPN (stage 59): every enabled instance runs, every client tunnel is
+     * through to its server. A server nobody is connected to is no fault.
+     *
+     * @param array|null $rows Tunnels::openvpn(), null when OpenVPN did not answer
+     */
+    public static function openvpn(?array $rows): array
+    {
+        $tile = self::tile('openvpn', gettext('OpenVPN'), 'fa-lock', '/ui/openvpn/status');
+        if ($rows === null) {
+            return self::grey($tile, gettext('OpenVPN did not answer.'));
+        }
+        $instances = array_values(array_filter($rows, function ($row) {
+            return $row['how'] === 'server' || $row['how'] === 'client';
+        }));
+        /* every other row is a client on a server */
+        $connected = count($rows) - count($instances);
+        $tile['detail'] = array_map(function ($row) {
+            return trim($row['name']) . ': ' . $row['state'];
+        }, array_slice($instances, 0, 6));
+
+        return self::judged($tile, $rows, sprintf(gettext('Every instance runs; clients connected: %d.'), $connected));
+    }
+
+    /**
+     * IPsec (stage 59): switched on and running, and every tunnel that should
+     * start on its own is up. Road warriors and tunnels that wait for traffic
+     * are counted, never judged.
+     *
+     * @param array|null $rows Tunnels::ipsec(), null when IPsec did not answer
+     * @param bool $running false when strongSwan says it is not active
+     */
+    public static function ipsec(?array $rows, bool $running): array
+    {
+        $tile = self::tile('ipsec', gettext('IPsec'), 'fa-lock', '/ui/ipsec/sessions');
+        if (!$running) {
+            return self::say($tile, 'bad', gettext('IPsec is switched on, but strongSwan is not running.'));
+        }
+        if ($rows === null) {
+            return self::grey($tile, gettext('IPsec did not answer.'));
+        }
+        $up = count(array_filter($rows, function ($row) {
+            return $row['tone'] === 'good';
+        }));
+        $tile['detail'] = array_map(function ($row) {
+            return $row['name'] . ': ' . $row['state'];
+        }, array_slice($rows, 0, 6));
+
+        return self::judged($tile, $rows, sprintf(gettext('%d of %d connections up.'), $up, count($rows)));
+    }
+
+    /**
+     * CARP (stage 59): this firewall is master or backup for every virtual
+     * address -- and the same for all of them. Master for some and backup for
+     * others means the two firewalls split the work, which is rarely meant.
+     *
+     * @param array $rows Tunnels::carp()
+     */
+    public static function carp(array $rows): array
+    {
+        $tile = self::tile('carp', gettext('High availability'), 'fa-clone', '/ui/diagnostics/interface/vip');
+        $states = array_count_values(array_column($rows, 'state'));
+        $tile['detail'] = array_map(function ($state, $count) {
+            return $count . ' ' . $state;
+        }, array_keys($states), $states);
+        $judged = self::judged($tile, $rows, '');
+        if ($judged['tone'] !== 'good') {
+            return $judged;
+        }
+        if (isset($states['MASTER'], $states['BACKUP'])) {
+            return self::say($tile, 'warn', sprintf(
+                gettext('Split: master for %d, backup for %d virtual addresses. '
+                    . 'The two firewalls share the work, which is rarely meant.'),
+                $states['MASTER'],
+                $states['BACKUP']
+            ));
+        }
+
+        return self::say($tile, 'good', isset($states['MASTER'])
+            ? sprintf(gettext('Master for every virtual address (%d).'), $states['MASTER'])
+            : sprintf(
+                gettext('Backup for every virtual address (%d); the other firewall serves.'),
+                $states['BACKUP'] ?? 0
+            ));
+    }
+
+    /**
+     * A tile judged on its rows: the worst row leads, in its own words.
+     */
+    private static function judged(array $tile, array $rows, string $good): array
+    {
+        foreach (['bad', 'warn'] as $tone) {
+            $troubled = array_values(array_filter($rows, function ($row) use ($tone) {
+                return $row['tone'] === $tone;
+            }));
+            if ($troubled !== []) {
+                $first = sprintf('%s: %s.', trim($troubled[0]['name']), $troubled[0]['state']);
+                return self::say($tile, $tone, count($troubled) === 1 ? $first
+                    : sprintf(gettext('%s And %d more.'), $first, count($troubled) - 1));
+            }
+        }
+
+        return self::say($tile, 'good', $good);
+    }
+
+    /**
      * The internet tile, from what Internet::describe() already decided.
      */
     public static function internet(?array $internet): array

@@ -1,0 +1,17 @@
+{
+ "server": {
+  "0e0e0e0e-0000-4000-8000-000000000059": {
+   "status": "ok",
+   "client_list": [
+    {
+     "common_name": "annas-laptop",
+     "real_address": "198.51.100.23:51820",
+     "virtual_address": "10.8.0.2",
+     "bytes_received": "1048576",
+     "bytes_sent": "8388608",
+     "connected_since": "2026-10-10 14:02:11"
+    }
+   ]
+  }
+ }
+}

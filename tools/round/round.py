@@ -154,6 +154,32 @@ section rrd;       ls /var/db/rrd 2>&1 | head -60
 # what pkg audit says against the database already on the box (stage 57):
 # never -F, Lens does not fetch; the raw shape checks the parser
 section audit;     ls -la /var/db/pkg/vuln.xml 2>&1; /usr/local/sbin/pkg audit --raw=json-compact 2>&1 | head -c 4000
+# OpenVPN, IPsec, CARP (stage 59): the shape only -- states and counts, no
+# addresses, names or keys -- so Tunnels is checked against what the box says
+section tunnels;   configctl openvpn connections client,server 2>&1 | /usr/local/bin/python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except ValueError:
+    sys.exit(print("openvpn: not json"))
+for role, items in d.items():
+    for key, item in items.items():
+        print("openvpn", role, key[:8], item.get("status"), "clients", len(item.get("client_list", [])))
+'; configctl ipsec list status 2>&1 | /usr/local/bin/python3 -c '
+import json, sys
+raw = sys.stdin.read().strip()
+try:
+    d = json.loads(raw)
+except ValueError:
+    sys.exit(print("ipsec:", raw[:60]))
+for name, conn in d.items():
+    print("ipsec", name[:12], "sas", len(conn.get("sas", [])), "routed", conn.get("routed"))
+'; configctl interface list ifconfig 2>&1 | /usr/local/bin/python3 -c '
+import json, sys
+for dev, data in json.load(sys.stdin).items():
+    for vhid, carp in (data.get("carp") or {}).items():
+        print("carp", dev, vhid, carp.get("status"))
+'
 section crash;     ls /var/crash 2>/dev/null | grep -v minfree | head -5
 section end
 '''

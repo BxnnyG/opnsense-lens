@@ -30,10 +30,12 @@ namespace OPNsense\Lens\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\ACL;
+use OPNsense\Core\Config;
 use OPNsense\Core\Backend;
 use OPNsense\Lens\Health;
 use OPNsense\Lens\PrefetchedBackend;
 use OPNsense\Lens\SystemDetail;
+use OPNsense\Lens\Tunnels;
 use OPNsense\Lens\SystemHistory;
 use OPNsense\Lens\Window;
 
@@ -83,7 +85,8 @@ class SystemController extends ApiControllerBase
             DashboardController::installed('smart') ? ['smart detailed list'] : [],
             DashboardController::installed('ddclient') ? ['ddclient statistics'] : [],
             DashboardController::installed('netbird') ? ['netbird status-json'] : [],
-            DashboardController::installed('tailscale') ? ['tailscale tailscale-status'] : []
+            DashboardController::installed('tailscale') ? ['tailscale tailscale-status'] : [],
+            [PrefetchedBackend::event('interface list ifconfig', [null])]
         ));
         $now = time();
         $out = [];
@@ -147,6 +150,27 @@ class SystemController extends ApiControllerBase
             $out['tailscale'] = SystemDetail::tailscale(
                 (array)DashboardController::decodeOrNull($backend, 'tailscale tailscale-status')
             );
+        }
+        /* OpenVPN, IPsec, CARP (stage 59): the tile's own rows */
+        $config = Config::getInstance()->object();
+        if ($acl->isPageAccessible($user, '/api/openvpn/service/search_sessions')) {
+            $configured = Tunnels::openvpnConfigured($config);
+            if ($configured !== []) {
+                $out['openvpn'] = (array)DashboardController::openvpnRows($backend, $configured);
+            }
+        }
+        $ipsecSeen = $acl->isPageAccessible($user, '/api/ipsec/sessions/search_phase1');
+        if (!empty((string)$config->ipsec->enable) && $ipsecSeen) {
+            $configured = Tunnels::ipsecConfigured($config);
+            if ($configured !== []) {
+                $out['ipsec'] = (array)DashboardController::ipsecRows($backend, $configured)[0];
+            }
+        }
+        if ($acl->isPageAccessible($user, '/api/diagnostics/interface/get_vip_status')) {
+            $rows = DashboardController::carpRows($backend);
+            if ($rows !== []) {
+                $out['carp'] = $rows;
+            }
         }
 
         return $out;

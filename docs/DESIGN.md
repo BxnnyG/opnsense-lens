@@ -2333,3 +2333,17 @@ Two phones of one model at home together share hours, not minutes, and stay
 two. Checked against router-01's own windows (13 MACs, one group), kept as a
 test with made-up MACs and the real gaps.
 
+### §4.93 — Only what should be up on its own is judged (2026-10-10, stage 59)
+**Seen** while building OpenVPN, IPsec and CARP tiles: much of what these
+list is idle by design — a road-warrior server with nobody connected, an
+IPsec tunnel set to come up on traffic, a backup firewall that serves
+nothing. Calling any of that a fault would teach the operator to ignore the
+row (§4.84).
+**Decision:** a tile judges only what the configuration says should be up by
+itself: an enabled OpenVPN instance runs, a client instance is through to
+its server, an IPsec connection with a real far end and a starting child has
+an SA, a CARP address is master or backup — and the same for all of them,
+since a split is rarely meant. Everything else is counted and listed, never
+toned. The System page lists the very rows the tile was judged on, so the two
+cannot disagree.
+

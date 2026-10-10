@@ -5,8 +5,8 @@ Every device gets an identity that survives an address change, and everything
 OPNsense already knows hangs off it: traffic history, DNS, presence, the
 internet line. Above that, one sentence and one tile per area -- internet,
 system, interfaces, temperature, updates, services, certificates, and DynDNS,
-SMART, WireGuard, NetBird or Tailscale where installed -- each with its reason
-and the OPNsense page that fixes it.
+SMART, WireGuard, NetBird, Tailscale, OpenVPN, IPsec or CARP where
+configured -- each with its reason and the OPNsense page that fixes it.
 
 Lens reads OPNsense's own data rather than measuring again, and stores only
 what nothing else keeps: identity over time, the operator's own names and
@@ -30,6 +30,20 @@ Firewall: Rules and the configuration history; removing Lens removes them.
 
 Plugin Changelog
 ================
+
+0.46_1
+
+* tiles for OpenVPN, IPsec and CARP, each only where configured and only
+  judging what should be up on its own: an instance that does not run, a
+  client not through to its server, a site-to-site tunnel without an SA, a
+  CARP address in INIT, or master for some addresses and backup for others;
+  road warriors and tunnels that wait for traffic are listed, never a fault
+* the remaining pages in one look: settings line up and fit a phone, data
+  source verdicts are pills, device names on DNS look like names, stacked
+  figures say what they are on a phone
+* Privacy lists everything Lens keeps, now with the settled hours and the
+  firewall's own public address and package audit; "delete everything"
+  deletes those two files too
 
 0.45_2
 

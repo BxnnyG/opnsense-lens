@@ -61,10 +61,10 @@
         };
 
         /* NetBird and Tailscale: the same table, who is on the mesh now */
-        const mesh = ($body, peers) => {
-            $body.append(table(['', '{{ lang._("Peer") }}', '{{ lang._("Address") }}', '{{ lang._("State") }}'],
+        const mesh = ($body, peers, first = '{{ lang._("Peer") }}') => {
+            $body.append(table(['', first, '{{ lang._("Address") }}', '{{ lang._("State") }}'],
                 (peers || []).map(p => $('<tr/>')
-                    .append($('<td/>').append(dot(p.online ? 'good' : 'grey')))
+                    .append($('<td/>').append(dot(p.tone || (p.online ? 'good' : 'grey'))))
                     .append(cell(p.name)).append(cell(p.ip))
                     .append(cell(p.state + (p.how ? ' \u00b7 ' + p.how : ''))))));
         };
@@ -126,6 +126,10 @@
             },
             netbird: ($body, details) => mesh($body, details.netbird),
             tailscale: ($body, details) => mesh($body, details.tailscale),
+            /* OpenVPN, IPsec, CARP (stage 59): the rows the tile was judged on */
+            openvpn: ($body, details) => mesh($body, details.openvpn, '{{ lang._("Instance or client") }}'),
+            ipsec: ($body, details) => mesh($body, details.ipsec, '{{ lang._("Connection") }}'),
+            carp: ($body, details) => mesh($body, details.carp, '{{ lang._("Virtual address") }}'),
             security: ($body, details) => {
                 const packages = (details.security || {}).packages || [];
                 if (!packages.length) {

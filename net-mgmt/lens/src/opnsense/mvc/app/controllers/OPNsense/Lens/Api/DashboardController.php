@@ -43,6 +43,7 @@ use OPNsense\Lens\Wan;
 use OPNsense\Lens\LineQuality;
 use OPNsense\Lens\PresenceReport;
 use OPNsense\Lens\SystemFacts;
+use OPNsense\Lens\Tunnels;
 use OPNsense\Lens\Wall;
 use OPNsense\Lens\Window;
 
@@ -280,6 +281,17 @@ class DashboardController extends ApiControllerBase
         if ($acl->isPageAccessible($user, '/api/wireguard/service/show')) {
             $events[] = 'wireguard show';
         }
+        $config = Config::getInstance()->object();
+        $openvpn = $acl->isPageAccessible($user, '/api/openvpn/service/search_sessions')
+            ? Tunnels::openvpnConfigured($config) : [];
+        if ($openvpn !== []) {
+            $events[] = 'openvpn connections client,server';
+        }
+        $ipsecSeen = $acl->isPageAccessible($user, '/api/ipsec/sessions/search_phase1');
+        $ipsec = !empty((string)$config->ipsec->enable) && $ipsecSeen ? Tunnels::ipsecConfigured($config) : [];
+        if ($ipsec !== []) {
+            $events[] = 'ipsec list status';
+        }
         $started = microtime(true);
         $backend->prefetch($events);
         $prefetched = (int)round((microtime(true) - $started) * 1000);
@@ -380,6 +392,23 @@ class DashboardController extends ApiControllerBase
                 return Health::tailscale(self::decodeOrNull($backend, 'tailscale tailscale-status'));
             });
         }
+        if ($openvpn !== []) {
+            $tiles[] = $read('openvpn', function () use ($backend, $openvpn) {
+                return Health::openvpn(self::openvpnRows($backend, $openvpn));
+            });
+        }
+        if ($ipsec !== []) {
+            $tiles[] = $read('ipsec', function () use ($backend, $ipsec) {
+                [$rows, $running] = self::ipsecRows($backend, $ipsec);
+                return Health::ipsec($rows, $running);
+            });
+        }
+        if ($acl->isPageAccessible($user, '/api/diagnostics/interface/get_vip_status')) {
+            $tiles[] = $read('carp', function () use ($backend) {
+                $rows = self::carpRows($backend);
+                return $rows === [] ? null : Health::carp($rows);
+            });
+        }
         $tiles = array_values(array_filter($tiles));
 
         $timing['prefetch (parallel)'] = $prefetched;
@@ -399,6 +428,43 @@ class DashboardController extends ApiControllerBase
         }
 
         return $class::fromArray($status);
+    }
+
+    /** OpenVPN's rows (stage 59); null when it did not answer */
+    public static function openvpnRows(Backend $backend, array $configured): ?array
+    {
+        $connections = self::decodeOrNull($backend, 'openvpn connections client,server');
+
+        return $connections === null ? null : Tunnels::openvpn($connections, $configured);
+    }
+
+    /**
+     * IPsec's rows (stage 59) and whether strongSwan runs: the status script
+     * answers a plain "ipsec not active" when it cannot reach it.
+     *
+     * @return array [rows or null, running]
+     */
+    public static function ipsecRows(Backend $backend, array $configured): array
+    {
+        $raw = trim((string)$backend->configdRun('ipsec list status'));
+        if ($raw === 'ipsec not active') {
+            return [null, false];
+        }
+        $status = json_decode($raw, true);
+
+        return [is_array($status) ? Tunnels::ipsec($status, $configured) : null, true];
+    }
+
+    /** CARP's rows (stage 59), from the ifconfig the interfaces tile already read */
+    public static function carpRows(Backend $backend): array
+    {
+        $ifconfig = json_decode((string)$backend->configdpRun('interface list ifconfig', [null]), true);
+
+        return Tunnels::carp(
+            is_array($ifconfig) ? $ifconfig : [],
+            Tunnels::carpConfigured(Config::getInstance()->object()),
+            SegmentsController::enabled()
+        );
     }
 
     /** a plugin is installed when its configd actions are */
